@@ -5,6 +5,9 @@ import fs from 'fs';
 
 const router = Router();
 
+// URL base del servidor - usa la variable de entorno o la IP local
+const SERVER_URL = process.env.SERVER_URL || 'http://192.168.1.69:3000';
+
 // Configurar almacenamiento
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -36,11 +39,8 @@ router.post('/', upload.single('file'), (req: Request, res: Response) => {
             return res.status(400).json({ error: 'No se subió ningún archivo' });
         }
 
-        // Construir URL pública (asumiendo que servimos 'uploads' en la raíz o bajo /uploads)
-        // Usamos el host de la petición para construir la URL completa
-        const protocol = req.protocol;
-        const host = req.get('host');
-        const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+        // Construir URL pública usando la URL del servidor configurada
+        const fileUrl = `${SERVER_URL}/uploads/${req.file.filename}`;
 
         // Determinar tipo de archivo simple
         const mimeType = req.file.mimetype;

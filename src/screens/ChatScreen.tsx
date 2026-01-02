@@ -11,6 +11,9 @@ import {
     Alert,
     TouchableOpacity,
     Linking,
+    Modal,
+    TextInput,
+    ScrollView,
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -115,24 +118,64 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const flatListRef = useRef<FlatList>(null);
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const isPollingRef = useRef(false);
 
-    useEffect(() => {
-        loadMessages();
-        markAsRead();
-    }, [chatId]);
+    // Call request modal state
+    const [showCallModal, setShowCallModal] = useState(false);
+    const [callName, setCallName] = useState(user?.name || '');
+    const [callPhone, setCallPhone] = useState('');
+    const [callEmergency, setCallEmergency] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const loadMessages = async () => {
+    const isAdmin = user?.rfc === 'ADMIN000CONS';
+
+    // Función para cargar mensajes (usada tanto para carga inicial como polling)
+    const loadMessages = async (isInitialLoad = false) => {
+        // Evitar múltiples peticiones simultáneas
+        if (isPollingRef.current && !isInitialLoad) return;
+
+        isPollingRef.current = true;
         try {
             const result = await api.getChatMessages(chatId);
             if (result.data?.messages) {
-                setMessages(result.data.messages);
+                setMessages(prev => {
+                    // Solo actualizar si hay cambios para evitar re-renders innecesarios
+                    const newMessages = result.data!.messages;
+                    if (JSON.stringify(prev) !== JSON.stringify(newMessages)) {
+                        return newMessages;
+                    }
+                    return prev;
+                });
             }
         } catch (error) {
             console.error('Error loading messages:', error);
         } finally {
-            setIsLoading(false);
+            if (isInitialLoad) {
+                setIsLoading(false);
+            }
+            isPollingRef.current = false;
         }
     };
+
+    // Efecto para carga inicial y configurar polling
+    useEffect(() => {
+        loadMessages(true);
+        markAsRead();
+
+        // Configurar polling cada 5 segundos
+        pollingRef.current = setInterval(() => {
+            loadMessages(false);
+        }, 5000);
+
+        // Limpiar intervalo al desmontar
+        return () => {
+            if (pollingRef.current) {
+                clearInterval(pollingRef.current);
+                pollingRef.current = null;
+            }
+        };
+    }, [chatId]);
 
     const markAsRead = async () => {
         await api.markMessagesAsRead(chatId);
@@ -253,57 +296,171 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         }
     };
 
+    const handleCall = () => {
+        if (isAdmin) {
+            // Admin puede llamar directamente
+            Linking.openURL('tel:5633774723');
+        } else {
+            // Usuario normal ve el formulario de solicitud
+            setShowCallModal(true);
+        }
+    };
+
+    const handleSubmitCallRequest = async () => {
+        if (!callName.trim() || !callPhone.trim() || !callEmergency.trim()) {
+            Alert.alert('Error', 'Por favor llena todos los campos');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const result = await api.createCallRequest(callName, callPhone, callEmergency);
+            if (result.error) {
+                Alert.alert('Error', result.error);
+            } else {
+                Alert.alert(
+                    'Solicitud enviada',
+                    'Tu solicitud de llamada ha sido enviada. El consultor te contactará pronto.',
+                    [{ text: 'OK', onPress: () => setShowCallModal(false) }]
+                );
+                setCallPhone('');
+                setCallEmergency('');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo enviar la solicitud');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={0}
+        >
             <ChatHeader
                 name={userName}
                 avatar={userAvatar}
+                isAdmin={isAdmin}
                 onBack={() => navigation.goBack()}
-            // Ocultar opciones para no admin o lógica de bloqueo si se requiere
+                onCall={handleCall}
             />
 
             <View style={styles.chatContainer}>
-                <KeyboardAvoidingView
-                    style={styles.keyboardView}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={0}
-                >
-                    {isLoading ? (
-                        <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={colors.primary} />
-                        </View>
-                    ) : (
-                        <FlatList
-                            ref={flatListRef}
-                            data={messages}
-                            keyExtractor={(item) => item.id}
-                            renderItem={({ item, index }) => {
-                                const isOwn = item.senderId === user?.id;
-                                const previousMessage = messages[index - 1];
-                                const showTail = !previousMessage || previousMessage.senderId !== item.senderId;
-                                return <MessageBubble message={item} isOwn={isOwn} showTail={showTail} />;
-                            }}
-                            contentContainerStyle={styles.messagesContent}
-                            showsVerticalScrollIndicator={false}
-                            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-                            onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
-                        />
-                    )}
-
-                    {isUploading && (
-                        <View style={styles.uploadingOverlay}>
-                            <ActivityIndicator color="#fff" />
-                            <Text style={{ color: '#fff', marginTop: 8 }}>Subiendo...</Text>
-                        </View>
-                    )}
-
-                    <MessageInput
-                        onSend={(text) => handleSendMessage(text)}
-                        onAttachment={handleAttachment}
+                {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                        <ActivityIndicator size="large" color={colors.primary} />
+                    </View>
+                ) : (
+                    <FlatList
+                        ref={flatListRef}
+                        data={messages}
+                        keyExtractor={(item) => item.id}
+                        renderItem={({ item, index }) => {
+                            const isOwn = item.senderId === user?.id;
+                            const previousMessage = messages[index - 1];
+                            const showTail = !previousMessage || previousMessage.senderId !== item.senderId;
+                            return <MessageBubble message={item} isOwn={isOwn} showTail={showTail} />;
+                        }}
+                        contentContainerStyle={styles.messagesContent}
+                        showsVerticalScrollIndicator={false}
+                        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+                        onLayout={() => flatListRef.current?.scrollToEnd({ animated: false })}
                     />
-                </KeyboardAvoidingView>
+                )}
+
+                {isUploading && (
+                    <View style={styles.uploadingOverlay}>
+                        <ActivityIndicator color="#fff" />
+                        <Text style={{ color: '#fff', marginTop: 8 }}>Subiendo...</Text>
+                    </View>
+                )}
+
+                <MessageInput
+                    onSend={(text) => handleSendMessage(text)}
+                    onAttachment={handleAttachment}
+                />
             </View>
-        </View>
+
+            {/* Modal de solicitud de llamada */}
+            <Modal
+                visible={showCallModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowCallModal(false)}
+            >
+                <KeyboardAvoidingView
+                    style={styles.modalOverlay}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                    <TouchableOpacity
+                        style={styles.modalDismiss}
+                        activeOpacity={1}
+                        onPress={() => setShowCallModal(false)}
+                    />
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Solicitar Llamada</Text>
+                            <TouchableOpacity onPress={() => setShowCallModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.textPrimary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            <Text style={styles.modalSubtitle}>
+                                Completa el formulario y el consultor te llamará lo antes posible.
+                            </Text>
+
+                            <Text style={styles.inputLabel}>Nombre</Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Tu nombre completo"
+                                placeholderTextColor={colors.textMuted}
+                                value={callName}
+                                onChangeText={setCallName}
+                            />
+
+                            <Text style={styles.inputLabel}>Teléfono</Text>
+                            <TextInput
+                                style={styles.modalInput}
+                                placeholder="Tu número de teléfono"
+                                placeholderTextColor={colors.textMuted}
+                                value={callPhone}
+                                onChangeText={setCallPhone}
+                                keyboardType="phone-pad"
+                            />
+
+                            <Text style={styles.inputLabel}>Motivo de la llamada</Text>
+                            <TextInput
+                                style={[styles.modalInput, styles.textArea]}
+                                placeholder="Describe brevemente tu emergencia o consulta..."
+                                placeholderTextColor={colors.textMuted}
+                                value={callEmergency}
+                                onChangeText={setCallEmergency}
+                                multiline
+                                numberOfLines={3}
+                            />
+
+                            <TouchableOpacity
+                                style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                                onPress={handleSubmitCallRequest}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.submitButtonText}>Enviar Solicitud</Text>
+                                )}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+        </KeyboardAvoidingView>
     );
 };
 
@@ -415,7 +572,74 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         alignItems: 'center',
         zIndex: 10,
-    }
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalDismiss: {
+        flex: 1,
+    },
+    modalContent: {
+        backgroundColor: colors.background,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 40,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    modalTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: colors.textPrimary,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: colors.textMuted,
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: 6,
+        marginTop: 12,
+    },
+    modalInput: {
+        backgroundColor: colors.surface,
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 16,
+        color: colors.textPrimary,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    textArea: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    submitButton: {
+        backgroundColor: '#E53935',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    submitButtonDisabled: {
+        opacity: 0.6,
+    },
+    submitButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
 });
 
 export default ChatScreen;

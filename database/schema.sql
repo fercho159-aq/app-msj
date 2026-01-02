@@ -108,3 +108,18 @@ INSERT INTO users (rfc, name, avatar_url, status) VALUES
     ('SARJ920405JKL', 'Roberto Sánchez', 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop', 'online'),
     ('FERL870510MNO', 'Laura Fernández', 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop', 'offline')
 ON CONFLICT (rfc) DO NOTHING;
+
+-- Tabla de solicitudes de llamada
+CREATE TABLE IF NOT EXISTS call_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    emergency TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending', -- pending, completed, cancelled
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX idx_call_requests_status ON call_requests(status);
+CREATE INDEX idx_call_requests_created ON call_requests(created_at DESC);

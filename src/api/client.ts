@@ -1,5 +1,5 @@
 // Configuración de la API - Usa tu IP local para dispositivos móviles
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.81:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.69:3000/api';
 
 interface ApiResponse<T> {
     data?: T;
@@ -257,6 +257,33 @@ class ApiClient {
             body: JSON.stringify({ userId: this.userId }),
         });
     }
+
+    // ==================== CALL REQUESTS ====================
+
+    async createCallRequest(name: string, phone: string, emergency: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ callRequest: CallRequest }>('/calls/request', {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.userId, name, phone, emergency }),
+        });
+    }
+
+    async getCallRequests(status: 'pending' | 'completed' = 'pending') {
+        return this.request<{ callRequests: CallRequest[] }>(`/calls/requests?status=${status}`);
+    }
+
+    async completeCallRequest(requestId: string) {
+        return this.request(`/calls/requests/${requestId}/complete`, {
+            method: 'PUT',
+        });
+    }
+
+    async deleteCallRequest(requestId: string) {
+        return this.request(`/calls/requests/${requestId}`, {
+            method: 'DELETE',
+        });
+    }
 }
 
 // Tipos
@@ -290,6 +317,18 @@ export interface Message {
     mediaUrl: string | null;
     status: 'sent' | 'delivered' | 'read';
     timestamp: string;
+}
+
+export interface CallRequest {
+    id: string;
+    user_id: string;
+    user_rfc?: string;
+    name: string;
+    phone: string;
+    emergency: string;
+    status: 'pending' | 'completed' | 'cancelled';
+    created_at: string;
+    completed_at: string | null;
 }
 
 // Exportar instancia única

@@ -40,6 +40,11 @@ export type RootStackParamList = {
     Chat: { chatId: string; userName: string; userAvatar: string };
     Profile: { userId: string };
     Settings: undefined;
+    EditProfile: undefined;
+    Privacy: undefined;
+    Notifications: undefined;
+    Appearance: undefined;
+    ChatSettings: undefined;
 };
 
 export type BottomTabParamList = {

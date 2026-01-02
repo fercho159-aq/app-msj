@@ -3,3 +3,8 @@ export { ChatScreen } from './ChatScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { CallsScreen } from './CallsScreen';
 export { LoginScreen } from './LoginScreen';
+export { EditProfileScreen } from './settings/EditProfileScreen';
+export { PrivacyScreen } from './settings/PrivacyScreen';
+export { NotificationsScreen } from './settings/NotificationsScreen';
+export { AppearanceScreen } from './settings/AppearanceScreen';
+export { ChatSettingsScreen } from './settings/ChatSettingsScreen';

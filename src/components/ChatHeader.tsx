@@ -7,22 +7,22 @@ import colors, { gradients } from '../theme/colors';
 interface ChatHeaderProps {
     name: string;
     avatar: string;
-    status: 'online' | 'offline' | 'typing';
+    status?: 'online' | 'offline' | 'typing';
     lastSeen?: string;
+    isAdmin?: boolean;
     onBack: () => void;
     onCall?: () => void;
-    onVideoCall?: () => void;
     onMore?: () => void;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
     name,
     avatar,
-    status,
+    status = 'offline',
     lastSeen,
+    isAdmin = false,
     onBack,
     onCall,
-    onVideoCall,
     onMore,
 }) => {
     const getStatusText = () => {
@@ -31,10 +31,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                 return 'en línea';
             case 'typing':
                 return 'escribiendo...';
-            case 'offline':
-                return lastSeen || 'desconectado';
             default:
-                return '';
+                return ''; // No mostrar nada cuando está offline
         }
     };
 
@@ -70,11 +68,15 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
             </TouchableOpacity>
 
             <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionButton} onPress={onVideoCall}>
-                    <Ionicons name="videocam" size={24} color={colors.textPrimary} />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.actionButton} onPress={onCall}>
-                    <Ionicons name="call" size={22} color={colors.textPrimary} />
+                <TouchableOpacity
+                    style={[styles.actionButton, !isAdmin && styles.emergencyButton]}
+                    onPress={onCall}
+                >
+                    <Ionicons
+                        name="call"
+                        size={22}
+                        color={isAdmin ? colors.textPrimary : '#FFFFFF'}
+                    />
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.actionButton} onPress={onMore}>
                     <Ionicons name="ellipsis-vertical" size={22} color={colors.textPrimary} />
@@ -151,6 +153,11 @@ const styles = StyleSheet.create({
     },
     actionButton: {
         padding: 10,
+    },
+    emergencyButton: {
+        backgroundColor: '#E53935',
+        borderRadius: 20,
+        marginRight: 4,
     },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -119,27 +119,56 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const pollingRef = useRef<NodeJS.Timeout | null>(null);
+    const isPollingRef = useRef(false);
 
-    const loadChats = async () => {
+    const loadChats = async (isInitialLoad = false) => {
         if (!user) return;
 
+        // Evitar peticiones simultáneas durante polling
+        if (isPollingRef.current && !isInitialLoad) return;
+
+        isPollingRef.current = true;
         try {
             const result = await api.getChats();
             if (result.data?.chats) {
-                setChats(result.data.chats);
+                setChats(prev => {
+                    // Solo actualizar si hay cambios
+                    const newChats = result.data!.chats;
+                    if (JSON.stringify(prev) !== JSON.stringify(newChats)) {
+                        return newChats;
+                    }
+                    return prev;
+                });
             }
         } catch (error) {
             console.error('Error loading chats:', error);
         } finally {
-            setIsLoading(false);
+            if (isInitialLoad) {
+                setIsLoading(false);
+            }
             setIsRefreshing(false);
+            isPollingRef.current = false;
         }
     };
 
-    // Cargar chats al entrar a la pantalla
+    // Cargar chats y configurar polling al entrar a la pantalla
     useFocusEffect(
         useCallback(() => {
-            loadChats();
+            loadChats(true);
+
+            // Configurar polling cada 5 segundos
+            pollingRef.current = setInterval(() => {
+                loadChats(false);
+            }, 5000);
+
+            // Limpiar intervalo al salir de la pantalla
+            return () => {
+                if (pollingRef.current) {
+                    clearInterval(pollingRef.current);
+                    pollingRef.current = null;
+                }
+            };
         }, [user])
     );
 

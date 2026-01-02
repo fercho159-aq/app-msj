@@ -7,6 +7,7 @@ import { userRoutes } from './routes/users';
 import { chatRoutes } from './routes/chats';
 import { messageRoutes } from './routes/messages';
 import { uploadRoutes } from './routes/upload';
+import { callRoutes } from './routes/calls';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -40,6 +41,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/calls', callRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
