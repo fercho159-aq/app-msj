@@ -3,7 +3,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { TabNavigator } from './TabNavigator';
-import { ChatScreen, LoginScreen } from '../screens';
+import {
+    ChatScreen,
+    LoginScreen,
+    EditProfileScreen,
+    PrivacyScreen,
+    NotificationsScreen,
+    AppearanceScreen,
+    ChatSettingsScreen,
+} from '../screens';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import colors from '../theme/colors';
@@ -39,6 +47,11 @@ export const AppNavigator: React.FC = () => {
                                 animation: 'slide_from_right',
                             }}
                         />
+                        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                        <Stack.Screen name="Privacy" component={PrivacyScreen} />
+                        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                        <Stack.Screen name="Appearance" component={AppearanceScreen} />
+                        <Stack.Screen name="ChatSettings" component={ChatSettingsScreen} />
                     </>
                 ) : (
                     <Stack.Screen

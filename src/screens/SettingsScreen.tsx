@@ -11,8 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../types';
 import colors, { gradients } from '../theme/colors';
+
+type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface SettingItemProps {
     icon: keyof typeof Ionicons.glyphMap;
@@ -57,6 +62,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
 
 export const SettingsScreen: React.FC = () => {
     const { user, logout } = useAuth();
+    const navigation = useNavigation<SettingsNavigationProp>();
 
     const handleLogout = () => {
         Alert.alert(
@@ -94,7 +100,11 @@ export const SettingsScreen: React.FC = () => {
                 contentContainerStyle={styles.scrollContent}
             >
                 {/* Profile Section */}
-                <TouchableOpacity style={styles.profileSection} activeOpacity={0.8}>
+                <TouchableOpacity
+                    style={styles.profileSection}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('EditProfile')}
+                >
                     <View style={styles.profileAvatar}>
                         {user?.avatar_url ? (
                             <Image source={{ uri: user.avatar_url }} style={styles.avatarImage} />
@@ -124,16 +134,19 @@ export const SettingsScreen: React.FC = () => {
                             icon="person-outline"
                             title="Editar perfil"
                             subtitle="Nombre, foto de perfil"
+                            onPress={() => navigation.navigate('EditProfile')}
                         />
                         <SettingItem
                             icon="shield-checkmark-outline"
                             title="Privacidad"
                             subtitle="Última vez, foto de perfil"
+                            onPress={() => navigation.navigate('Privacy')}
                         />
                         <SettingItem
                             icon="notifications-outline"
                             title="Notificaciones"
                             subtitle="Sonidos, alertas"
+                            onPress={() => navigation.navigate('Notifications')}
                         />
                     </View>
                 </View>
@@ -146,16 +159,13 @@ export const SettingsScreen: React.FC = () => {
                             icon="color-palette-outline"
                             title="Apariencia"
                             subtitle="Tema oscuro"
+                            onPress={() => navigation.navigate('Appearance')}
                         />
                         <SettingItem
                             icon="chatbubble-outline"
                             title="Chats"
-                            subtitle="Fondo, tamaño de fuente"
-                        />
-                        <SettingItem
-                            icon="download-outline"
-                            title="Almacenamiento"
-                            subtitle="Administrar descargas"
+                            subtitle="Tamaño de fuente"
+                            onPress={() => navigation.navigate('ChatSettings')}
                         />
                     </View>
                 </View>
