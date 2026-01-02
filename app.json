@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "app",
-    "slug": "app",
+    "slug": "consultora",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,10 +21,17 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fernandotrejo.consultora"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f41b62dd-b165-4377-aaf5-0bd6585d793e"
+      }
+    },
+    "owner": "fernandotrejo"
   }
 }

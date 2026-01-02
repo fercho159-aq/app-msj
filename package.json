@@ -6,16 +6,45 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "server": "npx ts-node --project tsconfig.server.json src/server/index.ts",
+    "db:migrate": "npx ts-node --project tsconfig.server.json src/database/migrate.ts"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~6.1.2",
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-navigation/bottom-tabs": "^7.9.0",
+    "@react-navigation/native": "^7.1.26",
+    "@react-navigation/native-stack": "^7.9.0",
+    "@types/pg": "^8.16.0",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.2.3",
     "expo": "~54.0.30",
+    "expo-dev-client": "~6.0.20",
+    "expo-document-picker": "~14.0.8",
+    "expo-image-picker": "^17.0.10",
+    "expo-linear-gradient": "^15.0.8",
     "expo-status-bar": "~3.0.9",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "multer": "^2.0.2",
+    "pg": "^8.16.3",
     "react": "19.1.0",
-    "react-native": "0.81.5"
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-safe-area-context": "^5.6.2",
+    "react-native-screens": "~4.16.0",
+    "react-native-web": "^0.21.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
     "@types/react": "~19.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "~5.9.2"
   },
   "private": true
