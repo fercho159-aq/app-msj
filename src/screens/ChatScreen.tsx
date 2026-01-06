@@ -22,7 +22,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 
-import { ChatHeader, MessageInput } from '../components';
+import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { api, Message } from '../api';
 import { RootStackParamList } from '../types';
@@ -40,9 +40,10 @@ interface MessageBubbleProps {
     message: Message;
     isOwn: boolean;
     showTail: boolean;
+    onMediaPress?: (url: string, type: string, fileName?: string) => void;
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail, onMediaPress }) => {
     const getStatusIcon = () => {
         switch (message.status) {
             case 'sent': return '✓';
@@ -59,8 +60,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail 
     };
 
     const handleMediaPress = () => {
-        if (message.mediaUrl) {
-            Linking.openURL(message.mediaUrl);
+        if (message.mediaUrl && onMediaPress) {
+            onMediaPress(message.mediaUrl, message.type, message.text || undefined);
         }
     };
 
@@ -69,7 +70,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail 
             <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
 
                 {/* Renderizado de Media */}
-                {message.mediaUrl && (console.log('🖼️ Message media:', { type: message.type, url: message.mediaUrl }), null)}
+
                 {message.type === 'image' && message.mediaUrl && (
                     <TouchableOpacity onPress={handleMediaPress} activeOpacity={0.9}>
                         <Image
@@ -128,6 +129,27 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const [callPhone, setCallPhone] = useState('');
     const [callEmergency, setCallEmergency] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Media preview state
+    const [previewMedia, setPreviewMedia] = useState<{
+        visible: boolean;
+        url: string | null;
+        type: 'image' | 'file' | 'video' | 'audio' | 'text';
+        fileName?: string;
+    }>({ visible: false, url: null, type: 'image' });
+
+    const handleMediaPreview = (url: string, type: string, fileName?: string) => {
+        setPreviewMedia({
+            visible: true,
+            url,
+            type: type as 'image' | 'file' | 'video' | 'audio' | 'text',
+            fileName,
+        });
+    };
+
+    const closeMediaPreview = () => {
+        setPreviewMedia({ visible: false, url: null, type: 'image' });
+    };
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
 
@@ -197,7 +219,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
         setMessages((prev) => [...prev, tempMessage]);
 
-        console.log('📤 Sending message:', { text: text.substring(0, 20), type, mediaUrl });
+
         const result = await api.sendMessage(chatId, text, type, mediaUrl);
 
         if (result.data?.message) {
@@ -284,7 +306,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
             const { url, filename } = uploadResult.data as any;
 
-            console.log('📷 Upload result:', { url, filename, type });
+
 
             // Enviar mensaje con el adjunto
             await handleSendMessage(
@@ -365,7 +387,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                             const isOwn = item.senderId === user?.id;
                             const previousMessage = messages[index - 1];
                             const showTail = !previousMessage || previousMessage.senderId !== item.senderId;
-                            return <MessageBubble message={item} isOwn={isOwn} showTail={showTail} />;
+                            return <MessageBubble message={item} isOwn={isOwn} showTail={showTail} onMediaPress={handleMediaPreview} />;
                         }}
                         contentContainerStyle={styles.messagesContent}
                         showsVerticalScrollIndicator={false}
@@ -464,6 +486,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Media Preview Modal */}
+            <MediaPreview
+                visible={previewMedia.visible}
+                mediaUrl={previewMedia.url}
+                mediaType={previewMedia.type}
+                fileName={previewMedia.fileName}
+                onClose={closeMediaPreview}
+            />
         </KeyboardAvoidingView>
     );
 };
