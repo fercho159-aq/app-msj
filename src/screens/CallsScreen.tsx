@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -17,8 +17,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
+import { useCall } from '../context/CallContext';
 import { api, CallRequest } from '../api';
-import colors, { gradients } from '../theme/colors';
+import colors from '../theme/colors';
 
 interface CallRequestItemProps {
     request: CallRequest;
@@ -78,12 +79,60 @@ const CallRequestItem: React.FC<CallRequestItemProps> = ({ request, onCall, onCo
     );
 };
 
+// Componente para usuarios en línea
+interface OnlineUserItemProps {
+    user: { userId: string; name: string };
+    onCallAudio: () => void;
+    onCallVideo: () => void;
+}
+
+const OnlineUserItem: React.FC<OnlineUserItemProps> = ({ user, onCallAudio, onCallVideo }) => {
+    const getInitials = (name: string) => {
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    };
+
+    return (
+        <View style={styles.onlineUserItem}>
+            <View style={styles.onlineUserInfo}>
+                <LinearGradient
+                    colors={['#667eea', '#764ba2'] as [string, string]}
+                    style={styles.onlineUserAvatar}
+                >
+                    <Text style={styles.onlineUserInitials}>{getInitials(user.name)}</Text>
+                </LinearGradient>
+                <View>
+                    <Text style={styles.onlineUserName}>{user.name}</Text>
+                    <View style={styles.onlineStatus}>
+                        <View style={styles.onlineDot} />
+                        <Text style={styles.onlineStatusText}>En línea</Text>
+                    </View>
+                </View>
+            </View>
+            <View style={styles.callButtons}>
+                <TouchableOpacity
+                    style={[styles.callIconButton, styles.audioCallButton]}
+                    onPress={onCallAudio}
+                >
+                    <Ionicons name="call" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.callIconButton, styles.videoCallButton]}
+                    onPress={onCallVideo}
+                >
+                    <Ionicons name="videocam" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+};
+
 export const CallsScreen: React.FC = () => {
     const { user } = useAuth();
+    const { isConnected, onlineUsers, startCall, connect } = useCall();
     const [callRequests, setCallRequests] = useState<CallRequest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+    const [activeTab, setActiveTab] = useState<'voip' | 'pending' | 'completed'>('voip');
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
@@ -93,7 +142,8 @@ export const CallsScreen: React.FC = () => {
 
         if (showLoading) setIsLoading(true);
         try {
-            const result = await api.getCallRequests(activeTab);
+            const status = activeTab === 'completed' ? 'completed' : 'pending';
+            const result = await api.getCallRequests(status);
             if (result.data?.callRequests) {
                 setCallRequests(result.data.callRequests);
             }
@@ -107,10 +157,13 @@ export const CallsScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            loadCallRequests();
+            if (activeTab !== 'voip') {
+                loadCallRequests();
+            } else {
+                setIsLoading(false);
+            }
 
-            // Polling cada 10 segundos para nuevas solicitudes
-            if (isAdmin) {
+            if (isAdmin && activeTab !== 'voip') {
                 pollingRef.current = setInterval(() => {
                     loadCallRequests(false);
                 }, 10000);
@@ -150,46 +203,18 @@ export const CallsScreen: React.FC = () => {
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        loadCallRequests(false);
+        if (activeTab === 'voip') {
+            connect().finally(() => setIsRefreshing(false));
+        } else {
+            loadCallRequests(false);
+        }
     };
 
-    // Vista para usuarios normales
-    if (!isAdmin) {
-        return (
-            <View style={styles.container}>
-                <StatusBar barStyle="dark-content" />
+    const handleVoIPCall = (userId: string, userName: string, type: 'audio' | 'video') => {
+        startCall(userId, userName, type);
+    };
 
-                <LinearGradient
-                    colors={[colors.backgroundSecondary, colors.background] as [string, string]}
-                    style={styles.header}
-                >
-                    <View style={styles.headerContent}>
-                        <Text style={styles.title}>Llamadas</Text>
-                    </View>
-                </LinearGradient>
-
-                <View style={styles.userInfoContainer}>
-                    <View style={styles.userInfoCard}>
-                        <LinearGradient
-                            colors={['#E53935', '#C62828'] as [string, string]}
-                            style={styles.phoneIconContainer}
-                        >
-                            <Ionicons name="call" size={32} color="#FFFFFF" />
-                        </LinearGradient>
-                        <Text style={styles.userInfoTitle}>¿Necesitas ayuda urgente?</Text>
-                        <Text style={styles.userInfoText}>
-                            Para solicitar una llamada, abre el chat con el consultor y presiona el botón rojo de llamada.
-                        </Text>
-                        <Text style={styles.userInfoSubtext}>
-                            Un consultor te contactará lo antes posible.
-                        </Text>
-                    </View>
-                </View>
-            </View>
-        );
-    }
-
-    // Vista para admin
+    // Vista para admin con tabs
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" />
@@ -199,30 +224,105 @@ export const CallsScreen: React.FC = () => {
                 style={styles.header}
             >
                 <View style={styles.headerContent}>
-                    <Text style={styles.title}>Solicitudes de Llamada</Text>
+                    <Text style={styles.title}>Llamadas</Text>
+                    <View style={styles.connectionIndicator}>
+                        <View style={[styles.connectionDot, isConnected && styles.connectedDot]} />
+                        <Text style={styles.connectionText}>
+                            {isConnected ? 'Conectado' : 'Desconectado'}
+                        </Text>
+                    </View>
                 </View>
 
-                <View style={styles.tabContainer}>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'pending' && styles.tabActive]}
-                        onPress={() => setActiveTab('pending')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
-                            Pendientes
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, activeTab === 'completed' && styles.tabActive]}
-                        onPress={() => setActiveTab('completed')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'completed' && styles.tabTextActive]}>
-                            Completadas
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                {isAdmin && (
+                    <View style={styles.tabContainer}>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'voip' && styles.tabActive]}
+                            onPress={() => setActiveTab('voip')}
+                        >
+                            <Ionicons
+                                name="wifi"
+                                size={16}
+                                color={activeTab === 'voip' ? colors.textPrimary : colors.textMuted}
+                            />
+                            <Text style={[styles.tabText, activeTab === 'voip' && styles.tabTextActive]}>
+                                VoIP
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'pending' && styles.tabActive]}
+                            onPress={() => setActiveTab('pending')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'pending' && styles.tabTextActive]}>
+                                Pendientes
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tab, activeTab === 'completed' && styles.tabActive]}
+                            onPress={() => setActiveTab('completed')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'completed' && styles.tabTextActive]}>
+                                Completadas
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </LinearGradient>
 
-            {isLoading ? (
+            {activeTab === 'voip' ? (
+                // Vista de llamadas VoIP
+                <ScrollView
+                    style={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={isRefreshing}
+                            onRefresh={handleRefresh}
+                            tintColor={colors.primary}
+                        />
+                    }
+                >
+                    {/* Info Card */}
+                    <View style={styles.infoCard}>
+                        <LinearGradient
+                            colors={['#667eea', '#764ba2'] as [string, string]}
+                            style={styles.infoIconContainer}
+                        >
+                            <Ionicons name="call" size={24} color="#FFFFFF" />
+                        </LinearGradient>
+                        <View style={styles.infoContent}>
+                            <Text style={styles.infoTitle}>Llamadas por Internet</Text>
+                            <Text style={styles.infoText}>
+                                Llama a otros usuarios conectados sin usar minutos de tu plan.
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Lista de usuarios en línea */}
+                    <Text style={styles.sectionTitle}>
+                        Usuarios en línea ({onlineUsers.length})
+                    </Text>
+
+                    {onlineUsers.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="people-outline" size={64} color={colors.textMuted} />
+                            <Text style={styles.emptyText}>No hay usuarios conectados</Text>
+                            <Text style={styles.emptySubtext}>
+                                Los usuarios aparecerán aquí cuando estén en línea
+                            </Text>
+                        </View>
+                    ) : (
+                        onlineUsers.map((onlineUser) => (
+                            <OnlineUserItem
+                                key={onlineUser.userId}
+                                user={onlineUser}
+                                onCallAudio={() => handleVoIPCall(onlineUser.userId, onlineUser.name, 'audio')}
+                                onCallVideo={() => handleVoIPCall(onlineUser.userId, onlineUser.name, 'video')}
+                            />
+                        ))
+                    )}
+                </ScrollView>
+            ) : isLoading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.loadingText}>Cargando solicitudes...</Text>
@@ -290,6 +390,28 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: colors.textPrimary,
     },
+    connectionIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: colors.surface,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    connectionDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.error,
+    },
+    connectedDot: {
+        backgroundColor: colors.success,
+    },
+    connectionText: {
+        fontSize: 12,
+        color: colors.textMuted,
+    },
     tabContainer: {
         flexDirection: 'row',
         backgroundColor: colors.surface,
@@ -298,15 +420,18 @@ const styles = StyleSheet.create({
     },
     tab: {
         flex: 1,
-        paddingVertical: 10,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 10,
+        gap: 6,
         borderRadius: 10,
     },
     tabActive: {
         backgroundColor: colors.primary,
     },
     tabText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '500',
         color: colors.textMuted,
     },
@@ -334,12 +459,121 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingTop: 100,
+        paddingTop: 60,
     },
     emptyText: {
         fontSize: 16,
         color: colors.textMuted,
         marginTop: 16,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: colors.textMuted,
+        marginTop: 8,
+        textAlign: 'center',
+    },
+    // Info Card
+    infoCard: {
+        flexDirection: 'row',
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 24,
+        alignItems: 'center',
+    },
+    infoIconContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    infoContent: {
+        flex: 1,
+        marginLeft: 14,
+    },
+    infoTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        marginBottom: 4,
+    },
+    infoText: {
+        fontSize: 13,
+        color: colors.textMuted,
+        lineHeight: 18,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: 16,
+    },
+    // Online User Item
+    onlineUserItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 12,
+    },
+    onlineUserInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    onlineUserAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    onlineUserInitials: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    onlineUserName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: colors.textPrimary,
+    },
+    onlineStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    onlineDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.success,
+        marginRight: 6,
+    },
+    onlineStatusText: {
+        fontSize: 12,
+        color: colors.success,
+    },
+    callButtons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    callIconButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    audioCallButton: {
+        backgroundColor: colors.success,
+    },
+    videoCallButton: {
+        backgroundColor: '#667eea',
     },
     // Request Item Styles
     requestItem: {
@@ -433,47 +667,6 @@ const styles = StyleSheet.create({
         color: colors.success,
         fontWeight: '600',
         fontSize: 15,
-    },
-    // User info styles (for non-admin)
-    userInfoContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    userInfoCard: {
-        backgroundColor: colors.surface,
-        borderRadius: 20,
-        padding: 32,
-        alignItems: 'center',
-        width: '100%',
-    },
-    phoneIconContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    userInfoTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: colors.textPrimary,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    userInfoText: {
-        fontSize: 15,
-        color: colors.textSecondary,
-        textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 12,
-    },
-    userInfoSubtext: {
-        fontSize: 14,
-        color: colors.textMuted,
-        textAlign: 'center',
     },
 });
 
