@@ -138,6 +138,11 @@ export const LoginScreen: React.FC = () => {
                             </View>
                         </View>
                     </View>
+
+                    {/* DEBUG INFO */}
+                    <Text style={{ textAlign: 'center', color: '#999', marginTop: 20, fontSize: 10 }}>
+                        API: {process.env.EXPO_PUBLIC_API_URL || 'http://31.220.109.7:3000/api'}
+                    </Text>
                 </KeyboardAvoidingView>
             </LinearGradient>
         </View>

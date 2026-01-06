@@ -5,8 +5,8 @@ import fs from 'fs';
 
 const router = Router();
 
-// URL base del servidor - usa la variable de entorno o la IP local
-const SERVER_URL = process.env.SERVER_URL || 'http://192.168.1.69:3000';
+// URL base del servidor - usa la variable de entorno o la IP pública del VPS
+const SERVER_URL = process.env.SERVER_URL || 'http://31.220.109.7:3000';
 
 // Configurar almacenamiento
 const storage = multer.diskStorage({

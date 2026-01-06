@@ -1,5 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-import { EventEmitter } from 'events';
+import EventEmitter from 'eventemitter3';
 
 // URL del servidor - cambiar para producción
 const SERVER_URL = 'http://31.220.109.7:3000';
