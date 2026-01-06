@@ -8,13 +8,25 @@ interface User {
     name: string;
 }
 
+// Tipos simplificados para WebRTC (el servidor solo los pasa, no los procesa)
+interface SDPData {
+    type: string;
+    sdp?: string;
+}
+
+interface ICECandidate {
+    candidate?: string;
+    sdpMid?: string | null;
+    sdpMLineIndex?: number | null;
+}
+
 interface CallData {
     to: string;
     from: string;
     fromName: string;
-    offer?: RTCSessionDescriptionInit;
-    answer?: RTCSessionDescriptionInit;
-    candidate?: RTCIceCandidateInit;
+    offer?: SDPData;
+    answer?: SDPData;
+    candidate?: ICECandidate;
     callType: 'audio' | 'video';
 }
 
