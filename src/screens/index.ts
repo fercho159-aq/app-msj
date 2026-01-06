@@ -8,3 +8,5 @@ export { PrivacyScreen } from './settings/PrivacyScreen';
 export { NotificationsScreen } from './settings/NotificationsScreen';
 export { AppearanceScreen } from './settings/AppearanceScreen';
 export { ChatSettingsScreen } from './settings/ChatSettingsScreen';
+export { HelpCenterScreen } from './settings/HelpCenterScreen';
+export { TermsScreen } from './settings/TermsScreen';

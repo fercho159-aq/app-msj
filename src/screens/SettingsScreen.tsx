@@ -177,10 +177,12 @@ export const SettingsScreen: React.FC = () => {
                         <SettingItem
                             icon="help-circle-outline"
                             title="Centro de ayuda"
+                            onPress={() => navigation.navigate('HelpCenter')}
                         />
                         <SettingItem
                             icon="document-text-outline"
                             title="Términos y condiciones"
+                            onPress={() => navigation.navigate('Terms')}
                         />
                         <SettingItem
                             icon="information-circle-outline"

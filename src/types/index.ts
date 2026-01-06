@@ -45,6 +45,8 @@ export type RootStackParamList = {
     Notifications: undefined;
     Appearance: undefined;
     ChatSettings: undefined;
+    HelpCenter: undefined;
+    Terms: undefined;
 };
 
 export type BottomTabParamList = {

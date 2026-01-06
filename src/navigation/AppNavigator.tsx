@@ -11,6 +11,8 @@ import {
     NotificationsScreen,
     AppearanceScreen,
     ChatSettingsScreen,
+    HelpCenterScreen,
+    TermsScreen,
 } from '../screens';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
@@ -52,6 +54,8 @@ export const AppNavigator: React.FC = () => {
                         <Stack.Screen name="Notifications" component={NotificationsScreen} />
                         <Stack.Screen name="Appearance" component={AppearanceScreen} />
                         <Stack.Screen name="ChatSettings" component={ChatSettingsScreen} />
+                        <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
+                        <Stack.Screen name="Terms" component={TermsScreen} />
                     </>
                 ) : (
                     <Stack.Screen

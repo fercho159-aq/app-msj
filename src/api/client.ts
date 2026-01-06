@@ -1,5 +1,5 @@
 // Configuración de la API - Usa tu IP local para dispositivos móviles
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.69:3000/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.3:3000/api';
 
 interface ApiResponse<T> {
     data?: T;
