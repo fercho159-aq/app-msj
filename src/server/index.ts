@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
@@ -8,9 +9,14 @@ import { chatRoutes } from './routes/chats';
 import { messageRoutes } from './routes/messages';
 import { uploadRoutes } from './routes/upload';
 import { callRoutes } from './routes/calls';
+import { initializeWebSocket } from './websocket/signaling';
 
 const app = express();
+const httpServer = createServer(app);
 const port = process.env.PORT || 3000;
+
+// Inicializar WebSocket para llamadas
+initializeWebSocket(httpServer);
 
 // Middlewares
 app.use(helmet({
@@ -27,8 +33,10 @@ app.use((req, res, next) => {
 });
 
 // Servir archivos estáticos (uploads)
-// Aseguramos que la ruta sea correcta independientemente de si corremos ts-node o node
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
+// Servir página web de llamadas
+app.use('/call', express.static(path.join(__dirname, '../../public/call')));
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
@@ -57,16 +65,18 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     });
 });
 
-// Start server
-app.listen(port, () => {
+// Start server con HTTP (para WebSocket)
+httpServer.listen(port, () => {
     console.log(`
 🚀 Servidor de Mensajería iniciado!
 📍 URL: http://localhost:${port}
+📞 WebSocket: ws://localhost:${port}
 📚 Endpoints disponibles:
    - POST   /api/auth/login          (login con RFC)
    - GET    /api/users               (listar usuarios)
    - GET    /api/chats               (listar chats)
    - POST   /api/upload              (subir archivos)
+   - GET    /call                    (página web de llamadas)
   `);
 });
 
