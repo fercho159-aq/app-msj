@@ -69,6 +69,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail 
             <View style={[styles.bubble, isOwn ? styles.ownBubble : styles.otherBubble]}>
 
                 {/* Renderizado de Media */}
+                {message.mediaUrl && (console.log('🖼️ Message media:', { type: message.type, url: message.mediaUrl }), null)}
                 {message.type === 'image' && message.mediaUrl && (
                     <TouchableOpacity onPress={handleMediaPress} activeOpacity={0.9}>
                         <Image
@@ -196,6 +197,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
         setMessages((prev) => [...prev, tempMessage]);
 
+        console.log('📤 Sending message:', { text: text.substring(0, 20), type, mediaUrl });
         const result = await api.sendMessage(chatId, text, type, mediaUrl);
 
         if (result.data?.message) {
@@ -281,6 +283,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             }
 
             const { url, filename } = uploadResult.data as any;
+
+            console.log('📷 Upload result:', { url, filename, type });
 
             // Enviar mensaje con el adjunto
             await handleSendMessage(

@@ -15,9 +15,16 @@ router.post('/', async (req: Request, res: Response) => {
     try {
         const { chatId, senderId, text, type, mediaUrl } = req.body;
 
-        if (!chatId || !senderId || !text) {
+        if (!chatId || !senderId) {
             return res.status(400).json({
-                error: 'chatId, senderId y text son requeridos'
+                error: 'chatId y senderId son requeridos'
+            });
+        }
+
+        // Debe haber texto o mediaUrl
+        if (!text && !mediaUrl) {
+            return res.status(400).json({
+                error: 'Se requiere texto o un archivo adjunto'
             });
         }
 
