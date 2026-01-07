@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     status VARCHAR(20) DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'typing')),
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    push_token TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

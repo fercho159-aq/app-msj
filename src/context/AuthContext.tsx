@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, User } from '../api/client';
+import { notificationService } from '../services/notificationService';
 
 interface AuthContextType {
     user: User | null;
@@ -23,6 +24,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         loadStoredUser();
     }, []);
+
+    // Inicializar notificaciones cuando cambia el usuario
+    useEffect(() => {
+        if (user) {
+            initializeNotifications(user.id);
+        }
+    }, [user]);
+
+    // Limpiar listeners al desmontar
+    useEffect(() => {
+        return () => {
+            notificationService.cleanup();
+        };
+    }, []);
+
+    const initializeNotifications = async (userId: string) => {
+        try {
+            // Inicializar el servicio de notificaciones
+            const pushToken = await notificationService.initialize();
+
+            if (pushToken) {
+                // Registrar el token en el servidor
+                await notificationService.registerPushToken(userId);
+                console.log('🔔 Notificaciones push configuradas correctamente');
+            }
+        } catch (error) {
+            console.error('Error al configurar notificaciones:', error);
+        }
+    };
 
     const loadStoredUser = async () => {
         try {
@@ -69,6 +99,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             await api.logout();
             await AsyncStorage.removeItem(STORAGE_KEY);
+            await AsyncStorage.removeItem('pushToken');
+            notificationService.cleanup();
             setUser(null);
         } catch (error) {
             console.error('Error during logout:', error);
@@ -108,3 +140,4 @@ export const useAuth = (): AuthContextType => {
 };
 
 export default AuthContext;
+

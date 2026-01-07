@@ -141,7 +141,7 @@ export const LoginScreen: React.FC = () => {
 
                     {/* DEBUG INFO */}
                     <Text style={{ textAlign: 'center', color: '#999', marginTop: 20, fontSize: 10 }}>
-                        API: {process.env.EXPO_PUBLIC_API_URL || 'http://31.220.109.7:3000/api'}
+                        API: {process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api'}
                     </Text>
                 </KeyboardAvoidingView>
             </LinearGradient>

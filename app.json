@@ -29,6 +29,18 @@
       "package": "com.fernandotrejo.consultora",
       "usesCleartextTraffic": true
     },
+    "plugins": [
+      "./plugins/withAndroidCleartextTraffic",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#6366F1",
+          "sounds": [],
+          "defaultChannel": "messages"
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },

@@ -194,14 +194,22 @@ export const CallModal: React.FC = () => {
                         <>
                             <TouchableOpacity
                                 style={[styles.actionButton, styles.rejectButton]}
-                                onPress={rejectCall}
+                                onPress={() => {
+                                    console.log('🔴 Botón RECHAZAR presionado');
+                                    rejectCall();
+                                }}
+                                activeOpacity={0.7}
                             >
                                 <Ionicons name="call" size={32} color="#fff" style={styles.rotatedIcon} />
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 style={[styles.actionButton, styles.acceptButton]}
-                                onPress={acceptCall}
+                                onPress={() => {
+                                    console.log('🟢 Botón ACEPTAR presionado');
+                                    acceptCall();
+                                }}
+                                activeOpacity={0.7}
                             >
                                 <Ionicons name="call" size={32} color="#fff" />
                             </TouchableOpacity>
@@ -210,7 +218,11 @@ export const CallModal: React.FC = () => {
                         // Botón para terminar llamada
                         <TouchableOpacity
                             style={[styles.actionButton, styles.rejectButton]}
-                            onPress={endCall}
+                            onPress={() => {
+                                console.log('🔴 Botón COLGAR presionado');
+                                endCall();
+                            }}
+                            activeOpacity={0.7}
                         >
                             <Ionicons name="call" size={32} color="#fff" style={styles.rotatedIcon} />
                         </TouchableOpacity>

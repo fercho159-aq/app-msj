@@ -6,8 +6,34 @@ import {
     searchUsers,
     updateUserStatus
 } from '../../services/userService';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 const router = Router();
+
+// POST /api/users/push-token - Registrar push token para notificaciones
+router.post('/push-token', async (req: Request, res: Response) => {
+    try {
+        const { userId, pushToken } = req.body;
+
+        if (!userId || !pushToken) {
+            return res.status(400).json({
+                error: 'userId y pushToken son requeridos'
+            });
+        }
+
+        const success = await pushNotificationService.savePushToken(userId, pushToken);
+
+        if (success) {
+            res.json({ success: true, message: 'Push token registrado' });
+        } else {
+            res.status(500).json({ error: 'Error al guardar push token' });
+        }
+
+    } catch (error: any) {
+        console.error('Error al registrar push token:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // GET /api/users - Listar todos los usuarios
 router.get('/', async (req: Request, res: Response) => {

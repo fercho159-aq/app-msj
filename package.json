@@ -8,7 +8,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "server": "npx ts-node --project tsconfig.server.json src/server/index.ts",
-    "db:migrate": "npx ts-node --project tsconfig.server.json src/database/migrate.ts"
+    "db:migrate": "npx ts-node --project tsconfig.server.json src/database/migrate.ts",
+    "db:migrate:notifications": "npx ts-node --project tsconfig.server.json src/database/migrate-notifications.ts"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -25,9 +26,15 @@
     "eventemitter3": "^5.0.1",
     "expo": "~54.0.30",
     "expo-av": "~16.0.8",
+    "expo-constants": "~18.0.12",
+    "expo-device": "~8.0.10",
     "expo-document-picker": "~14.0.8",
+    "expo-file-system": "^19.0.21",
     "expo-image-picker": "^17.0.10",
     "expo-linear-gradient": "^15.0.8",
+    "expo-media-library": "^18.2.1",
+    "expo-notifications": "~0.32.15",
+    "expo-sharing": "^14.0.8",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "^15.0.10",
     "express": "^5.2.1",

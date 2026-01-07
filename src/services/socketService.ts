@@ -1,8 +1,8 @@
 import { io, Socket } from 'socket.io-client';
 import EventEmitter from 'eventemitter3';
 
-// URL del servidor - cambiar para producción
-const SERVER_URL = 'http://31.220.109.7:3000';
+// URL del servidor - Ahora usando HTTPS
+const SERVER_URL = 'https://appsoluciones.duckdns.org';
 
 export interface OnlineUser {
     userId: string;
@@ -159,13 +159,25 @@ class SocketService extends EventEmitter {
 
     // Responder llamada
     answerCall(targetUserId: string, answer: RTCSessionDescriptionInit): void {
-        if (!this.socket || !this.currentUser) return;
+        console.log('📤 socketService.answerCall llamado');
+        console.log('📤 Enviando respuesta a:', targetUserId);
+        console.log('📤 Socket conectado:', this.socket?.connected);
+        console.log('📤 Usuario actual:', this.currentUser);
 
-        this.socket.emit('answer-call', {
+        if (!this.socket || !this.currentUser) {
+            console.log('❌ No se puede responder: socket o usuario no disponible');
+            return;
+        }
+
+        const payload = {
             to: targetUserId,
             from: this.currentUser.id,
             answer,
-        });
+        };
+        console.log('📤 Payload:', JSON.stringify(payload));
+
+        this.socket.emit('answer-call', payload);
+        console.log('✅ answer-call emitido');
     }
 
     // Rechazar llamada

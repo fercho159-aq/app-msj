@@ -94,10 +94,31 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Aceptar llamada
     const acceptCall = useCallback(() => {
-        if (!pendingCall) return;
+        console.log('🔊 acceptCall llamado');
+        console.log('📋 pendingCall:', pendingCall);
+        console.log('📋 callState:', JSON.stringify(callState));
 
-        console.log('✅ Aceptando llamada');
+        if (!pendingCall) {
+            console.log('❌ No hay pendingCall, saliendo');
+            return;
+        }
 
+        console.log('✅ Aceptando llamada de:', pendingCall.from);
+
+        // ¡IMPORTANTE! Detener la vibración al aceptar
+        if (Platform.OS !== 'web') {
+            console.log('🔕 Cancelando vibración...');
+            Vibration.cancel();
+        }
+
+        // Guardar referencia antes de limpiar pendingCall
+        const callerData = {
+            from: pendingCall.from,
+            fromName: pendingCall.fromName,
+            callType: pendingCall.callType,
+        };
+
+        // Actualizar estado primero
         setCallState(prev => ({
             ...prev,
             isRinging: false,
@@ -111,7 +132,10 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             sdp: 'mock-sdp-answer'
         };
 
-        socketService.answerCall(pendingCall.from, mockAnswer);
+        console.log('📤 Enviando answer-call a:', callerData.from);
+        socketService.answerCall(callerData.from, mockAnswer);
+
+        // Limpiar pendingCall después de enviar respuesta
         setPendingCall(null);
 
         // Iniciar contador
@@ -122,10 +146,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }));
         }, 1000);
         setCallTimer(timer);
-    }, [pendingCall]);
+
+        console.log('✅ Llamada aceptada exitosamente');
+    }, [pendingCall, callState]);
 
     // Rechazar llamada
     const rejectCall = useCallback(() => {
+        // Detener vibración
+        if (Platform.OS !== 'web') {
+            Vibration.cancel();
+        }
+
         if (pendingCall) {
             socketService.rejectCall(pendingCall.from);
         }
@@ -136,6 +167,11 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Terminar llamada
     const endCall = useCallback(() => {
+        // Detener vibración por si acaso
+        if (Platform.OS !== 'web') {
+            Vibration.cancel();
+        }
+
         if (callState.remoteUser) {
             socketService.endCall(callState.remoteUser.id);
         }
@@ -175,9 +211,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         const handleIncomingCall = (data: IncomingCallData) => {
             console.log('📞 Llamada entrante:', data);
+            console.log('📞 De:', data.fromName, '(', data.from, ')');
+            console.log('📞 Tipo:', data.callType);
 
+            // Patrón de vibración menos agresivo: vibrar 300ms, pausa 200ms, repetir
             if (Platform.OS !== 'web') {
-                Vibration.vibrate([500, 500, 500, 500], true);
+                console.log('📳 Iniciando vibración...');
+                Vibration.vibrate([0, 300, 200, 300, 200, 300], true);
             }
 
             setPendingCall(data);
@@ -190,6 +230,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 callDirection: 'incoming',
                 callDuration: 0,
             });
+            console.log('📋 Estado actualizado para llamada entrante');
         };
 
         const handleCallAnswered = () => {

@@ -7,6 +7,8 @@ import {
     markMessagesAsDelivered,
     deleteMessage
 } from '../../services/messageService';
+import { pushNotificationService } from '../services/pushNotificationService';
+import { query } from '../../database/config';
 
 const router = Router();
 
@@ -35,6 +37,43 @@ router.post('/', async (req: Request, res: Response) => {
             message_type: type || 'text',
             media_url: mediaUrl,
         });
+
+        // Enviar notificación push a los demás participantes del chat
+        try {
+            // Obtener info del remitente
+            const senderResult = await query<{ name: string | null; rfc: string }>(
+                `SELECT name, rfc FROM users WHERE id = $1`,
+                [senderId]
+            );
+            const senderName = senderResult[0]?.name || senderResult[0]?.rfc || 'Usuario';
+
+            // Obtener otros participantes del chat
+            const participants = await query<{ user_id: string }>(
+                `SELECT user_id FROM chat_participants WHERE chat_id = $1 AND user_id != $2`,
+                [chatId, senderId]
+            );
+
+            // Determinar el texto de la notificación
+            let notificationText = text || '';
+            if (type === 'image') notificationText = '📷 Imagen';
+            else if (type === 'audio') notificationText = '🎵 Audio';
+            else if (type === 'video') notificationText = '🎬 Video';
+            else if (type === 'file') notificationText = '📎 Archivo';
+
+            // Enviar notificación a cada participante
+            for (const participant of participants) {
+                await pushNotificationService.sendMessageNotification(
+                    participant.user_id,
+                    senderName,
+                    notificationText,
+                    chatId,
+                    senderId
+                );
+            }
+        } catch (notifError) {
+            // No fallar el mensaje si la notificación falla
+            console.error('Error al enviar notificación:', notifError);
+        }
 
         res.status(201).json({
             message: {

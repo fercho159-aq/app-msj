@@ -1,5 +1,5 @@
-// Configuración de la API - Usa tu IP local para dispositivos móviles
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://31.220.109.7:3000/api';
+// Configuración de la API - Ahora usando HTTPS
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
 
 interface ApiResponse<T> {
     data?: T;
@@ -26,27 +26,50 @@ class ApiClient {
         endpoint: string,
         options: RequestInit = {}
     ): Promise<ApiResponse<T>> {
+        const url = `${this.baseUrl}${endpoint}`;
+        console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+
         try {
-            const url = `${this.baseUrl}${endpoint}`;
+            // Crear un AbortController para timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
 
             const response = await fetch(url, {
                 ...options,
+                signal: controller.signal,
                 headers: {
                     'Content-Type': 'application/json',
                     ...options.headers,
                 },
             });
 
+            clearTimeout(timeoutId);
+            console.log(`✅ API Response: ${response.status} ${response.statusText}`);
+
             const data = await response.json();
 
             if (!response.ok) {
+                console.error('❌ API Error Response:', data);
                 return { error: data.error || 'Error en la solicitud' };
             }
 
             return { data };
         } catch (error: any) {
-            console.error('API Error:', error);
-            return { error: error.message || 'Error de conexión' };
+            console.error('❌ API Network Error:', {
+                message: error.message,
+                name: error.name,
+                url: url,
+            });
+
+            // Mensaje más descriptivo según el tipo de error
+            let errorMessage = 'Error de conexión';
+            if (error.name === 'AbortError') {
+                errorMessage = 'Tiempo de espera agotado. Verifica tu conexión a internet.';
+            } else if (error.message?.includes('Network request failed')) {
+                errorMessage = `No se pudo conectar al servidor. URL: ${url}`;
+            }
+
+            return { error: errorMessage };
         }
     }
 

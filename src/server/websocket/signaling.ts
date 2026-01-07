@@ -1,5 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 interface User {
     id: string;
@@ -67,11 +68,12 @@ export function initializeWebSocket(httpServer: HttpServer) {
         });
 
         // Iniciar llamada
-        socket.on('call-user', (data: CallData) => {
+        socket.on('call-user', async (data: CallData) => {
             console.log(`📞 Llamada de ${data.from} a ${data.to}`);
             const targetUser = connectedUsers.get(data.to);
 
             if (targetUser) {
+                // Usuario está en línea, enviar via socket
                 io.to(targetUser.socketId).emit('incoming-call', {
                     from: data.from,
                     fromName: data.fromName,
@@ -79,10 +81,21 @@ export function initializeWebSocket(httpServer: HttpServer) {
                     callType: data.callType
                 });
             } else {
-                socket.emit('call-error', {
-                    message: 'Usuario no disponible',
-                    userId: data.to
-                });
+                // Usuario NO está en línea, enviar notificación push
+                console.log(`📲 Usuario ${data.to} no está en línea, enviando notificación push`);
+                const pushSent = await pushNotificationService.sendCallNotification(
+                    data.to,
+                    data.fromName,
+                    data.callType,
+                    data.from
+                );
+
+                if (!pushSent) {
+                    socket.emit('call-error', {
+                        message: 'Usuario no disponible',
+                        userId: data.to
+                    });
+                }
             }
         });
 

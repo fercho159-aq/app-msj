@@ -6,7 +6,7 @@ import fs from 'fs';
 const router = Router();
 
 // URL base del servidor - usa la variable de entorno o la IP pública del VPS
-const SERVER_URL = process.env.SERVER_URL || 'http://31.220.109.7:3000';
+const SERVER_URL = process.env.SERVER_URL || 'https://appsoluciones.duckdns.org';
 
 // Configurar almacenamiento
 const storage = multer.diskStorage({

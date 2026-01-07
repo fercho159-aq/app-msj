@@ -11,10 +11,14 @@ import {
     StatusBar,
     Platform,
     ScrollView,
+    Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import * as WebBrowser from 'expo-web-browser';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import * as MediaLibrary from 'expo-media-library';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -35,13 +39,20 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
 }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [imageError, setImageError] = useState(false);
-    const [scale, setScale] = useState(1);
+    const [isDownloading, setIsDownloading] = useState(false);
+    const [downloadProgress, setDownloadProgress] = useState(0);
 
     if (!mediaUrl) return null;
 
     const getFileExtension = (url: string) => {
         const parts = url.split('.');
-        return parts[parts.length - 1].toLowerCase();
+        return parts[parts.length - 1].toLowerCase().split('?')[0];
+    };
+
+    const getFileName = () => {
+        if (fileName) return fileName;
+        const urlFileName = mediaUrl.split('/').pop() || 'archivo';
+        return urlFileName.split('?')[0];
     };
 
     const isImage = () => {
@@ -55,17 +66,95 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
         return ext === 'pdf';
     };
 
-    const isDocument = () => {
-        const ext = getFileExtension(mediaUrl);
-        return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'html'].includes(ext);
-    };
-
     const handleOpenExternal = async () => {
         try {
             await WebBrowser.openBrowserAsync(mediaUrl);
         } catch (error) {
             console.error('Error opening browser:', error);
         }
+    };
+
+    const handleDownload = async () => {
+        try {
+            setIsDownloading(true);
+            setDownloadProgress(0);
+
+            const downloadFileName = getFileName();
+            const fileUri = FileSystem.documentDirectory + downloadFileName;
+
+            // Descargar usando la API legacy
+            const downloadResumable = FileSystem.createDownloadResumable(
+                mediaUrl,
+                fileUri,
+                {},
+                (downloadProgress) => {
+                    const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
+                    setDownloadProgress(progress);
+                }
+            );
+
+            const result = await downloadResumable.downloadAsync();
+
+            if (!result?.uri) {
+                throw new Error('No se pudo descargar el archivo');
+            }
+
+            // Si es imagen, guardar en la galería
+            if (isImage()) {
+                const { status } = await MediaLibrary.requestPermissionsAsync();
+                if (status === 'granted') {
+                    await MediaLibrary.saveToLibraryAsync(result.uri);
+                    Alert.alert(
+                        '✅ Imagen guardada',
+                        'La imagen se ha guardado en tu galería.',
+                        [{ text: 'OK' }]
+                    );
+                } else {
+                    await shareFile(result.uri);
+                }
+            } else {
+                await shareFile(result.uri);
+            }
+
+        } catch (error: any) {
+            console.error('Error downloading:', error);
+            Alert.alert('Error', 'No se pudo descargar el archivo: ' + error.message);
+        } finally {
+            setIsDownloading(false);
+            setDownloadProgress(0);
+        }
+    };
+
+    const shareFile = async (fileUri: string) => {
+        const isSharingAvailable = await Sharing.isAvailableAsync();
+        if (isSharingAvailable) {
+            await Sharing.shareAsync(fileUri, {
+                mimeType: getMimeType(getFileExtension(mediaUrl)),
+                dialogTitle: 'Guardar archivo',
+            });
+        } else {
+            Alert.alert('Info', 'El archivo se descargó pero no se puede compartir en este dispositivo.');
+        }
+    };
+
+    const getMimeType = (ext: string): string => {
+        const mimeTypes: { [key: string]: string } = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif',
+            'webp': 'image/webp',
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls': 'application/vnd.ms-excel',
+            'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'ppt': 'application/vnd.ms-powerpoint',
+            'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'txt': 'text/plain',
+            'html': 'text/html',
+        };
+        return mimeTypes[ext] || 'application/octet-stream';
     };
 
     const renderContent = () => {
@@ -111,7 +200,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             );
         }
 
-        // PDF - usar Google Docs Viewer o WebView
+        // PDF - usar Google Docs Viewer
         if (isPDF()) {
             const pdfViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
             return (
@@ -135,7 +224,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
             );
         }
 
-        // Otros documentos - mostrar info y botón para abrir
+        // Otros documentos
         return (
             <View style={styles.documentContainer}>
                 <View style={styles.documentIcon}>
@@ -146,15 +235,38 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
                     />
                 </View>
                 <Text style={styles.documentName} numberOfLines={2}>
-                    {fileName || mediaUrl.split('/').pop()}
+                    {getFileName()}
                 </Text>
                 <Text style={styles.documentType}>
                     {getFileExtension(mediaUrl).toUpperCase()}
                 </Text>
-                <TouchableOpacity style={styles.openButton} onPress={handleOpenExternal}>
-                    <Ionicons name="open-outline" size={20} color="#fff" />
-                    <Text style={styles.openButtonText}>Abrir en navegador</Text>
-                </TouchableOpacity>
+
+                <View style={styles.buttonContainer}>
+                    <TouchableOpacity
+                        style={[styles.downloadButton, isDownloading && styles.buttonDisabled]}
+                        onPress={handleDownload}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? (
+                            <>
+                                <ActivityIndicator size="small" color="#fff" />
+                                <Text style={styles.downloadButtonText}>
+                                    {Math.round(downloadProgress * 100)}%
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="download-outline" size={20} color="#fff" />
+                                <Text style={styles.downloadButtonText}>Descargar</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.openButton} onPress={handleOpenExternal}>
+                        <Ionicons name="open-outline" size={20} color="#4A90D9" />
+                        <Text style={styles.openButtonText}>Abrir en navegador</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         );
     };
@@ -190,15 +302,38 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
                         <Ionicons name="close" size={28} color="#fff" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle} numberOfLines={1}>
-                        {fileName || (isImage() ? 'Imagen' : 'Documento')}
+                        {getFileName()}
                     </Text>
-                    <TouchableOpacity style={styles.actionButton} onPress={handleOpenExternal}>
-                        <Ionicons name="open-outline" size={24} color="#fff" />
+                    <TouchableOpacity
+                        style={[styles.actionButton, isDownloading && styles.buttonDisabled]}
+                        onPress={handleDownload}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <Ionicons name="download-outline" size={24} color="#fff" />
+                        )}
                     </TouchableOpacity>
                 </View>
 
                 {/* Content */}
                 {renderContent()}
+
+                {/* Download Overlay */}
+                {isDownloading && (
+                    <View style={styles.downloadOverlay}>
+                        <View style={styles.downloadProgressContainer}>
+                            <ActivityIndicator size="large" color="#4A90D9" />
+                            <Text style={styles.downloadProgressText}>
+                                Descargando... {Math.round(downloadProgress * 100)}%
+                            </Text>
+                            <View style={styles.progressBarBackground}>
+                                <View style={[styles.progressBar, { width: `${downloadProgress * 100}%` }]} />
+                            </View>
+                        </View>
+                    </View>
+                )}
             </View>
         </Modal>
     );
@@ -237,6 +372,9 @@ const styles = StyleSheet.create({
         height: 44,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
     imageContainer: {
         flex: 1,
@@ -325,19 +463,73 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginBottom: 32,
     },
-    openButton: {
+    buttonContainer: {
+        gap: 12,
+        width: '100%',
+        maxWidth: 280,
+    },
+    downloadButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
         backgroundColor: '#4A90D9',
         paddingHorizontal: 24,
         paddingVertical: 14,
         borderRadius: 12,
         gap: 8,
     },
-    openButtonText: {
+    downloadButtonText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '600',
+    },
+    openButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderColor: '#4A90D9',
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 12,
+        gap: 8,
+    },
+    openButtonText: {
+        color: '#4A90D9',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    downloadOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    downloadProgressContainer: {
+        backgroundColor: '#1a1a1a',
+        borderRadius: 16,
+        padding: 32,
+        alignItems: 'center',
+        width: 280,
+    },
+    downloadProgressText: {
+        color: '#fff',
+        fontSize: 16,
+        marginTop: 16,
+        marginBottom: 12,
+    },
+    progressBarBackground: {
+        width: '100%',
+        height: 6,
+        backgroundColor: '#333',
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBar: {
+        height: '100%',
+        backgroundColor: '#4A90D9',
+        borderRadius: 3,
     },
 });
 
