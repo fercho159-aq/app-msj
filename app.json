@@ -42,7 +42,13 @@
       ]
     ],
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "name": "SolucionaApp",
+      "shortName": "Soluciona",
+      "description": "Una solución rápida y efectiva.",
+      "themeColor": "#6366F1",
+      "backgroundColor": "#ffffff",
+      "display": "standalone"
     },
     "extra": {
       "eas": {
