@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Llamadas - Mensajería</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-connected {
+            background: rgba(46, 213, 115, 0.2);
+            color: #2ed573;
+        }
+
+        .status-disconnected {
+            background: rgba(255, 71, 87, 0.2);
+            color: #ff4757;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: none;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.5);
+        }
+
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #2ed573 0%, #17c0eb 100%);
+            color: #fff;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .user-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .user-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        .user-name {
+            font-weight: 500;
+        }
+
+        .user-status {
+            font-size: 12px;
+            color: #2ed573;
+        }
+
+        .call-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .call-btn-audio {
+            background: linear-gradient(135deg, #2ed573 0%, #17c0eb 100%);
+        }
+
+        .call-btn-video {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin-left: 8px;
+        }
+
+        .call-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Modal de llamada */
+        .call-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .call-modal.active {
+            display: flex;
+        }
+
+        .call-modal-content {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .call-avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: 600;
+            margin: 0 auto 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.5); }
+            50% { box-shadow: 0 0 0 30px rgba(102, 126, 234, 0); }
+        }
+
+        .call-name {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .call-status {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 40px;
+        }
+
+        .call-actions {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+        }
+
+        .call-action-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .call-action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .call-action-btn.accept {
+            background: linear-gradient(135deg, #2ed573 0%, #17c0eb 100%);
+        }
+
+        .call-action-btn.reject {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6b81 100%);
+        }
+
+        .call-action-btn svg {
+            width: 32px;
+            height: 32px;
+            fill: white;
+        }
+
+        .call-timer {
+            font-size: 24px;
+            font-weight: 300;
+            font-family: monospace;
+        }
+
+        /* Videos */
+        .video-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 999;
+        }
+
+        .video-container.active {
+            display: block;
+        }
+
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #localVideo {
+            position: absolute;
+            bottom: 120px;
+            right: 20px;
+            width: 120px;
+            height: 160px;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 3px solid #fff;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📞 Llamadas VoIP</h1>
+            <span id="connectionStatus" class="status-badge status-disconnected">Desconectado</span>
+        </div>
+
+        <!-- Login Card -->
+        <div id="loginCard" class="card">
+            <div class="card-title">Iniciar Sesión</div>
+            <div class="input-group">
+                <label>Tu nombre</label>
+                <input type="text" id="userName" placeholder="Ej: Juan García">
+            </div>
+            <div class="input-group">
+                <label>ID de usuario</label>
+                <input type="text" id="userId" placeholder="Tu ID único">
+            </div>
+            <button class="btn btn-primary" onclick="connect()">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                Conectar
+            </button>
+        </div>
+
+        <!-- Users List -->
+        <div id="usersCard" class="card hidden">
+            <div class="card-title">Usuarios en línea</div>
+            <div id="usersList" class="user-list">
+                <div class="empty-state">
+                    <p>No hay usuarios conectados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call Modal -->
+    <div id="callModal" class="call-modal">
+        <div class="call-modal-content">
+            <div id="callAvatar" class="call-avatar">?</div>
+            <div id="callName" class="call-name">Usuario</div>
+            <div id="callStatus" class="call-status">Llamando...</div>
+            <div id="callTimer" class="call-timer hidden">00:00</div>
+            <div id="callActions" class="call-actions">
+                <!-- Botones dinámicos -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Container -->
+    <div id="videoContainer" class="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="video-controls">
+            <button class="call-action-btn reject" onclick="endCall()">
+                <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Configuración
+        const SERVER_URL = window.location.origin;
+        
+        // Estado
+        let socket = null;
+        let currentUser = null;
+        let peerConnection = null;
+        let localStream = null;
+        let remoteStream = null;
+        let callStartTime = null;
+        let callTimerInterval = null;
+        let currentCallType = 'audio';
+        let currentCallTarget = null;
+
+        // ICE Servers (STUN gratuitos)
+        const iceServers = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
+        };
+
+        // Conectar al servidor
+        function connect() {
+            const userName = document.getElementById('userName').value.trim();
+            const userId = document.getElementById('userId').value.trim();
+
+            if (!userName || !userId) {
+                alert('Por favor ingresa tu nombre e ID');
+                return;
+            }
+
+            currentUser = { id: userId, name: userName };
+
+            socket = io(SERVER_URL, {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                console.log('Conectado al servidor');
+                updateConnectionStatus(true);
+                socket.emit('register', { userId, name: userName });
+                
+                document.getElementById('loginCard').classList.add('hidden');
+                document.getElementById('usersCard').classList.remove('hidden');
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Desconectado del servidor');
+                updateConnectionStatus(false);
+            });
+
+            socket.on('online-users', (users) => {
+                updateUsersList(users);
+            });
+
+            socket.on('user-online', (user) => {
+                console.log('Usuario conectado:', user.name);
+                // Actualizar lista
+            });
+
+            socket.on('user-offline', (data) => {
+                console.log('Usuario desconectado:', data.userId);
+            });
+
+            // Eventos de llamada
+            socket.on('incoming-call', handleIncomingCall);
+            socket.on('call-answered', handleCallAnswered);
+            socket.on('call-rejected', handleCallRejected);
+            socket.on('call-ended', handleCallEnded);
+            socket.on('ice-candidate', handleIceCandidate);
+            socket.on('call-error', (data) => {
+                alert(data.message);
+                closeCallModal();
+            });
+        }
+
+        function updateConnectionStatus(connected) {
+            const badge = document.getElementById('connectionStatus');
+            if (connected) {
+                badge.textContent = 'Conectado';
+                badge.className = 'status-badge status-connected';
+            } else {
+                badge.textContent = 'Desconectado';
+                badge.className = 'status-badge status-disconnected';
+            }
+        }
+
+        function updateUsersList(users) {
+            const list = document.getElementById('usersList');
+            const filteredUsers = users.filter(u => u.userId !== currentUser.id);
+
+            if (filteredUsers.length === 0) {
+                list.innerHTML = '<div class="empty-state"><p>No hay otros usuarios conectados</p></div>';
+                return;
+            }
+
+            list.innerHTML = filteredUsers.map(user => `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div class="user-name">${user.name}</div>
+                            <div class="user-status">● En línea</div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="call-btn call-btn-audio" onclick="startCall('${user.userId}', '${user.name}', 'audio')" title="Llamada de voz">
+                            <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
+                                <path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/>
+                            </svg>
+                        </button>
+                        <button class="call-btn call-btn-video" onclick="startCall('${user.userId}', '${user.name}', 'video')" title="Videollamada">
+                            <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
+                                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Iniciar llamada
+        async function startCall(targetUserId, targetName, callType) {
+            currentCallType = callType;
+            currentCallTarget = targetUserId;
+
+            showCallModal(targetName, 'Llamando...', 'outgoing');
+
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: callType === 'video'
+                });
+
+                if (callType === 'video') {
+                    document.getElementById('localVideo').srcObject = localStream;
+                }
+
+                peerConnection = createPeerConnection();
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                socket.emit('call-user', {
+                    to: targetUserId,
+                    from: currentUser.id,
+                    fromName: currentUser.name,
+                    offer: offer,
+                    callType: callType
+                });
+
+            } catch (error) {
+                console.error('Error al iniciar llamada:', error);
+                alert('No se pudo acceder al micrófono/cámara');
+                closeCallModal();
+            }
+        }
+
+        // Manejar llamada entrante
+        async function handleIncomingCall(data) {
+            currentCallType = data.callType;
+            currentCallTarget = data.from;
+
+            showCallModal(data.fromName, `Llamada ${data.callType === 'video' ? 'de video' : 'de voz'} entrante...`, 'incoming');
+
+            // Guardar la oferta para usarla después
+            window.pendingOffer = data.offer;
+            window.incomingCallData = data;
+        }
+
+        // Aceptar llamada
+        async function acceptCall() {
+            const data = window.incomingCallData;
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: currentCallType === 'video'
+                });
+
+                if (currentCallType === 'video') {
+                    document.getElementById('localVideo').srcObject = localStream;
+                    document.getElementById('videoContainer').classList.add('active');
+                }
+
+                peerConnection = createPeerConnection();
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                socket.emit('answer-call', {
+                    to: data.from,
+                    from: currentUser.id,
+                    answer: answer
+                });
+
+                startCallTimer();
+                updateCallStatus('En llamada');
+
+            } catch (error) {
+                console.error('Error al aceptar llamada:', error);
+                alert('No se pudo acceder al micrófono/cámara');
+                rejectCall();
+            }
+        }
+
+        // Rechazar llamada
+        function rejectCall() {
+            socket.emit('reject-call', {
+                to: currentCallTarget,
+                from: currentUser.id
+            });
+            closeCallModal();
+        }
+
+        // Llamada respondida
+        async function handleCallAnswered(data) {
+            try {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+                
+                if (currentCallType === 'video') {
+                    document.getElementById('videoContainer').classList.add('active');
+                }
+                
+                startCallTimer();
+                updateCallStatus('En llamada');
+            } catch (error) {
+                console.error('Error al procesar respuesta:', error);
+            }
+        }
+
+        // Llamada rechazada
+        function handleCallRejected(data) {
+            alert(`Llamada rechazada: ${data.reason}`);
+            closeCallModal();
+            cleanup();
+        }
+
+        // Llamada terminada
+        function handleCallEnded() {
+            closeCallModal();
+            cleanup();
+        }
+
+        // ICE Candidate
+        async function handleIceCandidate(data) {
+            try {
+                if (peerConnection && data.candidate) {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                }
+            } catch (error) {
+                console.error('Error al agregar ICE candidate:', error);
+            }
+        }
+
+        // Crear conexión peer
+        function createPeerConnection() {
+            const pc = new RTCPeerConnection(iceServers);
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', {
+                        to: currentCallTarget,
+                        from: currentUser.id,
+                        candidate: event.candidate
+                    });
+                }
+            };
+
+            pc.ontrack = (event) => {
+                remoteStream = event.streams[0];
+                document.getElementById('remoteVideo').srcObject = remoteStream;
+            };
+
+            pc.onconnectionstatechange = () => {
+                console.log('Estado de conexión:', pc.connectionState);
+            };
+
+            return pc;
+        }
+
+        // Terminar llamada
+        function endCall() {
+            socket.emit('end-call', {
+                to: currentCallTarget,
+                from: currentUser.id
+            });
+            closeCallModal();
+            cleanup();
+        }
+
+        // UI Helpers
+        function showCallModal(name, status, type) {
+            const modal = document.getElementById('callModal');
+            const avatar = document.getElementById('callAvatar');
+            const nameEl = document.getElementById('callName');
+            const statusEl = document.getElementById('callStatus');
+            const actionsEl = document.getElementById('callActions');
+
+            avatar.textContent = name.charAt(0).toUpperCase();
+            nameEl.textContent = name;
+            statusEl.textContent = status;
+
+            if (type === 'incoming') {
+                actionsEl.innerHTML = `
+                    <button class="call-action-btn accept" onclick="acceptCall()">
+                        <svg viewBox="0 0 24 24"><path d="M20.01 15.38c-1.23 0-2.42-.2-3.53-.56a.977.977 0 00-1.01.24l-1.57 1.97c-2.83-1.35-5.48-3.9-6.89-6.83l1.95-1.66c.27-.28.35-.67.24-1.02-.37-1.11-.56-2.3-.56-3.53 0-.54-.45-.99-.99-.99H4.19C3.65 3 3 3.24 3 3.99 3 13.28 10.73 21 20.01 21c.71 0 .99-.63.99-1.18v-3.45c0-.54-.45-.99-.99-.99z"/></svg>
+                    </button>
+                    <button class="call-action-btn reject" onclick="rejectCall()">
+                        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    </button>
+                `;
+            } else {
+                actionsEl.innerHTML = `
+                    <button class="call-action-btn reject" onclick="endCall()">
+                        <svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.68-1.36-2.66-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
+                    </button>
+                `;
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeCallModal() {
+            document.getElementById('callModal').classList.remove('active');
+            document.getElementById('videoContainer').classList.remove('active');
+            document.getElementById('callTimer').classList.add('hidden');
+            stopCallTimer();
+        }
+
+        function updateCallStatus(status) {
+            document.getElementById('callStatus').textContent = status;
+        }
+
+        function startCallTimer() {
+            callStartTime = Date.now();
+            const timerEl = document.getElementById('callTimer');
+            timerEl.classList.remove('hidden');
+            
+            callTimerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - callStartTime) / 1000);
+                const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const secs = (elapsed % 60).toString().padStart(2, '0');
+                timerEl.textContent = `${mins}:${secs}`;
+            }, 1000);
+        }
+
+        function stopCallTimer() {
+            if (callTimerInterval) {
+                clearInterval(callTimerInterval);
+                callTimerInterval = null;
+            }
+        }
+
+        function cleanup() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            remoteStream = null;
+            currentCallTarget = null;
+            stopCallTimer();
+        }
+    </script>
+</body>
+</html>
