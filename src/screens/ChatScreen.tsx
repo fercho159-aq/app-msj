@@ -25,10 +25,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+<<<<<<< HEAD
 import { useStreamCall } from '../context/StreamCallContext';
 import { api, Message } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
+=======
+import { api, Message } from '../api';
+import { RootStackParamList } from '../types';
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
 
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
@@ -63,6 +68,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
     };
 
     const handleMediaPress = () => {
+<<<<<<< HEAD
         const mediaUrl = getAbsoluteMediaUrl(message.mediaUrl);
         if (mediaUrl && onMediaPress) {
             onMediaPress(mediaUrl, message.type, message.text || undefined);
@@ -71,21 +77,40 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 
     const mediaUrl = getAbsoluteMediaUrl(message.mediaUrl);
 
+=======
+        if (message.mediaUrl && onMediaPress) {
+            onMediaPress(message.mediaUrl, message.type, message.text || undefined);
+        }
+    };
+
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     return (
         <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
             <View style={[
                 styles.bubble,
                 isOwn
+<<<<<<< HEAD
                     ? [styles.ownBubble, { backgroundColor: colors.messageSent }]
                     : [styles.otherBubble, { backgroundColor: colors.messageReceived }]
+=======
+                    ? [styles.ownBubble, { backgroundColor: colors.primary }]
+                    : [styles.otherBubble, { backgroundColor: colors.surface }]
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
             ]}>
 
                 {/* Renderizado de Media */}
 
+<<<<<<< HEAD
                 {message.type === 'image' && mediaUrl && (
                     <TouchableOpacity onPress={handleMediaPress} activeOpacity={0.9}>
                         <Image
                             source={{ uri: mediaUrl }}
+=======
+                {message.type === 'image' && message.mediaUrl && (
+                    <TouchableOpacity onPress={handleMediaPress} activeOpacity={0.9}>
+                        <Image
+                            source={{ uri: message.mediaUrl }}
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
                             style={styles.mediaImage}
                             resizeMode="cover"
                         />
@@ -125,10 +150,16 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 };
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => {
+<<<<<<< HEAD
     const { chatId, userName, userAvatar, participantId: routeParticipantId } = route.params as any;
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const { startAudioCall } = useStreamCall();
+=======
+    const { chatId, userName, userAvatar } = route.params;
+    const { user } = useAuth();
+    const { colors, isDark } = useTheme();
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
@@ -337,8 +368,13 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
     const handleCall = () => {
         if (isAdmin) {
+<<<<<<< HEAD
             // Admin inicia llamada de audio con Stream
             startAudioCall(routeParticipantId || chatId, userName || 'Usuario');
+=======
+            // Admin puede llamar directamente
+            Linking.openURL('tel:5633774723');
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
         } else {
             // Usuario normal ve el formulario de solicitud
             setShowCallModal(true);

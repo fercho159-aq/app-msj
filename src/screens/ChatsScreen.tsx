@@ -72,7 +72,11 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
                     <Image source={{ uri: displayAvatar }} style={[styles.avatar, { borderColor: colors.border }]} />
                 ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+<<<<<<< HEAD
                         <Text style={[styles.avatarText, { color: colors.background }]}>
+=======
+                        <Text style={[styles.avatarText, { color: '#ffffff' }]}>
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
                             {(displayName || '?').charAt(0).toUpperCase()}
                         </Text>
                     </View>
@@ -308,7 +312,11 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                         end={{ x: 1, y: 1 }}
                         style={styles.fabGradient}
                     >
+<<<<<<< HEAD
                         <Ionicons name="add" size={30} color={colors.background} />
+=======
+                        <Ionicons name="add" size={30} color="#ffffff" />
+>>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
                     </LinearGradient>
                 </TouchableOpacity>
             )}
