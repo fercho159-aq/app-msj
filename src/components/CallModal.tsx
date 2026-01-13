@@ -12,52 +12,117 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCall } from '../context/CallContext';
+import { useAgoraCall } from '../context/AgoraCallContext';
+import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export const CallModal: React.FC = () => {
-    const { callState, acceptCall, rejectCall, endCall } = useCall();
+    const { user } = useAuth();
+    const { callState, acceptCall: signalingAccept, rejectCall: signalingReject, endCall: signalingEnd } = useCall();
+    const { joinCall: agoraJoin, endCall: agoraEnd, toggleMute, toggleSpeaker, isMuted, isSpeakerOn, isConnected } = useAgoraCall();
+
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const ringAnim = useRef(new Animated.Value(0)).current;
 
     const isVisible = callState.isRinging || callState.isInCall || callState.isConnecting;
 
-    // Animación de pulso
+    // Helper para generar nombre de canal consistente
+    const getChannelName = () => {
+        if (!user || (!callState.remoteUser && !callState.isInCall)) return null;
+
+        // Si ya estamos conectados en Agora, quizás tenemos el canal ahí, pero mejor generarlo igual
+        // Usamos IDs ordenados para que coincida entre ambos usuarios
+        const myId = user.id;
+        const otherId = callState.remoteUser?.id || '';
+        if (!otherId) return null;
+
+        const [id1, id2] = [myId, otherId].sort();
+        return `call_${id1}_${id2}`;
+    };
+
+    // Manejar Aceptar Llamada
+    const handleAcceptCall = async () => {
+        console.log('🟢 Botón ACEPTAR presionado');
+        const channel = getChannelName();
+
+        // Aceptamos la señalización
+        signalingAccept();
+
+        // Unirse al canal de media
+        if (channel) {
+            console.log('📞 Uniéndose al canal de Agora:', channel);
+            await agoraJoin(channel);
+        } else {
+            console.error('❌ No se pudo determinar el nombre del canal');
+        }
+    };
+
+    // Manejar Terminar Llamada
+    const handleEndCall = async () => {
+        console.log('🔴 Botón COLGAR presionado');
+        // Terminar media
+        await agoraEnd();
+        // Terminar señalización
+        signalingEnd();
+    };
+
+    // Manejar Rechazar Llamada
+    const handleRejectCall = () => {
+        console.log('🔴 Botón RECHAZAR presionado');
+        signalingReject();
+    };
+
+    // Efecto para auto-unirse si somos quien llama (outgoing) y pasa a estado isInCall
+    // Ojo: CallContext startCall pone isInCall=false, isConnecting=true.
+    // Cuando el otro contesta, CallContext pone isInCall=true.
+    useEffect(() => {
+        if (callState.isInCall && !isConnected) {
+            const channel = getChannelName();
+            if (channel) {
+                // Si somos nosotros los que iniciamos, o si acabamos de aceptar
+                // (Aunque handleAcceptCall ya llama a join, esto es backup o para el iniciador)
+                // El iniciador debe unirse cuando inicia? O cuando el otro contesta?
+                // Normalmente el iniciador se une al crear la llamada.
+                // Reviemos lógica de CallContext. startCall no une.
+                // Debemos unirnos si isConnecting también?
+            }
+        }
+    }, [callState.isInCall, isConnected]);
+
+    // Efecto para unirse al iniciar llamada (outgoing)
+    useEffect(() => {
+        if (callState.isConnecting && callState.callDirection === 'outgoing' && !isConnected) {
+            const channel = getChannelName();
+            if (channel) {
+                console.log('📞 Iniciando canal Agora (outgoing):', channel);
+                agoraJoin(channel);
+            }
+        }
+    }, [callState.isConnecting, callState.callDirection, isConnected]);
+
+
+    // Animations (igual que antes)
     useEffect(() => {
         if (callState.isRinging) {
             const pulse = Animated.loop(
                 Animated.sequence([
-                    Animated.timing(pulseAnim, {
-                        toValue: 1.2,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(pulseAnim, {
-                        toValue: 1,
-                        duration: 500,
-                        useNativeDriver: true,
-                    }),
+                    Animated.timing(pulseAnim, { toValue: 1.2, duration: 500, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
                 ])
             );
             pulse.start();
-
             return () => pulse.stop();
         }
     }, [callState.isRinging]);
 
-    // Animación de anillos
     useEffect(() => {
         if (callState.isRinging && callState.callDirection === 'incoming') {
             const ring = Animated.loop(
-                Animated.timing(ringAnim, {
-                    toValue: 1,
-                    duration: 2000,
-                    useNativeDriver: true,
-                })
+                Animated.timing(ringAnim, { toValue: 1, duration: 2000, useNativeDriver: true })
             );
             ring.start();
-
             return () => ring.stop();
         }
     }, [callState.isRinging, callState.callDirection]);
@@ -82,12 +147,7 @@ export const CallModal: React.FC = () => {
     };
 
     const getInitials = (name: string): string => {
-        return name
-            .split(' ')
-            .map(n => n[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2);
+        return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     };
 
     if (!isVisible) return null;
@@ -105,7 +165,6 @@ export const CallModal: React.FC = () => {
             >
                 {/* Avatar con animación */}
                 <View style={styles.avatarContainer}>
-                    {/* Anillos de animación para llamadas entrantes */}
                     {callState.isRinging && callState.callDirection === 'incoming' && (
                         <>
                             <Animated.View
@@ -116,14 +175,7 @@ export const CallModal: React.FC = () => {
                                             inputRange: [0, 1],
                                             outputRange: [0.6, 0],
                                         }),
-                                        transform: [
-                                            {
-                                                scale: ringAnim.interpolate({
-                                                    inputRange: [0, 1],
-                                                    outputRange: [1, 2],
-                                                }),
-                                            },
-                                        ],
+                                        transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
                                     },
                                 ]}
                             />
@@ -135,14 +187,7 @@ export const CallModal: React.FC = () => {
                                             inputRange: [0, 0.5, 1],
                                             outputRange: [0, 0.6, 0],
                                         }),
-                                        transform: [
-                                            {
-                                                scale: ringAnim.interpolate({
-                                                    inputRange: [0, 0.5, 1],
-                                                    outputRange: [1, 1.5, 2],
-                                                }),
-                                            },
-                                        ],
+                                        transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.5, 2] }) }],
                                     },
                                 ]}
                             />
@@ -156,10 +201,7 @@ export const CallModal: React.FC = () => {
                         ]}
                     >
                         <LinearGradient
-                            colors={callState.callType === 'video'
-                                ? ['#667eea', '#764ba2']
-                                : ['#2ed573', '#17c0eb']
-                            }
+                            colors={callState.callType === 'video' ? ['#667eea', '#764ba2'] : ['#2ed573', '#17c0eb']}
                             style={styles.avatar}
                         >
                             <Text style={styles.avatarText}>
@@ -187,17 +229,13 @@ export const CallModal: React.FC = () => {
                     </Text>
                 </View>
 
-                {/* Botones de acción */}
+                {/* Botones de acción (Aceptar/Rechazar/Colgar) */}
                 <View style={styles.actionsContainer}>
                     {callState.isRinging && callState.callDirection === 'incoming' ? (
-                        // Botones para llamada entrante
                         <>
                             <TouchableOpacity
                                 style={[styles.actionButton, styles.rejectButton]}
-                                onPress={() => {
-                                    console.log('🔴 Botón RECHAZAR presionado');
-                                    rejectCall();
-                                }}
+                                onPress={handleRejectCall}
                                 activeOpacity={0.7}
                             >
                                 <Ionicons name="call" size={32} color="#fff" style={styles.rotatedIcon} />
@@ -205,23 +243,16 @@ export const CallModal: React.FC = () => {
 
                             <TouchableOpacity
                                 style={[styles.actionButton, styles.acceptButton]}
-                                onPress={() => {
-                                    console.log('🟢 Botón ACEPTAR presionado');
-                                    acceptCall();
-                                }}
+                                onPress={handleAcceptCall}
                                 activeOpacity={0.7}
                             >
                                 <Ionicons name="call" size={32} color="#fff" />
                             </TouchableOpacity>
                         </>
                     ) : (
-                        // Botón para terminar llamada
                         <TouchableOpacity
                             style={[styles.actionButton, styles.rejectButton]}
-                            onPress={() => {
-                                console.log('🔴 Botón COLGAR presionado');
-                                endCall();
-                            }}
+                            onPress={handleEndCall}
                             activeOpacity={0.7}
                         >
                             <Ionicons name="call" size={32} color="#fff" style={styles.rotatedIcon} />
@@ -229,16 +260,22 @@ export const CallModal: React.FC = () => {
                     )}
                 </View>
 
-                {/* Controles de llamada activa */}
-                {callState.isInCall && (
+                {/* Controles de llamada activa (Mute/Speaker) */}
+                {(callState.isInCall || (callState.isConnecting && callState.callDirection === 'outgoing')) && (
                     <View style={styles.callControls}>
-                        <TouchableOpacity style={styles.controlButton}>
-                            <Ionicons name="mic-off-outline" size={24} color="#fff" />
-                            <Text style={styles.controlLabel}>Silenciar</Text>
+                        <TouchableOpacity
+                            style={[styles.controlButton, isMuted && styles.controlButtonActive]}
+                            onPress={toggleMute}
+                        >
+                            <Ionicons name={isMuted ? "mic-off" : "mic"} size={24} color="#fff" />
+                            <Text style={styles.controlLabel}>{isMuted ? "Activar" : "Silenciar"}</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.controlButton}>
-                            <Ionicons name="volume-high-outline" size={24} color="#fff" />
+                        <TouchableOpacity
+                            style={[styles.controlButton, isSpeakerOn && styles.controlButtonActive]}
+                            onPress={toggleSpeaker}
+                        >
+                            <Ionicons name={isSpeakerOn ? "volume-high" : "volume-medium"} size={24} color="#fff" />
                             <Text style={styles.controlLabel}>Altavoz</Text>
                         </TouchableOpacity>
 
@@ -350,6 +387,10 @@ const styles = StyleSheet.create({
     controlButton: {
         alignItems: 'center',
         padding: 12,
+        borderRadius: 12, // Added visual touch
+    },
+    controlButtonActive: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
     },
     controlLabel: {
         fontSize: 12,

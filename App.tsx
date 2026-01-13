@@ -5,10 +5,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { CallProvider } from './src/context/CallContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { StreamCallProvider } from './src/context/StreamCallContext';
+import { StreamCallProvider } from './src/context/StreamCallContext'; // to delete
+import { AgoraCallProvider } from './src/context/AgoraCallContext';
 import { AppNavigator } from './src/navigation';
 import { CallModal } from './src/components/CallModal';
-import { StreamCallModal } from './src/components/StreamCallModal';
+// import { StreamCallModal } from './src/components/StreamCallModal';
 
 // Componente interno que tiene acceso al tema
 function AppContent() {
@@ -24,10 +25,8 @@ function AppContent() {
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <AppNavigator />
       </View>
-      {/* Modal global de llamadas (antiguo sistema) */}
+      {/* Modal global de llamadas */}
       <CallModal />
-      {/* Modal de llamadas con Stream */}
-      <StreamCallModal />
     </>
   );
 }
@@ -39,9 +38,9 @@ export default function App() {
         <ThemeProvider>
           <AuthProvider>
             <CallProvider>
-              <StreamCallProvider>
+              <AgoraCallProvider>
                 <AppContent />
-              </StreamCallProvider>
+              </AgoraCallProvider>
             </CallProvider>
           </AuthProvider>
         </ThemeProvider>

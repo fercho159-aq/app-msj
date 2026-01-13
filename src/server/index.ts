@@ -9,7 +9,8 @@ import { chatRoutes } from './routes/chats';
 import { messageRoutes } from './routes/messages';
 import { uploadRoutes } from './routes/upload';
 import { callRoutes } from './routes/calls';
-import { streamRoutes } from './routes/stream';
+// import { streamRoutes } from './routes/stream'; // Deprecated
+import { agoraRoutes } from './routes/agora';
 import { initializeWebSocket } from './websocket/signaling';
 
 const app = express();
@@ -51,7 +52,8 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/calls', callRoutes);
-app.use('/api/stream', streamRoutes);
+// app.use('/api/stream', streamRoutes);
+app.use('/api/agora', agoraRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

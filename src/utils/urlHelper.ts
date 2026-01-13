@@ -14,10 +14,21 @@ const DEFAULT_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsolucione
 export const getAbsoluteMediaUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
 
-    // Si ya es una URL completa (http/https), la devolvemos
+    // Si ya es una URL completa (http/https), verificamos si necesita ser convertida
     if (url.startsWith('http://') || url.startsWith('https://')) {
-        // Corrección opcional para localhost en Android/iOS si fuera necesario, 
-        // pero mejor confiar en que la URL ya es correcta si es absoluta.
+        // Reemplazar el dominio antiguo HTTP con el nuevo dominio HTTPS
+        // Esto es necesario para iOS que bloquea conexiones HTTP inseguras (App Transport Security)
+        const oldDomains = [
+            'http://31.220.109.7:3000',
+            'http://31.220.109.7',
+        ];
+
+        for (const oldDomain of oldDomains) {
+            if (url.startsWith(oldDomain)) {
+                return url.replace(oldDomain, 'https://appsoluciones.duckdns.org');
+            }
+        }
+
         return url;
     }
 
