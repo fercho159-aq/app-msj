@@ -84,11 +84,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                         <Ionicons
                             name={hasMessage ? 'send' : 'mic'}
                             size={22}
-<<<<<<< HEAD
                             color={colors.background}
-=======
-                            color="#ffffff"
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
                             style={hasMessage ? styles.sendIcon : undefined}
                         />
                     </LinearGradient>

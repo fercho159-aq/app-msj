@@ -123,13 +123,8 @@ export const lightGradients: ThemeGradients = {
 // ============================================
 export const darkColors: ThemeColors = {
     // Primarios (blanco como color principal en tema oscuro)
-<<<<<<< HEAD
     primary: mono[50],
     primaryLight: mono[200],
-=======
-    primary: mono[100],
-    primaryLight: mono[300],
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     primaryDark: mono[50],
 
     // Backgrounds (oscuros)
@@ -143,7 +138,6 @@ export const darkColors: ThemeColors = {
     // Textos (blancos para contraste)
     textPrimary: mono[50],
     textSecondary: mono[300],
-<<<<<<< HEAD
     textMuted: mono[400],
 
     // Bordes y divisores (oscuros)
@@ -160,57 +154,24 @@ export const darkColors: ThemeColors = {
     error: mono[300],
     warning: mono[300],
     info: mono[400],
-=======
-    textMuted: mono[500],
-
-    // Bordes y divisores (oscuros)
-    border: mono[700],
-    divider: mono[800],
-
-    // Estados (monocromáticos ajustados)
-    online: mono[400],
-    offline: mono[600],
-    typing: mono[300],
-
-    // Acciones (matices claros para visibilidad)
-    success: mono[300],
-    error: mono[200],
-    warning: mono[400],
-    info: mono[500],
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
 
     // Especiales
     shadow: 'rgba(0, 0, 0, 0.4)',
     overlay: 'rgba(0, 0, 0, 0.7)',
 
-<<<<<<< HEAD
     // Mensajes (fondo gris oscuro para burbujas enviadas, texto blanco)
     messageSent: mono[600],
     messageReceived: mono[800],
     messageRead: mono[400],
-=======
-    // Mensajes
-    messageSent: mono[700],
-    messageReceived: mono[800],
-    messageRead: mono[500],
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
 };
 
 // Gradientes para tema oscuro
 export const darkGradients: ThemeGradients = {
-<<<<<<< HEAD
     primary: [mono[50], mono[200], mono[300]],
     secondary: [mono[100], mono[200]],
     dark: [mono[950], mono[900]],
     surface: [mono[900], mono[800]],
     accent: [mono[200], mono[400]],
-=======
-    primary: [mono[100], mono[300], mono[400]],
-    secondary: [mono[200], mono[300]],
-    dark: [mono[950], mono[900]],
-    surface: [mono[900], mono[800]],
-    accent: [mono[300], mono[500]],
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
 };
 
 // ============================================

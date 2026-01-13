@@ -1,12 +1,7 @@
 {
   "expo": {
-<<<<<<< HEAD
     "name": "Yaakob",
     "slug": "yaakob",
-=======
-    "name": "SolucionaApp",
-    "slug": "consultora",
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -21,14 +16,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.fernandotrejo.consultora",
       "infoPlist": {
-<<<<<<< HEAD
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
         }
-=======
-        "ITSAppUsesNonExemptEncryption": false
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
       }
     },
     "android": {
@@ -55,17 +46,10 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png",
-<<<<<<< HEAD
       "name": "Yaakob",
       "shortName": "Yaakob",
       "description": "Be Heart - Conecta con tu corazón.",
       "themeColor": "#000000",
-=======
-      "name": "SolucionaApp",
-      "shortName": "Soluciona",
-      "description": "Una solución rápida y efectiva.",
-      "themeColor": "#6366F1",
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
       "backgroundColor": "#ffffff",
       "display": "standalone"
     },
@@ -76,8 +60,4 @@
     },
     "owner": "fernandotrejo"
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24

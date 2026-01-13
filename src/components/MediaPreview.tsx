@@ -19,10 +19,7 @@ import * as WebBrowser from 'expo-web-browser';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
-<<<<<<< HEAD
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
-=======
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -36,11 +33,7 @@ interface MediaPreviewProps {
 
 export const MediaPreview: React.FC<MediaPreviewProps> = ({
     visible,
-<<<<<<< HEAD
     mediaUrl: propMediaUrl,
-=======
-    mediaUrl,
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     mediaType,
     fileName,
     onClose,
@@ -50,11 +43,8 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadProgress, setDownloadProgress] = useState(0);
 
-<<<<<<< HEAD
     const mediaUrl = getAbsoluteMediaUrl(propMediaUrl);
 
-=======
->>>>>>> 96245e354f61f5fe47f0223e06d5ca17501c0a24
     if (!mediaUrl) return null;
 
     const getFileExtension = (url: string) => {
