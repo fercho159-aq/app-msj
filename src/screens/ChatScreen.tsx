@@ -25,7 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { useStreamCall } from '../context/StreamCallContext';
+import { useCall } from '../context/CallContext';
 import { api, Message } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
@@ -128,7 +128,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const { chatId, userName, userAvatar, participantId: routeParticipantId } = route.params as any;
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
-    const { startAudioCall } = useStreamCall();
+    const { startCall } = useCall();
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
@@ -337,8 +337,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
     const handleCall = () => {
         if (isAdmin) {
-            // Admin inicia llamada de audio con Stream
-            startAudioCall(routeParticipantId || chatId, userName || 'Usuario');
+            // Admin inicia llamada de audio
+            startCall(routeParticipantId || chatId, userName || 'Usuario', 'audio');
         } else {
             // Usuario normal ve el formulario de solicitud
             setShowCallModal(true);

@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/context/AuthContext';
 import { CallProvider } from './src/context/CallContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-import { StreamCallProvider } from './src/context/StreamCallContext'; // to delete
+// StreamCallProvider removed - now using AgoraCallProvider
 import { AgoraCallProvider } from './src/context/AgoraCallContext';
 import { AppNavigator } from './src/navigation';
 import { CallModal } from './src/components/CallModal';

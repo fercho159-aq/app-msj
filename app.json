@@ -33,15 +33,6 @@
     },
     "plugins": [
       "./plugins/withAndroidCleartextTraffic",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#6366F1",
-          "sounds": [],
-          "defaultChannel": "messages"
-        }
-      ],
       "expo-font"
     ],
     "web": {
