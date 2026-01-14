@@ -11,6 +11,7 @@ interface CallState {
     remoteUser: { id: string; name: string } | null;
     callDirection: 'incoming' | 'outgoing' | null;
     callDuration: number;
+    agoraChannel: string | null; // Canal de Agora para la llamada
 }
 
 interface CallContextType {
@@ -36,6 +37,7 @@ const initialCallState: CallState = {
     remoteUser: null,
     callDirection: null,
     callDuration: 0,
+    agoraChannel: null,
 };
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
@@ -73,6 +75,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const startCall = useCallback((userId: string, userName: string, callType: 'audio' | 'video') => {
         console.log(`📞 Iniciando llamada ${callType} a ${userName}`);
 
+        // Generar nombre de canal de Agora - IDs ordenados para consistencia
+        const [id1, id2] = [user?.id || '', userId].sort();
+        const agoraChannel = `call_${id1}_${id2}`;
+
+        console.log('📞 Canal de Agora generado:', agoraChannel);
+
         setCallState({
             isInCall: false,
             isRinging: true,
@@ -81,6 +89,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             remoteUser: { id: userId, name: userName },
             callDirection: 'outgoing',
             callDuration: 0,
+            agoraChannel,
         });
 
         // Simular oferta WebRTC (en producción usarías WebRTC real)
@@ -89,8 +98,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             sdp: 'mock-sdp-offer'
         };
 
-        socketService.callUser(userId, mockOffer, callType);
-    }, []);
+        // Enviar llamada con el canal de Agora
+        socketService.callUser(userId, mockOffer, callType, agoraChannel);
+    }, [user]);
 
     // Aceptar llamada
     const acceptCall = useCallback(() => {
@@ -213,6 +223,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('📞 Llamada entrante:', data);
             console.log('📞 De:', data.fromName, '(', data.from, ')');
             console.log('📞 Tipo:', data.callType);
+            console.log('📞 Canal de Agora:', data.agoraChannel);
 
             // Patrón de vibración menos agresivo: vibrar 300ms, pausa 200ms, repetir
             if (Platform.OS !== 'web') {
@@ -229,6 +240,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 remoteUser: { id: data.from, name: data.fromName },
                 callDirection: 'incoming',
                 callDuration: 0,
+                agoraChannel: data.agoraChannel || null, // Guardar el canal de Agora
             });
             console.log('📋 Estado actualizado para llamada entrante');
         };

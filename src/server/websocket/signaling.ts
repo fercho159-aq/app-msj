@@ -29,6 +29,7 @@ interface CallData {
     answer?: SDPData;
     candidate?: ICECandidate;
     callType: 'audio' | 'video';
+    agoraChannel?: string; // Canal de Agora para la llamada
 }
 
 // Almacena usuarios conectados
@@ -78,7 +79,8 @@ export function initializeWebSocket(httpServer: HttpServer) {
                     from: data.from,
                     fromName: data.fromName,
                     offer: data.offer,
-                    callType: data.callType
+                    callType: data.callType,
+                    agoraChannel: data.agoraChannel // Pasar el canal de Agora
                 });
             } else {
                 // Usuario NO está en línea, enviar notificación push

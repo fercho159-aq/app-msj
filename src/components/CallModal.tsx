@@ -28,24 +28,13 @@ export const CallModal: React.FC = () => {
 
     const isVisible = callState.isRinging || callState.isInCall || callState.isConnecting;
 
-    // Helper para generar nombre de canal consistente
-    const getChannelName = () => {
-        if (!user || (!callState.remoteUser && !callState.isInCall)) return null;
-
-        // Si ya estamos conectados en Agora, quizás tenemos el canal ahí, pero mejor generarlo igual
-        // Usamos IDs ordenados para que coincida entre ambos usuarios
-        const myId = user.id;
-        const otherId = callState.remoteUser?.id || '';
-        if (!otherId) return null;
-
-        const [id1, id2] = [myId, otherId].sort();
-        return `call_${id1}_${id2}`;
-    };
-
     // Manejar Aceptar Llamada
     const handleAcceptCall = async () => {
         console.log('🟢 Botón ACEPTAR presionado');
-        const channel = getChannelName();
+
+        // Obtener el canal de Agora del estado de la llamada
+        const channel = callState.agoraChannel;
+        console.log('📞 Canal de Agora recibido:', channel);
 
         // Aceptamos la señalización
         signalingAccept();
@@ -55,7 +44,7 @@ export const CallModal: React.FC = () => {
             console.log('📞 Uniéndose al canal de Agora:', channel);
             await agoraJoin(channel);
         } else {
-            console.error('❌ No se pudo determinar el nombre del canal');
+            console.error('❌ No se pudo determinar el nombre del canal - agoraChannel es null');
         }
     };
 
@@ -79,7 +68,7 @@ export const CallModal: React.FC = () => {
     // Cuando el otro contesta, CallContext pone isInCall=true.
     useEffect(() => {
         if (callState.isInCall && !isConnected) {
-            const channel = getChannelName();
+            const channel = callState.agoraChannel;
             if (channel) {
                 // Si somos nosotros los que iniciamos, o si acabamos de aceptar
                 // (Aunque handleAcceptCall ya llama a join, esto es backup o para el iniciador)
@@ -89,18 +78,18 @@ export const CallModal: React.FC = () => {
                 // Debemos unirnos si isConnecting también?
             }
         }
-    }, [callState.isInCall, isConnected]);
+    }, [callState.isInCall, isConnected, callState.agoraChannel]);
 
     // Efecto para unirse al iniciar llamada (outgoing)
     useEffect(() => {
         if (callState.isConnecting && callState.callDirection === 'outgoing' && !isConnected) {
-            const channel = getChannelName();
+            const channel = callState.agoraChannel;
             if (channel) {
                 console.log('📞 Iniciando canal Agora (outgoing):', channel);
                 agoraJoin(channel);
             }
         }
-    }, [callState.isConnecting, callState.callDirection, isConnected]);
+    }, [callState.isConnecting, callState.callDirection, isConnected, callState.agoraChannel]);
 
 
     // Animations (igual que antes)

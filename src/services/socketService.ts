@@ -14,6 +14,7 @@ export interface IncomingCallData {
     fromName: string;
     callType: 'audio' | 'video';
     offer?: RTCSessionDescriptionInit;
+    agoraChannel?: string; // Canal de Agora para la llamada
 }
 
 export interface CallAnsweredData {
@@ -141,7 +142,8 @@ class SocketService extends EventEmitter {
     callUser(
         targetUserId: string,
         offer: RTCSessionDescriptionInit,
-        callType: 'audio' | 'video'
+        callType: 'audio' | 'video',
+        agoraChannel?: string
     ): void {
         if (!this.socket || !this.currentUser) {
             console.error('No conectado al servidor');
@@ -154,6 +156,7 @@ class SocketService extends EventEmitter {
             fromName: this.currentUser.name,
             offer,
             callType,
+            agoraChannel, // Canal de Agora para la llamada
         });
     }
 
