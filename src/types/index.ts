@@ -37,7 +37,7 @@ export interface ChatListItemProps {
 export type RootStackParamList = {
     Login: undefined;
     Main: undefined;
-    Chat: { chatId: string; userName: string; userAvatar: string };
+    Chat: { chatId: string; userName: string; userAvatar: string; participantId?: string };
     Profile: { userId: string };
     Settings: undefined;
     EditProfile: undefined;

@@ -337,8 +337,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
     const handleCall = () => {
         if (isAdmin) {
+            // Validar que tenemos el ID del participante
+            if (!routeParticipantId) {
+                Alert.alert('Error', 'No se puede iniciar la llamada: ID de participante no disponible');
+                console.error('❌ participantId no disponible para llamada. chatId:', chatId);
+                return;
+            }
             // Admin inicia llamada de audio
-            startCall(routeParticipantId || chatId, userName || 'Usuario', 'audio');
+            console.log('📞 Iniciando llamada al participante:', routeParticipantId);
+            startCall(routeParticipantId, userName || 'Usuario', 'audio');
         } else {
             // Usuario normal ve el formulario de solicitud
             setShowCallModal(true);

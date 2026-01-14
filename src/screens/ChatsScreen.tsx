@@ -208,6 +208,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             chatId: chat.id,
             userName: chat.isGroup ? (chat.groupName || 'Grupo') : (otherUser?.name || 'Usuario'),
             userAvatar: chat.isGroup ? (chat.groupAvatar || '') : (otherUser?.avatar_url || ''),
+            participantId: otherUser?.id, // ID del otro usuario para llamadas
         });
     };
 
