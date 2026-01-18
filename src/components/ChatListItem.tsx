@@ -39,7 +39,22 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
 
     const displayName = chat.isGroup ? chat.groupName : otherUser.name;
     const displayAvatar = chat.isGroup ? chat.groupAvatar : otherUser.avatar;
-    const lastMessageText = chat.lastMessage?.text || '';
+    const getLastMessageText = () => {
+        if (!chat.lastMessage) return '';
+
+        switch (chat.lastMessage.type) {
+            case 'audio':
+                return '🎤 Nota de voz';
+            case 'image':
+                return '📷 Imagen';
+            case 'file':
+                return '📄 Archivo';
+            default:
+                return chat.lastMessage.text || '';
+        }
+    };
+
+    const lastMessageText = getLastMessageText();
     const isOwnMessage = chat.lastMessage?.senderId === currentUserId;
     const hasUnread = chat.unreadCount > 0;
 
