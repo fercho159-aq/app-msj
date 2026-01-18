@@ -99,7 +99,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const message = await getMessageById(id);
+        const message = await getMessageById(id as string);
 
         if (!message) {
             return res.status(404).json({ error: 'Mensaje no encontrado' });
@@ -123,7 +123,7 @@ router.put('/:id/status', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Estado inválido' });
         }
 
-        await updateMessageStatus(id, status);
+        await updateMessageStatus(id as string, status);
 
         res.json({ success: true, message: 'Estado actualizado' });
 
@@ -181,7 +181,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        const deleted = await deleteMessage(id, userId);
+        const deleted = await deleteMessage(id as string, userId);
 
         if (!deleted) {
             return res.status(404).json({
