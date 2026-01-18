@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Yaakob",
+    "slug": "consultora",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fernandotrejo.consultora",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Este app necesita acceso al micrófono para realizar llamadas de voz",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        },
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fernandotrejo.consultora"
+    },
+    "plugins": [
+      "./plugins/withAndroidCleartextTraffic",
+      "expo-font"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Yaakob",
+      "shortName": "Yaakob",
+      "description": "Be Heart - Conecta con tu corazón.",
+      "themeColor": "#000000",
+      "backgroundColor": "#ffffff",
+      "display": "standalone"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "f41b62dd-b165-4377-aaf5-0bd6585d793e"
+      }
+    },
+    "owner": "fernandotrejo"
+  }
+}
