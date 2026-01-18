@@ -89,7 +89,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const chat = await getChatById(id);
+        const chat = await getChatById(id as string);
 
         if (!chat) {
             return res.status(404).json({ error: 'Chat no encontrado' });
@@ -109,13 +109,13 @@ router.delete('/:id', async (req: Request, res: Response) => {
         const { id } = req.params;
 
         // Verificar que el chat existe
-        const chat = await getChatById(id);
+        const chat = await getChatById(id as string);
         if (!chat) {
             return res.status(404).json({ error: 'Chat no encontrado' });
         }
 
         // Eliminar el chat y todos sus mensajes
-        const result = await deleteChat(id);
+        const result = await deleteChat(id as string);
 
         res.json(result);
 
@@ -132,7 +132,7 @@ router.get('/:id/messages', async (req: Request, res: Response) => {
         const limit = parseInt(req.query.limit as string) || 50;
         const offset = parseInt(req.query.offset as string) || 0;
 
-        const messages = await getChatMessages(id, limit, offset);
+        const messages = await getChatMessages(id as string, limit, offset);
 
         // Formatear respuesta
         const formattedMessages = messages.map(msg => ({
@@ -165,7 +165,7 @@ router.post('/:id/read', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        await markChatAsRead(id, userId);
+        await markChatAsRead(id as string, userId);
 
         res.json({ success: true, message: 'Chat marcado como leído' });
 

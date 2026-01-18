@@ -59,7 +59,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
-        const user = await getUserById(id);
+        const user = await getUserById(id as string);
 
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -79,7 +79,7 @@ router.put('/:id', async (req: Request, res: Response) => {
         const { id } = req.params;
         const { name, avatar_url, status } = req.body;
 
-        const user = await updateUser(id, { name, avatar_url, status });
+        const user = await updateUser(id as string, { name, avatar_url, status });
 
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -103,7 +103,7 @@ router.patch('/:id/status', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Estado inválido' });
         }
 
-        await updateUserStatus(id, status);
+        await updateUserStatus(id as string, status);
 
         res.json({ success: true, message: 'Estado actualizado' });
 
