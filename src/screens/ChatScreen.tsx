@@ -513,6 +513,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     // Audio recording logic
     const [recording, setRecording] = useState<Audio.Recording | null>(null);
     const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState('00:00');
 
     const handleVoice = async () => {
         if (recording) {
@@ -536,7 +537,19 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             });
 
             const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY
+                Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                (status) => {
+                    if (status.canRecord) {
+                        const durationMillis = status.durationMillis;
+                        const seconds = Math.floor(durationMillis / 1000);
+                        const minutes = Math.floor(seconds / 60);
+                        const remainingSeconds = seconds % 60;
+                        setRecordingDuration(
+                            `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+                        );
+                    }
+                },
+                200 // Update every 200ms
             );
 
             setRecording(recording);
@@ -555,6 +568,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             await recording.stopAndUnloadAsync();
             const uri = recording.getURI();
             setRecording(null);
+            setRecordingDuration('00:00');
 
             if (uri) {
                 // Upload audio
@@ -616,6 +630,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                     onAttachment={handleAttachment}
                     onVoice={handleVoice}
                     isRecording={isRecording}
+                    recordingDuration={recordingDuration}
                 />
             </View>
 
