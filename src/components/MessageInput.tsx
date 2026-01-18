@@ -14,12 +14,14 @@ interface MessageInputProps {
     onSend: (text: string) => void;
     onAttachment?: () => void;
     onVoice?: () => void;
+    isRecording?: boolean;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
     onSend,
     onAttachment,
     onVoice,
+    isRecording = false,
 }) => {
     const { colors, gradients } = useTheme();
     const [message, setMessage] = useState('');
@@ -46,13 +48,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     style={styles.iconButton}
                     onPress={onAttachment}
                     activeOpacity={0.7}
+                    disabled={isRecording}
                 >
-                    <Ionicons name="add-circle" size={28} color={colors.primary} />
+                    <Ionicons name="add-circle" size={28} color={isRecording ? colors.textMuted : colors.primary} />
                 </TouchableOpacity>
 
                 <TextInput
                     style={[styles.input, { color: colors.textPrimary }]}
-                    value={message}
+                    value={isRecording ? 'Grabando audio...' : message}
                     onChangeText={setMessage}
                     placeholder="Escribe un mensaje..."
                     placeholderTextColor={colors.textMuted}
@@ -60,6 +63,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     maxLength={1000}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
+                    editable={!isRecording}
                 />
 
                 <TouchableOpacity
@@ -76,13 +80,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     activeOpacity={0.8}
                 >
                     <LinearGradient
-                        colors={gradients.primary as [string, string, ...string[]]}
+                        colors={isRecording ? [colors.error, colors.error] : (gradients.primary as [string, string, ...string[]])}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={[styles.sendButton, { shadowColor: colors.primary }]}
+                        style={[styles.sendButton, { shadowColor: isRecording ? colors.error : colors.primary }]}
                     >
                         <Ionicons
-                            name={hasMessage ? 'send' : 'mic'}
+                            name={hasMessage ? 'send' : (isRecording ? 'stop' : 'mic')}
                             size={22}
                             color={colors.background}
                             style={hasMessage ? styles.sendIcon : undefined}

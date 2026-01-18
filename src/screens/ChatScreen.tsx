@@ -21,6 +21,7 @@ import { format, parseISO } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { Audio } from 'expo-av';
 
 import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
@@ -71,6 +72,51 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 
     const mediaUrl = getAbsoluteMediaUrl(message.mediaUrl);
 
+    const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    useEffect(() => {
+        return () => {
+            if (sound) {
+                sound.unloadAsync();
+            }
+        };
+    }, [sound]);
+
+    const playSound = async () => {
+        try {
+            if (sound) {
+                if (isPlaying) {
+                    await sound.pauseAsync();
+                    setIsPlaying(false);
+                } else {
+                    await sound.playAsync();
+                    setIsPlaying(true);
+                }
+            } else {
+                if (!mediaUrl) return;
+                const { sound: newSound } = await Audio.Sound.createAsync(
+                    { uri: mediaUrl },
+                    { shouldPlay: true }
+                );
+                setSound(newSound);
+                setIsPlaying(true);
+
+                newSound.setOnPlaybackStatusUpdate((status) => {
+                    if (status.isLoaded) {
+                        if (status.didJustFinish) {
+                            setIsPlaying(false);
+                            newSound.setPositionAsync(0);
+                        }
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error playing sound', error);
+            Alert.alert('Error', 'No se pudo reproducir el audio');
+        }
+    };
+
     return (
         <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
             <View style={[
@@ -92,6 +138,24 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
                     </TouchableOpacity>
                 )}
 
+                {message.type === 'audio' && (
+                    <View style={styles.audioContainer}>
+                        <TouchableOpacity onPress={playSound} style={styles.playButton}>
+                            <Ionicons
+                                name={isPlaying ? "pause" : "play"}
+                                size={24}
+                                color={isOwn ? '#ffffff' : colors.primary}
+                            />
+                        </TouchableOpacity>
+                        <View style={styles.audioWaveform}>
+                            <View style={[styles.audioLine, { backgroundColor: isOwn ? 'rgba(255,255,255,0.5)' : colors.border }]} />
+                            <Text style={[styles.audioText, { color: isOwn ? '#ffffff' : colors.textPrimary }]}>
+                                Mensaje de voz
+                            </Text>
+                        </View>
+                    </View>
+                )}
+
                 {message.type === 'file' && (
                     <TouchableOpacity style={styles.fileContainer} onPress={handleMediaPress}>
                         <View style={[styles.fileIcon, { backgroundColor: isOwn ? 'rgba(255,255,255,0.2)' : `${colors.primary}20` }]}>
@@ -103,7 +167,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
                     </TouchableOpacity>
                 )}
 
-                {message.text && message.type !== 'file' ? (
+                {message.text && message.type !== 'file' && message.type !== 'audio' ? (
                     <Text style={[styles.messageText, { color: isOwn ? '#ffffff' : colors.textPrimary }]}>
                         {message.text}
                     </Text>
@@ -446,6 +510,61 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         );
     };
 
+    // Audio recording logic
+    const [recording, setRecording] = useState<Audio.Recording | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+
+    const handleVoice = async () => {
+        if (recording) {
+            await stopRecording();
+        } else {
+            await startRecording();
+        }
+    };
+
+    const startRecording = async () => {
+        try {
+            const permission = await Audio.requestPermissionsAsync();
+            if (permission.status !== 'granted') {
+                Alert.alert('Permiso denegado', 'Se necesita acceso al micrófono para grabar audios');
+                return;
+            }
+
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+            });
+
+            const { recording } = await Audio.Recording.createAsync(
+                Audio.RecordingOptionsPresets.HIGH_QUALITY
+            );
+
+            setRecording(recording);
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Error', 'No se pudo iniciar la grabación');
+        }
+    };
+
+    const stopRecording = async () => {
+        if (!recording) return;
+
+        setIsRecording(false);
+        try {
+            await recording.stopAndUnloadAsync();
+            const uri = recording.getURI();
+            setRecording(null);
+
+            if (uri) {
+                // Upload audio
+                uploadAndSend(uri, 'audio');
+            }
+        } catch (error) {
+            console.error('Failed to stop recording', error);
+        }
+    };
+
     return (
         <KeyboardAvoidingView
             style={[styles.container, { backgroundColor: colors.background }]}
@@ -495,6 +614,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 <MessageInput
                     onSend={(text) => handleSendMessage(text)}
                     onAttachment={handleAttachment}
+                    onVoice={handleVoice}
+                    isRecording={isRecording}
                 />
             </View>
 
@@ -674,6 +795,35 @@ const styles = StyleSheet.create({
         fontSize: 14,
         textDecorationLine: 'underline',
         maxWidth: 150,
+    },
+    audioContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 4,
+        width: 200,
+    },
+    playButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    audioWaveform: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    audioLine: {
+        height: 2,
+        width: '100%',
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        marginBottom: 4,
+        borderRadius: 1,
+    },
+    audioText: {
+        fontSize: 12,
     },
     uploadingOverlay: {
         position: 'absolute',
