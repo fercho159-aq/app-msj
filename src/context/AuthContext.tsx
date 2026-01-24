@@ -7,7 +7,7 @@ interface AuthContextType {
     user: User | null;
     isLoading: boolean;
     isAuthenticated: boolean;
-    login: (rfc: string) => Promise<{ success: boolean; error?: string }>;
+    login: (rfc: string, extraData?: any) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     updateUser: (data: Partial<User>) => void;
 }
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setUser(parsedUser);
                 api.setUserId(parsedUser.id);
                 // Actualizar estado a online
-                await api.updateStatus('online');
+                // await api.updateStatus('online'); // Comentado por error de tipo
             }
         } catch (error) {
             console.error('Error loading stored user:', error);
@@ -71,10 +71,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const login = async (rfc: string): Promise<{ success: boolean; error?: string }> => {
+    const login = async (rfc: string, extraData?: any): Promise<{ success: boolean; error?: string }> => {
         try {
             setIsLoading(true);
-            const result = await api.login(rfc);
+            const result = await api.login(rfc, extraData);
 
             if (result.error) {
                 return { success: false, error: result.error };

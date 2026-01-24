@@ -10,6 +10,7 @@ import { AgoraCallProvider } from './src/context/AgoraCallContext';
 import { ScreenCaptureProvider } from './src/context/ScreenCaptureContext';
 import { AppNavigator } from './src/navigation';
 import { CallModal } from './src/components/CallModal';
+import Preloader from './src/components/Preloader';
 // import { StreamCallModal } from './src/components/StreamCallModal';
 
 // Componente interno que tiene acceso al tema

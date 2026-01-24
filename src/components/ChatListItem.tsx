@@ -50,7 +50,12 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
             case 'file':
                 return '📄 Archivo';
             default:
-                return chat.lastMessage.text || '';
+                const text = chat.lastMessage.text || '';
+                // Fallback para audios si el tipo no viene correcto
+                if (text.match(/\.(m4a|mp3|aac|wav)$/i)) {
+                    return '🎤 Nota de voz';
+                }
+                return text;
         }
     };
 

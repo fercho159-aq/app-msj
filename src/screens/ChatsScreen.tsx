@@ -53,7 +53,24 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
 
     const displayName = chat.isGroup ? chat.groupName : otherUser?.name || 'Usuario';
     const displayAvatar = chat.isGroup ? chat.groupAvatar : otherUser?.avatar_url;
-    const lastMessageText = chat.lastMessage?.text || '';
+    const getLastMessageText = () => {
+        const msg = chat.lastMessage;
+        if (!msg) return '';
+
+        // Prioridad al tipo explícito
+        if (msg.type === 'audio') return '🎤 Nota de voz';
+        if (msg.type === 'image') return '📷 Imagen';
+        if (msg.type === 'file') return '📄 Archivo';
+
+        // Fallback: detectar tipo por extensión en el texto
+        const text = msg.text || '';
+        if (text.match(/\.(m4a|mp3|wav|aac|ogg)$/i)) return '🎤 Nota de voz';
+        if (text.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return '📷 Imagen';
+
+        return text;
+    };
+
+    const lastMessageText = getLastMessageText();
     const hasUnread = chat.unreadCount > 0;
     const isOnline = otherUser?.status === 'online';
 

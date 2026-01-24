@@ -34,6 +34,7 @@ router.get('/', async (req: Request, res: Response) => {
                 text: chat.last_message.text,
                 senderId: chat.last_message.sender_id,
                 status: chat.last_message.status,
+                type: chat.last_message.message_type,
                 timestamp: chat.last_message.created_at,
             } : null,
             unreadCount: chat.unread_count,

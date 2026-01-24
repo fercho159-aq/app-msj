@@ -2,159 +2,360 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
-    TextInput,
     TouchableOpacity,
     StyleSheet,
     StatusBar,
-    KeyboardAvoidingView,
-    Platform,
+    Image,
     ActivityIndicator,
     Alert,
-    Image,
+    TextInput,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 export const LoginScreen: React.FC = () => {
-    const [rfc, setRfc] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
-    const { colors, gradients, isDark } = useTheme();
+    const [isLoading, setIsLoading] = useState(false);
+    const [selectedRole, setSelectedRole] = useState<string | null>(null);
+    const [advisorName, setAdvisorName] = useState('');
+    const [advisorPhone, setAdvisorPhone] = useState('');
+    const [advisorPassword, setAdvisorPassword] = useState('');
+    const [clientRfc, setClientRfc] = useState('');
+    const [viewMode, setViewMode] = useState<'ROLE_SELECTION' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN'>('ROLE_SELECTION');
+    const [isRegistering, setIsRegistering] = useState(false); // Default to Login (simpler form)
+    const [consultantName, setConsultantName] = useState('');
+    const [consultantPassword, setConsultantPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
-    const formatRFC = (text: string) => {
-        // Solo permitir letras y números, máximo 13 caracteres
-        return text.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '').slice(0, 13);
+    const performLogin = async (rfc: string) => {
+        try {
+            const result = await login(rfc);
+            if (!result.success) {
+                Alert.alert('Error', result.error || 'No se pudo iniciar sesión');
+                setIsLoading(false);
+                setSelectedRole(null);
+            }
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+            setSelectedRole(null);
+            Alert.alert('Error', 'Ocurrió un error inesperado');
+        }
     };
 
-    const handleLogin = async () => {
-        if (rfc.length < 12) {
-            Alert.alert('Error', 'El RFC debe tener al menos 12 caracteres');
+    const performAdvisorLogin = async () => {
+        if (isRegistering) {
+            // Register Validation
+            if (!advisorName || !advisorPhone || !advisorPassword || !clientRfc) {
+                Alert.alert('Error', 'Todos los campos son obligatorios para registrarse');
+                return;
+            }
+        } else {
+            // Login Validation
+            if (!advisorName || !advisorPassword) {
+                Alert.alert('Error', 'Nombre y contraseña son requeridos');
+                return;
+            }
+        }
+        return executeAdvisorAuth();
+    };
+
+    const executeAdvisorAuth = async () => {
+        setIsLoading(true);
+        try {
+            // Updated to use Context Login with extra data
+            // Use the REAL RFC (clientRfc) provided by the user as the main identifier
+            const rfcToUse = clientRfc.trim() || `ADV${advisorPhone.replace(/\D/g, '').substring(0, 10)}`;
+
+            const result = await login(rfcToUse, {
+                role: 'advisor',
+                name: advisorName,
+                phone: advisorPhone.trim(),
+                password: advisorPassword,
+                clientRfc: clientRfc.trim(), // Send it in body too just in case
+            });
+
+            if (!result.success) {
+                Alert.alert('Error', result.error || 'No se pudo iniciar sesión');
+                setIsLoading(false);
+            }
+            // Success is handled by context state update (redirect usually follows)
+
+        } catch (error) {
+            console.error(error);
+            setIsLoading(false);
+            Alert.alert('Error', 'Error de conexión');
+        }
+    };
+
+    const handleRoleLogin = async (role: string, rfc: string) => {
+        if (isLoading) return;
+
+        if (role === 'consultant') {
+            setViewMode('CONSULTANT_LOGIN');
+            setConsultantName('');
+            setConsultantPassword('');
+            return;
+        }
+
+        if (role === 'advisor') {
+            setViewMode('ADVISOR_LOGIN');
+            setAdvisorName('');
+            setAdvisorPhone('');
+            setAdvisorPassword('');
+            setClientRfc('');
             return;
         }
 
         setIsLoading(true);
-        const result = await login(rfc);
-        setIsLoading(false);
-
-        if (!result.success) {
-            Alert.alert('Error', result.error || 'No se pudo iniciar sesión');
-        }
+        setSelectedRole(role);
+        performLogin(rfc);
     };
 
-    const isValidRFC = rfc.length >= 12;
+    // ... (rest of code) ...
 
-    return (
-        <View style={styles.container}>
-            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-
-            <LinearGradient
-                colors={gradients.primary as [string, string, ...string[]]}
-                style={styles.gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.content}
-                >
-                    {/* Logo */}
+    if (viewMode === 'ADVISOR_LOGIN') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+                <View style={styles.content}>
                     <View style={styles.logoContainer}>
                         <Image
                             source={require('../../assets/logo.png')}
-                            style={styles.logoImage}
+                            style={styles.logo}
                             resizeMode="contain"
                         />
                     </View>
 
-                    {/* Login Form */}
-                    <View style={[styles.formContainer, { backgroundColor: colors.background }]}>
-                        <Text style={[styles.welcomeText, { color: colors.textPrimary }]}>Bienvenido</Text>
-                        <Text style={[styles.instructionText, { color: colors.textSecondary }]}>
-                            Ingresa tu RFC para comenzar
-                        </Text>
+                    <Text style={styles.welcomeText}>{isRegistering ? 'Registro Asesor' : 'Bienvenido'}</Text>
 
-                        <View style={styles.inputContainer}>
-                            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                                <Ionicons name="card-outline" size={22} color={colors.textMuted} />
+                    <View style={styles.formSection}>
+                        <Text style={styles.label}>Nombre</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={advisorName}
+                            onChangeText={setAdvisorName}
+                            placeholder={isRegistering ? "Juan Carlos Avila" : "Ingrese su nombre"}
+                            placeholderTextColor="#A0AEC0"
+                        />
+
+                        {isRegistering && (
+                            <>
+                                <Text style={styles.label}>Telefono</Text>
                                 <TextInput
-                                    style={[styles.input, { color: colors.textPrimary }]}
-                                    placeholder="RFC (Ej: GARM850101ABC)"
-                                    placeholderTextColor={colors.textMuted}
-                                    value={rfc}
-                                    onChangeText={(text) => setRfc(formatRFC(text))}
-                                    autoCapitalize="characters"
-                                    autoCorrect={false}
-                                    maxLength={13}
+                                    style={styles.input}
+                                    value={advisorPhone}
+                                    onChangeText={setAdvisorPhone}
+                                    placeholder="55 5393 2100"
+                                    placeholderTextColor="#A0AEC0"
+                                    keyboardType="phone-pad"
                                 />
-                                {rfc.length > 0 && (
-                                    <TouchableOpacity onPress={() => setRfc('')}>
-                                        <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-                                    </TouchableOpacity>
-                                )}
-                            </View>
+                            </>
+                        )}
 
-                            <Text style={[styles.helperText, { color: colors.textMuted }]}>
-                                {rfc.length}/13 caracteres
+                        <Text style={styles.label}>Contraseña CAT</Text>
+                        <View style={styles.passwordContainer}>
+                            <TextInput
+                                style={styles.passwordInput}
+                                value={advisorPassword}
+                                onChangeText={setAdvisorPassword}
+                                secureTextEntry={!showPassword}
+                                placeholder="@JAE17"
+                                placeholderTextColor="#A0AEC0"
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "lock-closed"} size={20} color="#697CA3" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {isRegistering && (
+                            <>
+                                <Text style={styles.label}>Ingrese RFC Cliente</Text>
+                                <View style={styles.passwordContainer}>
+                                    <TextInput
+                                        style={styles.passwordInput}
+                                        value={clientRfc}
+                                        onChangeText={setClientRfc}
+                                        placeholder="YAA731015LE9"
+                                        placeholderTextColor="#A0AEC0"
+                                        autoCapitalize="characters"
+                                    />
+                                </View>
+                            </>
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.loginButton}
+                            onPress={performAdvisorLogin}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.loginButtonText}>
+                                    {isRegistering ? 'REGISTRARSE' : 'INICIAR SESIÓN'}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Toggle Login/Register */}
+                        <TouchableOpacity
+                            style={{ marginTop: 20, alignItems: 'center' }}
+                            onPress={() => setIsRegistering(!isRegistering)}
+                        >
+                            <Text style={{ color: '#5474BC', fontWeight: 'bold' }}>
+                                {isRegistering ? '¿Ya tienes cuenta? Inicia Sesión' : '¿No tienes cuenta? Regístrate'}
                             </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={{ marginTop: 20, alignItems: 'center' }}
+                            onPress={() => setViewMode('ROLE_SELECTION')}
+                        >
+                            <Text style={{ color: '#697CA3' }}>Volver</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
+
+    const handleConsultantSubmit = () => {
+        if (!consultantName || !consultantPassword) {
+            Alert.alert('Error', 'Por favor ingresa nombre y contraseña');
+            return;
+        }
+        setIsLoading(true);
+        performLogin('ADMIN000CONS');
+    };
+
+    const RoleButton = ({ title, icon, rfc, roleId }: { title: string, icon: any, rfc: string, roleId: string }) => (
+        <TouchableOpacity
+            style={styles.roleButton}
+            onPress={() => handleRoleLogin(roleId, rfc)}
+            disabled={isLoading}
+            activeOpacity={0.7}
+        >
+            <View style={styles.iconContainer}>
+                <Ionicons name={icon} size={20} color="#697CA3" />
+            </View>
+            <Text style={styles.roleButtonText}>{title}</Text>
+            {isLoading && selectedRole === roleId && (
+                <View style={styles.loaderContainer}>
+                    <ActivityIndicator size="small" color="#697CA3" />
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+
+    if (viewMode === 'CONSULTANT_LOGIN') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+                <View style={styles.content}>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/logo.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+
+                    {/* Title */}
+                    <Text style={styles.welcomeText}>Bienvenido</Text>
+
+                    {/* Form Section */}
+                    <View style={styles.formSection}>
+                        <Text style={styles.label}>Nombre</Text>
+                        <TextInput
+                            style={styles.input}
+                            value={consultantName}
+                            onChangeText={setConsultantName}
+                            placeholder="Ingrese nombre"
+                            placeholderTextColor="#A0AEC0"
+                        />
+
+                        <Text style={styles.label}>Contraseña</Text>
+                        <View style={styles.passwordContainer}>
+                            <TextInput
+                                style={styles.passwordInput}
+                                value={consultantPassword}
+                                onChangeText={setConsultantPassword}
+                                secureTextEntry={!showPassword}
+                                placeholder="Ingrese contraseña"
+                                placeholderTextColor="#A0AEC0"
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Ionicons name={showPassword ? "eye-off-outline" : "lock-closed"} size={20} color="#697CA3" />
+                            </TouchableOpacity>
                         </View>
 
                         <TouchableOpacity
-                            style={[styles.loginButton, !isValidRFC && styles.loginButtonDisabled]}
-                            onPress={handleLogin}
-                            disabled={!isValidRFC || isLoading}
+                            style={styles.loginButton}
+                            onPress={handleConsultantSubmit}
+                            disabled={isLoading}
                         >
-                            <LinearGradient
-                                colors={isValidRFC ? gradients.primary as [string, string, ...string[]] : ['#666', '#444']}
-                                style={styles.loginButtonGradient}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                            >
-                                {isLoading ? (
-                                    <ActivityIndicator color="#ffffff" />
-                                ) : (
-                                    <>
-                                        <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-                                        <Ionicons name="arrow-forward" size={20} color="#ffffff" />
-                                    </>
-                                )}
-                            </LinearGradient>
+                            {isLoading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
+                            )}
                         </TouchableOpacity>
 
-                        {/* Demo users */}
-                        <View style={[styles.demoSection, { borderTopColor: colors.divider }]}>
-                            <Text style={[styles.demoTitle, { color: colors.textMuted }]}>RFC de prueba:</Text>
-                            <View style={styles.demoRFCContainer}>
-                                {['ADMIN000CONS', 'GARM850101ABC', 'LOPC900215DEF', 'MARA880320GHI'].map((demoRfc) => (
-                                    <TouchableOpacity
-                                        key={demoRfc}
-                                        style={[
-                                            styles.demoRFCButton,
-                                            { backgroundColor: colors.surface, borderColor: colors.border },
-                                            demoRfc === 'ADMIN000CONS' && { backgroundColor: `${colors.primary}20`, borderColor: colors.primary }
-                                        ]}
-                                        onPress={() => setRfc(demoRfc)}
-                                    >
-                                        <Text style={[
-                                            styles.demoRFCText,
-                                            { color: colors.primary },
-                                            demoRfc === 'ADMIN000CONS' && { fontWeight: '700', color: colors.primaryDark }
-                                        ]}>
-                                            {demoRfc === 'ADMIN000CONS' ? 'Consultor' : demoRfc}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
+                        {/* Optional Back Button */}
+                        <TouchableOpacity
+                            style={{ marginTop: 20, alignItems: 'center' }}
+                            onPress={() => setViewMode('ROLE_SELECTION')}
+                        >
+                            <Text style={{ color: '#697CA3' }}>Volver</Text>
+                        </TouchableOpacity>
                     </View>
+                </View>
+            </View>
+        );
+    }
 
-                    {/* DEBUG INFO */}
-                    <Text style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', marginTop: 20, fontSize: 10 }}>
-                        API: {process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api'}
-                    </Text>
-                </KeyboardAvoidingView>
-            </LinearGradient>
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+
+            <View style={styles.content}>
+                {/* Logo Section */}
+                <View style={styles.logoContainer}>
+                    <Image
+                        source={require('../../assets/logo.png')}
+                        style={styles.logo}
+                        resizeMode="contain"
+                    />
+                </View>
+
+                {/* Title */}
+                <Text style={styles.welcomeText}>Bienvenido</Text>
+
+                {/* Buttons Section */}
+                <View style={styles.buttonsContainer}>
+                    <RoleButton
+                        title="USUARIO"
+                        icon="person"
+                        rfc="GARM850101ABC"
+                        roleId="user"
+                    />
+                    <RoleButton
+                        title="ASESOR"
+                        icon="qr-code-outline"
+                        rfc="LOPC900215DEF"
+                        roleId="advisor"
+                    />
+                    <RoleButton
+                        title="CONSULTOR"
+                        icon="lock-closed"
+                        rfc="ADMIN000CONS"
+                        roleId="consultant"
+                    />
+                </View>
+            </View>
         </View>
     );
 };
@@ -162,132 +363,132 @@ export const LoginScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-    },
-    gradient: {
-        flex: 1,
+        backgroundColor: '#FCFCFC', // Very light off-white/cream
     },
     content: {
         flex: 1,
         justifyContent: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: 40,
+        paddingBottom: 40,
     },
     logoContainer: {
         alignItems: 'center',
-        marginBottom: 48,
+        marginBottom: 20,
     },
-    logoCircle: {
+    logo: {
         width: 120,
         height: 120,
-        borderRadius: 60,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.3,
-        shadowRadius: 20,
-        elevation: 10,
-    },
-    logoImage: {
-        width: 220,
-        height: 220,
-        borderRadius: 32,
-    },
-    appName: {
-        fontSize: 36,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 8,
-    },
-    tagline: {
-        fontSize: 16,
-        color: 'rgba(255, 255, 255, 0.8)',
-    },
-    formContainer: {
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 20,
-        elevation: 10,
+        // tintColor removed to show original logo colors
     },
     welcomeText: {
-        fontSize: 28,
+        fontSize: 32,
         fontWeight: 'bold',
+        color: '#1A2138', // Dark blue-ish text
         textAlign: 'center',
-        marginBottom: 8,
+        marginBottom: 30,
+        letterSpacing: 0.5,
     },
-    instructionText: {
-        fontSize: 15,
-        textAlign: 'center',
-        marginBottom: 24,
+    buttonsContainer: {
+        gap: 20,
+        width: '100%',
     },
-    inputContainer: {
-        marginBottom: 20,
-    },
-    inputWrapper: {
+    roleButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        height: 60,
         borderRadius: 16,
-        paddingHorizontal: 16,
-        height: 56,
+        paddingHorizontal: 20,
+        // Soft Shadow
+        shadowColor: '#697CA3',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
         borderWidth: 1,
-        gap: 12,
+        borderColor: '#F1F5F9',
+    },
+    iconContainer: {
+        width: 30,
+        alignItems: 'center',
+    },
+    roleButtonText: {
+        flex: 1,
+        textAlign: 'center',
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#697CA3', // Blue-ish grey
+        letterSpacing: 0.5,
+        marginRight: 30, // Balance the icon width to center text visually
+    },
+    loaderContainer: {
+        position: 'absolute',
+        right: 20,
+    },
+    // Consultant Form Styles
+    formSection: {
+        width: '100%',
+        marginTop: 20,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#5C6B89',
+        marginBottom: 8,
+        marginTop: 16,
     },
     input: {
-        flex: 1,
+        width: '100%',
+        height: 50,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
         fontSize: 16,
-        letterSpacing: 1,
+        color: '#1A2138',
+        backgroundColor: '#FFFFFF',
     },
-    helperText: {
-        fontSize: 12,
-        marginTop: 8,
-        marginLeft: 4,
-    },
-    loginButton: {
-        marginBottom: 20,
-    },
-    loginButtonDisabled: {
-        opacity: 0.7,
-    },
-    loginButtonGradient: {
+    passwordContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        width: '100%',
+        height: 50,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#FFFFFF',
+    },
+    passwordInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1A2138',
+    },
+    loginButton: {
+        width: '100%',
         height: 56,
+        backgroundColor: '#5474BC', // Matching the blue in screenshot
         borderRadius: 16,
-        gap: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 40,
+        shadowColor: '#5474BC',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     loginButtonText: {
-        fontSize: 17,
-        fontWeight: '600',
-        color: '#ffffff',
-    },
-    demoSection: {
-        borderTopWidth: 1,
-        paddingTop: 16,
-    },
-    demoTitle: {
-        fontSize: 13,
-        textAlign: 'center',
-        marginBottom: 12,
-    },
-    demoRFCContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: 8,
-    },
-    demoRFCButton: {
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
-    demoRFCText: {
-        fontSize: 11,
-        fontWeight: '500',
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
     },
 });
 

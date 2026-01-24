@@ -75,14 +75,14 @@ class ApiClient {
 
     // ==================== AUTH ====================
 
-    async login(rfc: string) {
+    async login(rfc: string, extraData?: any) {
         const result = await this.request<{
             success: boolean;
             user: User;
             message: string;
         }>('/auth/login', {
             method: 'POST',
-            body: JSON.stringify({ rfc }),
+            body: JSON.stringify({ rfc, ...extraData }),
         });
 
         if (result.data?.user) {
@@ -127,15 +127,6 @@ class ApiClient {
         return this.request<{ user: User }>(`/users/${userId}`, {
             method: 'PUT',
             body: JSON.stringify(data),
-        });
-    }
-
-    async updateStatus(status: 'online' | 'offline' | 'typing') {
-        if (!this.userId) return { error: 'No hay sesión activa' };
-
-        return this.request(`/users/${this.userId}/status`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status }),
         });
     }
 
@@ -326,7 +317,6 @@ export interface User {
     rfc: string;
     name: string | null;
     avatar_url: string | null;
-    status: 'online' | 'offline' | 'typing';
 }
 
 export interface Chat {

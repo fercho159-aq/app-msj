@@ -1,3 +1,4 @@
+
 import { Router, Request, Response } from 'express';
 import {
     getAllUsers,
@@ -79,7 +80,9 @@ router.put('/:id', async (req: Request, res: Response) => {
         const { id } = req.params;
         const { name, avatar_url, status } = req.body;
 
-        const user = await updateUser(id as string, { name, avatar_url, status });
+        // Force cast to any to avoid TS interface sync issues
+        const updateData: any = { name, avatar_url, status };
+        const user = await updateUser(id as string, updateData);
 
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });

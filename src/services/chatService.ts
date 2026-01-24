@@ -15,13 +15,14 @@ export interface ChatWithDetails extends Chat {
     rfc: string;
     name: string | null;
     avatar_url: string | null;
-    status: string;
+    // status removed
   }[];
   last_message?: {
     id: string;
     text: string;
     sender_id: string;
-    status: string;
+    status: string; // Message status (sent/read/etc) - Keep this!
+    message_type: 'text' | 'image' | 'audio' | 'video' | 'file';
     created_at: Date;
   };
   unread_count: number;
@@ -96,8 +97,7 @@ export async function getUserChats(userId: string): Promise<ChatWithDetails[]> {
           'id', u.id,
           'rfc', u.rfc,
           'name', u.name,
-          'avatar_url', u.avatar_url,
-          'status', u.status
+          'avatar_url', u.avatar_url
         ))
         FROM chat_participants cp2
         JOIN users u ON cp2.user_id = u.id
@@ -109,6 +109,7 @@ export async function getUserChats(userId: string): Promise<ChatWithDetails[]> {
           'text', m.text,
           'sender_id', m.sender_id,
           'status', m.status,
+          'message_type', m.message_type,
           'created_at', m.created_at
         )
         FROM messages m
@@ -141,8 +142,7 @@ export async function getChatById(chatId: string): Promise<ChatWithDetails | nul
           'id', u.id,
           'rfc', u.rfc,
           'name', u.name,
-          'avatar_url', u.avatar_url,
-          'status', u.status
+          'avatar_url', u.avatar_url
         ))
         FROM chat_participants cp2
         JOIN users u ON cp2.user_id = u.id

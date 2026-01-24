@@ -21,14 +21,15 @@ import colors from '../theme/colors';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+import Preloader from '../components/Preloader';
+
 export const AppNavigator: React.FC = () => {
     const { isAuthenticated, isLoading } = useAuth();
+    const [isSplashFinished, setIsSplashFinished] = React.useState(false);
 
-    if (isLoading) {
+    if (isLoading || !isSplashFinished) {
         return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-            </View>
+            <Preloader onFinish={() => setIsSplashFinished(true)} />
         );
     }
 
