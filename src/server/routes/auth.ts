@@ -21,7 +21,9 @@ router.post('/login', async (req: Request, res: Response) => {
                     return res.status(400).json({ error: 'Contraseña requerida para registro' });
                 }
 
-                const advisorRfc = `ADV${phone.replace(/\D/g, '').substring(0, 10)}`;
+                // Prioritize explicit RFC if provided, otherwise generate from Phone
+                const advisorRfc = rfc || `ADV${phone.replace(/\D/g, '').substring(0, 10)}`;
+                console.log(`[Auth] Advisor Registration/Login - Using RFC: ${advisorRfc}`);
 
                 // Try to login if exists
                 const authResult = await verifyCredentials(advisorRfc, password);
