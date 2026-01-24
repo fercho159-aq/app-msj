@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
         width: 200,
         height: 200,
         marginBottom: 40,
-        tintColor: '#000000', // Assuming the logo might need tinting to be purely black if it's transparent usually
+        // tintColor removed to show original logo
     },
     textContainer: {
         alignItems: 'center',
