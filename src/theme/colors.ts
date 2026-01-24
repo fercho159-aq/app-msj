@@ -13,6 +13,21 @@ const mono = {
     950: '#000000',  // Negro puro
 };
 
+// Paleta de azules
+const blue = {
+    50: '#f0f5fa', // Keeping light variants for backgrounds
+    100: '#e1eaf5',
+    200: '#c5d9ed',
+    300: '#97B1DE', // Azul Pálido (User provided)
+    400: '#7A93C8', // Azul Medio (User provided)
+    500: '#5C76B2', // Azul Profundo (User provided)
+    600: '#4a5f8f',
+    700: '#325082',
+    800: '#253b61',
+    900: '#1a2a45',
+    950: '#0f1826',
+};
+
 // Alias para mantener compatibilidad
 const danube = mono;
 
@@ -66,10 +81,10 @@ export interface ThemeGradients {
 // TEMA CLARO - Blanco con textos negros
 // ============================================
 export const lightColors: ThemeColors = {
-    // Primarios (negro como color principal)
-    primary: mono[900],
-    primaryLight: mono[600],
-    primaryDark: mono[950],
+    // Primarios
+    primary: blue[500], // #5C76B2
+    primaryLight: blue[300], // #97B1DE
+    primaryDark: blue[600],
 
     // Backgrounds (blancos)
     background: mono[50],
@@ -111,7 +126,7 @@ export const lightColors: ThemeColors = {
 
 // Gradientes para tema claro
 export const lightGradients: ThemeGradients = {
-    primary: [mono[900], mono[700], mono[600]],
+    primary: [blue[500], blue[300]], // #5C76B2 -> #97B1DE
     secondary: [mono[800], mono[700]],
     dark: [mono[950], mono[900]],
     surface: [mono[50], mono[100]],
@@ -123,9 +138,9 @@ export const lightGradients: ThemeGradients = {
 // ============================================
 export const darkColors: ThemeColors = {
     // Primarios (blanco como color principal en tema oscuro)
-    primary: mono[50],
-    primaryLight: mono[200],
-    primaryDark: mono[50],
+    primary: blue[300],
+    primaryLight: blue[100],
+    primaryDark: blue[500],
 
     // Backgrounds (oscuros)
     background: mono[950],
@@ -167,7 +182,7 @@ export const darkColors: ThemeColors = {
 
 // Gradientes para tema oscuro
 export const darkGradients: ThemeGradients = {
-    primary: [mono[50], mono[200], mono[300]],
+    primary: [blue[500], blue[300]],
     secondary: [mono[100], mono[200]],
     dark: [mono[950], mono[900]],
     surface: [mono[900], mono[800]],

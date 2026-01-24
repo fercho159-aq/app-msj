@@ -317,6 +317,7 @@ export interface User {
     rfc: string;
     name: string | null;
     avatar_url: string | null;
+    status?: 'online' | 'offline' | 'typing';
 }
 
 export interface Chat {

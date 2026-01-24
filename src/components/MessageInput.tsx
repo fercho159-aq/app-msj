@@ -123,7 +123,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     <LinearGradient
                         colors={isRecording ? [colors.error, '#d32f2f'] : (gradients.primary as [string, string, ...string[]])}
                         start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                        end={{ x: 0, y: 1 }}
                         style={[styles.sendButton, { shadowColor: isRecording ? colors.error : colors.primary }]}
                     >
                         {isRecording ? (

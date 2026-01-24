@@ -323,7 +323,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     <LinearGradient
                         colors={gradients.primary as [string, string, ...string[]]}
                         start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                        end={{ x: 0, y: 1 }}
                         style={styles.fabGradient}
                     >
                         <Ionicons name="add" size={30} color={colors.background} />

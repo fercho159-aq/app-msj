@@ -1,8 +1,0 @@
-** BUILD FAILED **
-
-
-The following build commands failed:
-	CompileC /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-hdmklehiprjzlngavvcqoifwseca/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/RNSScreenStackHeaderConfig.o /Users/fernandotrejo/Developer/APP/Archivo/node_modules/react-native-screens/ios/RNSScreenStackHeaderConfig.mm normal arm64 objective-c++ com.apple.compilers.llvm.clang.1_0.compiler (in target 'RNScreens' from project 'Pods')
-	CompileC /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-hdmklehiprjzlngavvcqoifwseca/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/RNScreens.build/Objects-normal/arm64/RNSScreenStack.o /Users/fernandotrejo/Developer/APP/Archivo/node_modules/react-native-screens/ios/RNSScreenStack.mm normal arm64 objective-c++ com.apple.compilers.llvm.clang.1_0.compiler (in target 'RNScreens' from project 'Pods')
-	Building workspace Yaakob with scheme Yaakob and configuration Debug
-(3 failures)

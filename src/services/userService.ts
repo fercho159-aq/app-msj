@@ -130,6 +130,11 @@ export async function updateUser(id: string, data: UpdateUserInput): Promise<Use
         values.push(data.avatar_url);
     }
 
+    // Add updated_at if any fields are updated
+    if (fields.length > 0) {
+        fields.push(`updated_at = NOW()`);
+    }
+
     if (fields.length === 0) {
         return getUserById(id);
     }

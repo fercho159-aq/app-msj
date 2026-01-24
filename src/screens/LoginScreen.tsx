@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import { GradientButton } from '../components';
 
 type ViewMode = 'ROLE_SELECTION' | 'USER_RFC' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
 
@@ -313,12 +314,11 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
 Última actualización: Enero 2026`}
                     </Text>
                 </ScrollView>
-                <TouchableOpacity
-                    style={styles.modalButton}
+                <GradientButton
+                    title="Cerrar"
                     onPress={() => setShowTermsModal(false)}
-                >
-                    <Text style={styles.modalButtonText}>Cerrar</Text>
-                </TouchableOpacity>
+                    style={{ marginTop: 20 }}
+                />
             </View>
         </Modal>
     );
@@ -355,17 +355,13 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             Persona Física: 13 caracteres | Persona Moral: 12 caracteres
                         </Text>
 
-                        <TouchableOpacity
-                            style={[styles.loginButton, !userRfc && styles.disabledButton]}
+                        <GradientButton
+                            title="CONTINUAR"
                             onPress={handleUserRfcSubmit}
                             disabled={isLoading || !userRfc}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.loginButtonText}>CONTINUAR</Text>
-                            )}
-                        </TouchableOpacity>
+                            loading={isLoading}
+                            style={{ marginTop: 40 }}
+                        />
 
                         <TouchableOpacity
                             style={styles.backButton}
@@ -445,13 +441,12 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             </Text>
                         </View>
 
-                        <TouchableOpacity
-                            style={[styles.loginButton, !termsAccepted && styles.disabledButton]}
+                        <GradientButton
+                            title="ACEPTAR Y CONTINUAR"
                             onPress={handleTermsAccept}
                             disabled={!termsAccepted}
-                        >
-                            <Text style={styles.loginButtonText}>ACEPTAR Y CONTINUAR</Text>
-                        </TouchableOpacity>
+                            style={{ marginTop: 40 }}
+                        />
 
                         <TouchableOpacity
                             style={styles.backButton}
@@ -524,17 +519,13 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             />
                         </View>
 
-                        <TouchableOpacity
-                            style={[styles.loginButton, isLoading && styles.disabledButton]}
+                        <GradientButton
+                            title="REGISTRARME"
                             onPress={handleUserRegister}
                             disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.loginButtonText}>REGISTRARME</Text>
-                            )}
-                        </TouchableOpacity>
+                            loading={isLoading}
+                            style={{ marginTop: 40 }}
+                        />
 
                         <TouchableOpacity
                             style={styles.backButton}
@@ -619,19 +610,13 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             </>
                         )}
 
-                        <TouchableOpacity
-                            style={styles.loginButton}
+                        <GradientButton
+                            title={isRegistering ? 'REGISTRARSE' : 'INICIAR SESIÓN'}
                             onPress={performAdvisorLogin}
                             disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.loginButtonText}>
-                                    {isRegistering ? 'REGISTRARSE' : 'INICIAR SESIÓN'}
-                                </Text>
-                            )}
-                        </TouchableOpacity>
+                            loading={isLoading}
+                            style={{ marginTop: 40 }}
+                        />
 
                         <TouchableOpacity
                             style={{ marginTop: 20, alignItems: 'center' }}
@@ -695,17 +680,13 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity
-                            style={styles.loginButton}
+                        <GradientButton
+                            title="INICIAR SESIÓN"
                             onPress={handleConsultantSubmit}
                             disabled={isLoading}
-                        >
-                            {isLoading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.loginButtonText}>INICIAR SESIÓN</Text>
-                            )}
-                        </TouchableOpacity>
+                            loading={isLoading}
+                            style={{ marginTop: 40 }}
+                        />
 
                         <TouchableOpacity
                             style={styles.backButton}
@@ -897,30 +878,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#1A2138',
     },
-    loginButton: {
-        width: '100%',
-        height: 56,
-        backgroundColor: '#5474BC',
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: 40,
-        shadowColor: '#5474BC',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    disabledButton: {
-        backgroundColor: '#A0AEC0',
-        shadowOpacity: 0.1,
-    },
-    loginButtonText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#FFFFFF',
-        letterSpacing: 0.5,
-    },
     backButton: {
         marginTop: 20,
         alignItems: 'center',
@@ -992,18 +949,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#5C6B89',
         lineHeight: 22,
-    },
-    modalButton: {
-        backgroundColor: '#5474BC',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginTop: 20,
-    },
-    modalButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
     },
 });
 
