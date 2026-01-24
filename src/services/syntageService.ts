@@ -67,11 +67,11 @@ export async function consultarDatosFiscales(rfc: string): Promise<SyntageRespon
             };
         }
 
-        const extractionData = await extractionResponse.json();
+        const extractionData: any = await extractionResponse.json();
 
         // Procesar la respuesta de Syntage
         if (extractionData && extractionData.data) {
-            const fiscalData = extractionData.data;
+            const fiscalData: any = extractionData.data;
 
             // Determinar tipo de persona basado en el régimen fiscal o longitud del RFC
             let tipoPersona: 'fisica' | 'moral' = 'fisica';
