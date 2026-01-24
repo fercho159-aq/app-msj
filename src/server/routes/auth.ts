@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { createOrGetUserByRFC, getUserByRFC, updateUser, verifyCredentials } from '../../services/userService';
+import { query } from '../../database/config';
 
 const router = Router();
 
@@ -46,7 +47,6 @@ router.post('/login', async (req: Request, res: Response) => {
                     });
 
                     // Direct update for phone/role
-                    const { query } = require('../../database/config');
                     await query('UPDATE users SET phone = $1, role = $2 WHERE id = $3', [phone, 'advisor', user.id]);
 
                     user = { ...user, name: name, phone, role: 'advisor' };
@@ -100,9 +100,13 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'El RFC es requerido' });
         }
 
-        // Validar formato RFC (permitir el del admin y nuevos consultores)
-        // Adjust regex or validity check? createOrGetUserByRFC has validation inside.
-        // We can skip local regex or make it permissive for CONSULTANT pattern.
+        // Extract registration data for general users
+        const {
+            razonSocial,
+            tipoPersona,
+            termsAccepted,
+            isRegistration // Flag to indicate this is a new registration
+        } = req.body;
 
         // 1. Try to verify credentials first
         const authResult = await verifyCredentials(rfc, password);
@@ -117,27 +121,58 @@ router.post('/login', async (req: Request, res: Response) => {
             // Exists but failed auth
             return res.status(401).json({ error: authResult.error });
         } else {
-            // User validation failed (likely not found)
-            // Proceed to create/register logic (only for basic users?)
-            // Or allow creation.
+            // User not found - Registration flow for general users
+            if (isRegistration) {
+                // Validate required registration fields
+                if (!termsAccepted) {
+                    return res.status(400).json({ error: 'Debe aceptar los términos y condiciones' });
+                }
+                if (!phone) {
+                    return res.status(400).json({ error: 'El número de teléfono es requerido' });
+                }
+                if (!password) {
+                    return res.status(400).json({ error: 'La contraseña es requerida' });
+                }
 
-            // Check regex before creating
-            const rfcRegex = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i;
-            // Also allow new consultant format if we want auto-create? No, they are seeded.
+                console.log(`[Auth] Registering new general user with RFC: ${rfc}`);
 
-            /* TEMPORARILY DISABLED
-            if (!rfcRegex.test(rfc) && rfc !== ADMIN_RFC && !rfc.startsWith('CONS') && !rfc.startsWith('ADV')) {
-                console.warn(`[Auth] RFC Validation Failed: '${rfc}'`);
-                console.warn(`[Auth] Regex Check: ${rfcRegex.source} -> ${rfcRegex.test(rfc)}`);
-                console.warn(`[Auth] Code details: Length=${rfc.length}, CharCodes=${Array.from(rfc).map(c => c.charCodeAt(0))}`);
+                // Create user with password
+                user = await createOrGetUserByRFC(rfc, password);
 
-                return res.status(400).json({ error: `RFC inválido para registro (${rfc})` });
+                // Update fiscal and registration fields
+                await query(`
+                    UPDATE users SET
+                        phone = $1,
+                        role = $2,
+                        razon_social = $3,
+                        tipo_persona = $4,
+                        terms_accepted = $5,
+                        terms_accepted_at = NOW(),
+                        name = $6
+                    WHERE id = $7
+                `, [
+                    phone,
+                    'user',
+                    razonSocial || null,
+                    tipoPersona || null,
+                    true,
+                    razonSocial || name || `Usuario ${rfc.substring(0, 4)}`,
+                    user.id
+                ]);
+
+                user = {
+                    ...user,
+                    phone,
+                    role: 'user',
+                    razon_social: razonSocial,
+                    tipo_persona: tipoPersona,
+                    terms_accepted: true,
+                    name: razonSocial || name || user.name
+                };
+            } else {
+                // Not a registration, user doesn't exist - return error
+                return res.status(404).json({ error: 'Usuario no encontrado. Por favor regístrese primero.' });
             }
-            */
-
-            // Auto-create (Register)
-            console.log(`[Auth] Creating/Registering new user with RFC: ${rfc}`);
-            user = await createOrGetUserByRFC(rfc, password);
         }
 
         // Logic for Admin/Consultants (Legacy and New)

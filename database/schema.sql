@@ -2,7 +2,7 @@
 -- ESQUEMA DE BASE DE DATOS PARA APP DE MENSAJERÍA
 -- =============================================
 
--- Tabla de usuarios (registro solo con RFC)
+-- Tabla de usuarios (registro con RFC, teléfono, contraseña y datos fiscales)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     rfc VARCHAR(13) UNIQUE NOT NULL,
@@ -11,12 +11,21 @@ CREATE TABLE IF NOT EXISTS users (
     status VARCHAR(20) DEFAULT 'offline' CHECK (status IN ('online', 'offline', 'typing')),
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     push_token TEXT,
+    password VARCHAR(255),
+    phone VARCHAR(20),
+    role VARCHAR(20) DEFAULT 'user',
+    razon_social VARCHAR(255),
+    tipo_persona VARCHAR(20),
+    terms_accepted BOOLEAN DEFAULT FALSE,
+    terms_accepted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Índice para búsqueda rápida por RFC
 CREATE INDEX IF NOT EXISTS idx_users_rfc ON users(rfc);
+-- Índice para búsqueda por teléfono
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 
 -- Tabla de conversaciones/chats
 CREATE TABLE IF NOT EXISTS chats (

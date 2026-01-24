@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { Alert, Platform, PermissionsAndroid } from 'react-native';
+import Constants from 'expo-constants';
 import { useAuth } from './AuthContext';
 
 // Solo importar Agora e InCallManager en plataformas nativas (iOS/Android)
@@ -20,10 +21,10 @@ if (Platform.OS !== 'web') {
     InCallManager = require('react-native-incall-manager').default;
 }
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
+const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
 
-// Esta variable debe venir de .env
-const AGORA_APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || '';
+// Esta variable debe venir de app.json extra
+const AGORA_APP_ID = Constants.expoConfig?.extra?.EXPO_PUBLIC_AGORA_APP_ID || '';
 
 interface AgoraCallContextType {
     engine: IRtcEngine | null;

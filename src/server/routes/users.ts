@@ -8,8 +8,45 @@ import {
     updateUserStatus
 } from '../../services/userService';
 import { pushNotificationService } from '../services/pushNotificationService';
+import { consultarDatosFiscales, validarFormatoRFC } from '../../services/syntageService';
 
 const router = Router();
+
+// POST /api/users/fiscal-data - Consultar datos fiscales por RFC via Syntage
+router.post('/fiscal-data', async (req: Request, res: Response) => {
+    try {
+        const { rfc } = req.body;
+
+        if (!rfc) {
+            return res.status(400).json({ error: 'RFC es requerido' });
+        }
+
+        // Validar formato de RFC primero
+        const validacion = validarFormatoRFC(rfc);
+        if (!validacion.valido) {
+            return res.status(400).json({ error: validacion.error });
+        }
+
+        // Consultar datos fiscales via Syntage
+        const resultado = await consultarDatosFiscales(rfc);
+
+        if (resultado.success && resultado.data) {
+            res.json({
+                success: true,
+                data: resultado.data
+            });
+        } else {
+            res.status(404).json({
+                success: false,
+                error: resultado.error || 'No se encontraron datos fiscales'
+            });
+        }
+
+    } catch (error: any) {
+        console.error('Error consultando datos fiscales:', error);
+        res.status(500).json({ error: error.message || 'Error al consultar datos fiscales' });
+    }
+});
 
 // POST /api/users/push-token - Registrar push token para notificaciones
 router.post('/push-token', async (req: Request, res: Response) => {

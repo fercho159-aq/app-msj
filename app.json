@@ -9,7 +9,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,7 +29,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -51,7 +51,9 @@
     "extra": {
       "eas": {
         "projectId": "f41b62dd-b165-4377-aaf5-0bd6585d793e"
-      }
+      },
+      "EXPO_PUBLIC_AGORA_APP_ID": "5a1cd5b13ef846579a8447fb94be8b38",
+      "EXPO_PUBLIC_API_URL": "https://appsoluciones.duckdns.org/api"
     },
     "owner": "fernandotrejo"
   }
