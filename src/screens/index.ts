@@ -4,6 +4,7 @@ export { UserProfileScreen } from './UserProfileScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { CallsScreen } from './CallsScreen';
 export { LoginScreen } from './LoginScreen';
+export { CreateGroupScreen } from './CreateGroupScreen';
 export { EditProfileScreen } from './settings/EditProfileScreen';
 export { PrivacyScreen } from './settings/PrivacyScreen';
 export { NotificationsScreen } from './settings/NotificationsScreen';

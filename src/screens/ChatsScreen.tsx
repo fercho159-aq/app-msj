@@ -10,6 +10,9 @@ import {
     Image,
     RefreshControl,
     ActivityIndicator,
+    Modal,
+    Animated,
+    Pressable,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -178,6 +181,8 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<ChatTab>('usuarios');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const [showFabMenu, setShowFabMenu] = useState(false);
+    const fabMenuAnim = useRef(new Animated.Value(0)).current;
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef(false);
 
@@ -378,6 +383,31 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }
     };
 
+    // Funciones para el menú FAB
+    const openFabMenu = () => {
+        setShowFabMenu(true);
+        Animated.spring(fabMenuAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 7,
+        }).start();
+    };
+
+    const closeFabMenu = () => {
+        Animated.timing(fabMenuAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => setShowFabMenu(false));
+    };
+
+    const handleCreateGroup = () => {
+        closeFabMenu();
+        // Navegar a pantalla de crear grupo
+        navigation.navigate('CreateGroup' as any);
+    };
+
     // Componente para mostrar usuario sin chat
     const renderUserItem = (targetUser: User) => {
         const displayName = targetUser.name || 'Usuario';
@@ -572,7 +602,11 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
             {/* FAB - Solo para Consultores */}
             {isConsultor && (
-                <TouchableOpacity style={[styles.fab, { shadowColor: colors.primary }]}>
+                <TouchableOpacity
+                    style={[styles.fab, { shadowColor: colors.primary }]}
+                    onPress={openFabMenu}
+                    activeOpacity={0.8}
+                >
                     <LinearGradient
                         colors={gradients.primary as [string, string, ...string[]]}
                         start={{ x: 0, y: 0 }}
@@ -583,6 +617,47 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     </LinearGradient>
                 </TouchableOpacity>
             )}
+
+            {/* FAB Menu Modal */}
+            <Modal
+                visible={showFabMenu}
+                transparent
+                animationType="none"
+                onRequestClose={closeFabMenu}
+            >
+                <Pressable style={styles.fabMenuOverlay} onPress={closeFabMenu}>
+                    <Animated.View
+                        style={[
+                            styles.fabMenuContainer,
+                            {
+                                backgroundColor: colors.surface,
+                                transform: [
+                                    {
+                                        scale: fabMenuAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0.8, 1],
+                                        }),
+                                    },
+                                ],
+                                opacity: fabMenuAnim,
+                            },
+                        ]}
+                    >
+                        <TouchableOpacity
+                            style={styles.fabMenuItem}
+                            onPress={handleCreateGroup}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.fabMenuIconContainer, { backgroundColor: colors.primary }]}>
+                                <Ionicons name="people" size={22} color="#fff" />
+                            </View>
+                            <Text style={[styles.fabMenuText, { color: colors.textPrimary }]}>
+                                Crear grupo
+                            </Text>
+                        </TouchableOpacity>
+                    </Animated.View>
+                </Pressable>
+            </Modal>
         </View>
     );
 };
@@ -788,6 +863,42 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    fabMenuOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+        alignItems: 'flex-end',
+        paddingBottom: 100,
+        paddingRight: 24,
+    },
+    fabMenuContainer: {
+        borderRadius: 16,
+        paddingVertical: 8,
+        minWidth: 180,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    fabMenuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        gap: 12,
+    },
+    fabMenuIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fabMenuText: {
+        fontSize: 16,
+        fontWeight: '500',
     },
 });
 

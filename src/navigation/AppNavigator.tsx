@@ -7,6 +7,7 @@ import {
     ChatScreen,
     UserProfileScreen,
     LoginScreen,
+    CreateGroupScreen,
     EditProfileScreen,
     PrivacyScreen,
     NotificationsScreen,
@@ -65,6 +66,13 @@ export const AppNavigator: React.FC = () => {
                         <Stack.Screen name="ChatSettings" component={ChatSettingsScreen} />
                         <Stack.Screen name="HelpCenter" component={HelpCenterScreen} />
                         <Stack.Screen name="Terms" component={TermsScreen} />
+                        <Stack.Screen
+                            name="CreateGroup"
+                            component={CreateGroupScreen}
+                            options={{
+                                animation: 'slide_from_bottom',
+                            }}
+                        />
                     </>
                 ) : (
                     <Stack.Screen
