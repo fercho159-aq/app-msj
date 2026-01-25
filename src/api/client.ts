@@ -6,9 +6,13 @@ interface ApiResponse<T> {
     error?: string;
 }
 
+// Tipos de rol de usuario
+export type UserRole = 'usuario' | 'asesor' | 'consultor';
+
 class ApiClient {
     private baseUrl: string;
     private userId: string | null = null;
+    private userRole: UserRole = 'usuario';
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
@@ -20,6 +24,14 @@ class ApiClient {
 
     getUserId() {
         return this.userId;
+    }
+
+    setUserRole(role: UserRole) {
+        this.userRole = role;
+    }
+
+    getUserRole() {
+        return this.userRole;
     }
 
     private async request<T>(
@@ -87,6 +99,8 @@ class ApiClient {
 
         if (result.data?.user) {
             this.userId = result.data.user.id;
+            // Guardar el rol del usuario
+            this.userRole = (result.data.user.role as UserRole) || 'usuario';
         }
 
         return result;
@@ -102,6 +116,7 @@ class ApiClient {
 
         if (result.data) {
             this.userId = null;
+            this.userRole = 'usuario';
         }
 
         return result;
@@ -113,6 +128,9 @@ class ApiClient {
         const params = new URLSearchParams();
         if (search) params.append('search', search);
         if (this.userId) params.append('exclude', this.userId);
+        // Pasar el rol del usuario para filtrar correctamente
+        // Usuarios y asesores solo verán consultores
+        params.append('requesterRole', this.userRole);
 
         return this.request<{ users: User[] }>(
             `/users${params.toString() ? '?' + params : ''}`
@@ -318,6 +336,7 @@ export interface User {
     name: string | null;
     avatar_url: string | null;
     status?: 'online' | 'offline' | 'typing';
+    role?: UserRole;
 }
 
 export interface Chat {

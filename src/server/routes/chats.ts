@@ -51,6 +51,9 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /api/chats - Crear un nuevo chat
+// Permisos:
+// - Usuarios y asesores solo pueden crear chats con consultores
+// - Solo consultores pueden crear grupos
 router.post('/', async (req: Request, res: Response) => {
     try {
         const { userId, participantId, isGroup, groupName, participantIds } = req.body;
@@ -67,11 +70,13 @@ router.post('/', async (req: Request, res: Response) => {
                     error: 'Para grupos se requiere groupName y participantIds'
                 });
             }
+            // createGroupChat valida que solo consultores pueden crear grupos
             chat = await createGroupChat(userId, participantIds, groupName);
         } else {
             if (!participantId) {
                 return res.status(400).json({ error: 'participantId es requerido' });
             }
+            // createChat valida permisos según roles
             chat = await createChat(userId, participantId);
         }
 
@@ -82,6 +87,10 @@ router.post('/', async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error('Error al crear chat:', error);
+        // Detectar errores de permisos y devolver 403
+        if (error.message.includes('permiso') || error.message.includes('Solo los consultores')) {
+            return res.status(403).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message });
     }
 });

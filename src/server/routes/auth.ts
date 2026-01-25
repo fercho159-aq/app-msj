@@ -47,10 +47,10 @@ router.post('/login', async (req: Request, res: Response) => {
                         name: name || user.name,
                     });
 
-                    // Direct update for phone/role
-                    await query('UPDATE users SET phone = $1, role = $2 WHERE id = $3', [phone, 'advisor', user.id]);
+                    // Direct update for phone/role (usando 'asesor' como rol)
+                    await query('UPDATE users SET phone = $1, role = $2 WHERE id = $3', [phone, 'asesor', user.id]);
 
-                    user = { ...user, name: name, phone, role: 'advisor' };
+                    user = { ...user, name: name, phone, role: 'asesor' };
                 }
 
                 res.json({
@@ -60,7 +60,7 @@ router.post('/login', async (req: Request, res: Response) => {
                         rfc: user.rfc,
                         name: user.name,
                         avatar_url: user.avatar_url,
-                        role: 'advisor'
+                        role: 'asesor'
                     },
                     message: 'Sesión de asesor iniciada'
                 });
@@ -84,7 +84,7 @@ router.post('/login', async (req: Request, res: Response) => {
                             rfc: user.rfc,
                             name: user.name,
                             avatar_url: user.avatar_url,
-                            role: 'advisor'
+                            role: 'asesor'
                         },
                         message: 'Sesión iniciada'
                     });
@@ -140,7 +140,7 @@ router.post('/login', async (req: Request, res: Response) => {
                 // Create user with password
                 user = await createOrGetUserByRFC(rfc, password);
 
-                // Update fiscal and registration fields
+                // Update fiscal and registration fields (usando 'usuario' como rol)
                 await query(`
                     UPDATE users SET
                         phone = $1,
@@ -153,7 +153,7 @@ router.post('/login', async (req: Request, res: Response) => {
                     WHERE id = $7
                 `, [
                     phone,
-                    'user',
+                    'usuario',
                     razonSocial || null,
                     tipoPersona || null,
                     true,
@@ -164,7 +164,7 @@ router.post('/login', async (req: Request, res: Response) => {
                 user = {
                     ...user,
                     phone,
-                    role: 'user',
+                    role: 'usuario',
                     razon_social: razonSocial,
                     tipo_persona: tipoPersona,
                     terms_accepted: true,
@@ -186,20 +186,27 @@ router.post('/login', async (req: Request, res: Response) => {
             user.name = 'Consultor';
         }
 
-        // 3. Si el usuario NO es consultor/admin, crear chat con los consultores?
-        // Existing logic created chat with ADMIN_RFC. 
-        // We probably shouldn't break this.
+        // 3. Si el usuario NO es consultor/admin, crear chat con los consultores
+        // Usamos skipPermissionCheck=true porque este es un chat automático del sistema
         if (user.rfc !== ADMIN_RFC && !user.rfc.startsWith('CONS') && !user.rfc.startsWith('ADV')) {
             try {
-                // Ensure Admin exists specifically for the chat target?
                 let adminUser = await getUserByRFC(ADMIN_RFC);
-                // If seeded Admin/Consultant doesn't exist (it should), handle it.
                 if (adminUser) {
-                    await createChat(user.id, adminUser.id);
+                    // skipPermissionCheck=true para chat automático del sistema
+                    await createChat(user.id, adminUser.id, true);
                 }
             } catch (error) {
                 console.error('Error creando chat con Consultor:', error);
             }
+        }
+
+        // Determinar el rol del usuario
+        let userRole = (user as any).role || 'usuario';
+        // Asignar rol basado en RFC si no está definido correctamente
+        if (user.rfc === ADMIN_RFC || user.rfc.startsWith('CONS')) {
+            userRole = 'consultor';
+        } else if (user.rfc.startsWith('ADV')) {
+            userRole = 'asesor';
         }
 
         res.json({
@@ -209,7 +216,7 @@ router.post('/login', async (req: Request, res: Response) => {
                 rfc: user.rfc,
                 name: user.name,
                 avatar_url: user.avatar_url,
-                // status: 'online', // Removed
+                role: userRole,
             },
             message: 'Sesión iniciada correctamente'
         });

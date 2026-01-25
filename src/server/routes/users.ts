@@ -5,7 +5,8 @@ import {
     getUserById,
     updateUser,
     searchUsers,
-    updateUserStatus
+    updateUserStatus,
+    UserRole
 } from '../../services/userService';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { consultarDatosFiscales, validarFormatoRFC } from '../../services/syntageService';
@@ -74,15 +75,19 @@ router.post('/push-token', async (req: Request, res: Response) => {
 });
 
 // GET /api/users - Listar todos los usuarios
+// Filtra usuarios según el rol del solicitante:
+// - Usuarios y asesores solo ven consultores
+// - Consultores ven a todos
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const { search, exclude } = req.query;
+        const { search, exclude, requesterRole } = req.query;
+        const role = (requesterRole as UserRole) || 'usuario';
 
         let users;
         if (search && typeof search === 'string') {
-            users = await searchUsers(search, exclude as string);
+            users = await searchUsers(search, exclude as string, role);
         } else {
-            users = await getAllUsers();
+            users = await getAllUsers(role);
         }
 
         res.json({ users });

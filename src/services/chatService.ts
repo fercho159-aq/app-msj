@@ -1,4 +1,5 @@
 import { query, queryOne, transaction } from '../database/config';
+import { getUserById, canChatWith, canCreateGroups, UserRole } from './userService';
 
 export interface Chat {
   id: string;
@@ -28,8 +29,25 @@ export interface ChatWithDetails extends Chat {
   unread_count: number;
 }
 
-// Crear un chat entre dos usuarios
-export async function createChat(userId1: string, userId2: string): Promise<Chat> {
+// Crear un chat entre dos usuarios (con validación de permisos)
+export async function createChat(userId1: string, userId2: string, skipPermissionCheck: boolean = false): Promise<Chat> {
+  // Validar permisos de chat según roles (a menos que se omita explícitamente)
+  if (!skipPermissionCheck) {
+    const user1 = await getUserById(userId1);
+    const user2 = await getUserById(userId2);
+
+    if (!user1 || !user2) {
+      throw new Error('Usuario no encontrado');
+    }
+
+    const user1Role = (user1 as any).role as UserRole | undefined;
+    const user2Role = (user2 as any).role as UserRole | undefined;
+
+    if (!canChatWith(user1Role, user2Role)) {
+      throw new Error('No tienes permiso para chatear con este usuario. Solo puedes chatear con consultores.');
+    }
+  }
+
   // Verificar si ya existe un chat entre estos usuarios
   const existingChat = await queryOne<Chat>(`
     SELECT c.* FROM chats c
@@ -59,16 +77,27 @@ export async function createChat(userId1: string, userId2: string): Promise<Chat
   });
 }
 
-// Crear un chat grupal
+// Crear un chat grupal (solo consultores pueden crear grupos)
 export async function createGroupChat(
   creatorId: string,
   participantIds: string[],
   groupName: string,
   groupAvatarUrl?: string
 ): Promise<Chat> {
+  // Validar que el creador sea consultor
+  const creator = await getUserById(creatorId);
+  if (!creator) {
+    throw new Error('Usuario creador no encontrado');
+  }
+
+  const creatorRole = (creator as any).role as UserRole | undefined;
+  if (!canCreateGroups(creatorRole)) {
+    throw new Error('Solo los consultores pueden crear grupos');
+  }
+
   return transaction(async (client) => {
     const chatResult = await client.query(
-      `INSERT INTO chats (is_group, group_name, group_avatar_url) 
+      `INSERT INTO chats (is_group, group_name, group_avatar_url)
        VALUES (true, $1, $2) RETURNING *`,
       [groupName, groupAvatarUrl]
     );

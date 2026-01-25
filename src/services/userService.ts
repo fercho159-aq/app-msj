@@ -1,6 +1,12 @@
 import { query, queryOne } from '../database/config';
 import bcrypt from 'bcryptjs';
 
+// Roles de usuario con permisos específicos:
+// - usuario: Solo puede chatear con consultores
+// - asesor: Solo puede chatear con consultores
+// - consultor: Puede chatear con todos y crear grupos
+export type UserRole = 'usuario' | 'asesor' | 'consultor';
+
 export interface User {
     id: string;
     rfc: string;
@@ -9,6 +15,30 @@ export interface User {
     last_seen: Date;
     created_at: Date;
     updated_at: Date;
+    role?: UserRole;
+}
+
+// Verificar si un usuario puede chatear con otro según sus roles
+export function canChatWith(requesterRole: UserRole | undefined, targetRole: UserRole | undefined): boolean {
+    const reqRole = requesterRole || 'usuario';
+    const tgtRole = targetRole || 'usuario';
+
+    // Consultores pueden chatear con todos
+    if (reqRole === 'consultor') {
+        return true;
+    }
+
+    // Usuarios y asesores solo pueden chatear con consultores
+    if (reqRole === 'usuario' || reqRole === 'asesor') {
+        return tgtRole === 'consultor';
+    }
+
+    return false;
+}
+
+// Verificar si un usuario puede crear grupos (solo consultores)
+export function canCreateGroups(role: UserRole | undefined): boolean {
+    return (role || 'usuario') === 'consultor';
 }
 
 export interface CreateUserInput {
@@ -163,17 +193,30 @@ export async function updateUser(id: string, data: UpdateUserInput): Promise<Use
     return result[0] || null;
 }
 
-// Buscar usuarios por nombre
-export async function searchUsers(searchTerm: string, excludeUserId?: string): Promise<User[]> {
+// Buscar usuarios por nombre (filtrado por permisos de rol)
+export async function searchUsers(
+    searchTerm: string,
+    excludeUserId?: string,
+    requesterRole?: UserRole
+): Promise<User[]> {
     let sql = `
-    SELECT * FROM users 
+    SELECT * FROM users
     WHERE (name ILIKE $1 OR rfc ILIKE $1)
   `;
     const params: any[] = [`%${searchTerm}%`];
+    let paramIndex = 2;
 
     if (excludeUserId) {
-        sql += ` AND id != $2`;
+        sql += ` AND id != $${paramIndex++}`;
         params.push(excludeUserId);
+    }
+
+    // Filtrar según el rol del solicitante
+    // Usuarios y asesores solo ven consultores
+    // Consultores ven a todos
+    const role = requesterRole || 'usuario';
+    if (role === 'usuario' || role === 'asesor') {
+        sql += ` AND role = 'consultor'`;
     }
 
     sql += ` ORDER BY name LIMIT 20`;
@@ -181,8 +224,16 @@ export async function searchUsers(searchTerm: string, excludeUserId?: string): P
     return query<User>(sql, params);
 }
 
-// Obtener todos los usuarios
-export async function getAllUsers(): Promise<User[]> {
+// Obtener todos los usuarios (filtrado por permisos de rol)
+export async function getAllUsers(requesterRole?: UserRole): Promise<User[]> {
+    const role = requesterRole || 'usuario';
+
+    // Usuarios y asesores solo ven consultores
+    // Consultores ven a todos
+    if (role === 'usuario' || role === 'asesor') {
+        return query<User>('SELECT * FROM users WHERE role = $1 ORDER BY name', ['consultor']);
+    }
+
     return query<User>('SELECT * FROM users ORDER BY name');
 }
 

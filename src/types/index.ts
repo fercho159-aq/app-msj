@@ -1,11 +1,18 @@
 // Tipos principales de la aplicación de mensajería
 
+// Roles de usuario con permisos específicos:
+// - usuario: Solo puede chatear con consultores
+// - asesor: Solo puede chatear con consultores
+// - consultor: Puede chatear con todos y crear grupos
+export type UserRole = 'usuario' | 'asesor' | 'consultor';
+
 export interface User {
     id: string;
     name: string;
     avatar: string;
     status: 'online' | 'offline' | 'typing';
     lastSeen?: Date;
+    role?: UserRole;
 }
 
 export interface Message {
