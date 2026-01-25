@@ -215,13 +215,25 @@ export const LoginScreen: React.FC = () => {
         }
     };
 
-    const handleConsultantSubmit = () => {
+    const handleConsultantSubmit = async () => {
         if (!consultantName || !consultantPassword) {
             Alert.alert('Error', 'Por favor ingresa nombre y contraseña');
             return;
         }
         setIsLoading(true);
-        login('ADMIN000CONS').finally(() => setIsLoading(false));
+        try {
+            const result = await login(consultantName, {
+                password: consultantPassword,
+                role: 'consultant'
+            });
+            if (!result.success) {
+                Alert.alert('Error', result.error || 'Credenciales incorrectas');
+            }
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Error al iniciar sesión');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleRoleLogin = async (role: string, _rfc: string) => {

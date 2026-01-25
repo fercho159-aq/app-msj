@@ -80,10 +80,14 @@ export const verifyCredentials = async (identifier: string, password?: string): 
     }
 
     // SIEMPRE requerir contraseña para usuarios con roles especiales (admin, advisor, consultant)
+    // Verificar tanto el identificador como el RFC del usuario encontrado
     const requiresPassword = user.password ||
         normalizedIdentifier === 'ADMIN000CONS' ||
         normalizedIdentifier.startsWith('CONS') ||
-        normalizedIdentifier.startsWith('ADV');
+        normalizedIdentifier.startsWith('ADV') ||
+        user.rfc === 'ADMIN000CONS' ||
+        user.rfc.startsWith('CONS') ||
+        user.rfc.startsWith('ADV');
 
     if (requiresPassword) {
         if (!password) {
