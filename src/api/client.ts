@@ -352,6 +352,13 @@ class ApiClient {
             method: 'DELETE',
         });
     }
+
+    async createLabel(name: string, color: string, icon: string = 'pricetag') {
+        return this.request<{ label: ChatLabel }>('/labels', {
+            method: 'POST',
+            body: JSON.stringify({ name, color, icon }),
+        });
+    }
 }
 
 // Tipos

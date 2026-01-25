@@ -301,6 +301,10 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [showLabelsModal, setShowLabelsModal] = useState(false);
     const [selectedChatForLabels, setSelectedChatForLabels] = useState<Chat | null>(null);
     const [availableLabels, setAvailableLabels] = useState<ChatLabel[]>([]);
+    const [showNewLabelForm, setShowNewLabelForm] = useState(false);
+    const [newLabelName, setNewLabelName] = useState('');
+    const [newLabelColor, setNewLabelColor] = useState('#6B7AED');
+    const [isCreatingLabel, setIsCreatingLabel] = useState(false);
     const fabMenuAnim = useRef(new Animated.Value(0)).current;
     const labelsModalAnim = useRef(new Animated.Value(0)).current;
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -618,6 +622,31 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }
     };
 
+    // Colores disponibles para etiquetas personalizadas
+    const labelColors = [
+        '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6',
+        '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#84CC16',
+    ];
+
+    const handleCreateLabel = async () => {
+        if (!newLabelName.trim() || isCreatingLabel) return;
+
+        setIsCreatingLabel(true);
+        try {
+            const result = await api.createLabel(newLabelName.trim(), newLabelColor);
+            if (result.data?.label) {
+                setAvailableLabels(prev => [...prev, result.data!.label]);
+                setNewLabelName('');
+                setNewLabelColor('#6B7AED');
+                setShowNewLabelForm(false);
+            }
+        } catch (error) {
+            console.error('Error creating label:', error);
+        } finally {
+            setIsCreatingLabel(false);
+        }
+    };
+
     // Componente para mostrar usuario sin chat
     const renderUserItem = (targetUser: User) => {
         const displayName = targetUser.name || 'Usuario';
@@ -670,7 +699,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     chat={item.chat}
                     currentUserId={user?.id || ''}
                     onPress={() => handleChatPress(item.chat!)}
-                    onLongPress={() => openLabelsModal(item.chat!)}
+                    onLongPress={isConsultor ? () => openLabelsModal(item.chat!) : undefined}
                     colors={colors}
                 />
             );
@@ -940,41 +969,98 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={styles.labelsModalContent}>
-                                {availableLabels.map((label) => {
-                                    const isSelected = selectedChatForLabels?.labels?.some(l => l.id === label.id);
-                                    return (
-                                        <TouchableOpacity
-                                            key={label.id}
-                                            style={[
-                                                styles.labelOption,
-                                                { borderColor: colors.border },
-                                                isSelected && { backgroundColor: label.color + '20', borderColor: label.color }
-                                            ]}
-                                            onPress={() => handleToggleLabel(label)}
-                                            activeOpacity={0.7}
-                                        >
-                                            <View style={[styles.labelOptionIcon, { backgroundColor: label.color }]}>
-                                                <Ionicons name={label.icon as any} size={16} color="#fff" />
-                                            </View>
-                                            <Text style={[
-                                                styles.labelOptionText,
-                                                { color: colors.textPrimary },
-                                                isSelected && { color: label.color, fontWeight: '600' }
-                                            ]}>
-                                                {label.name}
-                                            </Text>
-                                            {isSelected && (
-                                                <Ionicons name="checkmark-circle" size={20} color={label.color} />
-                                            )}
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
+                            <ScrollView style={styles.labelsModalScroll} showsVerticalScrollIndicator={false}>
+                                <View style={styles.labelsModalContent}>
+                                    {availableLabels.map((label) => {
+                                        const isSelected = selectedChatForLabels?.labels?.some(l => l.id === label.id);
+                                        return (
+                                            <TouchableOpacity
+                                                key={label.id}
+                                                style={[
+                                                    styles.labelOption,
+                                                    { borderColor: colors.border },
+                                                    isSelected && { backgroundColor: label.color + '20', borderColor: label.color }
+                                                ]}
+                                                onPress={() => handleToggleLabel(label)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={[styles.labelOptionIcon, { backgroundColor: label.color }]}>
+                                                    <Ionicons name={label.icon as any} size={16} color="#fff" />
+                                                </View>
+                                                <Text style={[
+                                                    styles.labelOptionText,
+                                                    { color: colors.textPrimary },
+                                                    isSelected && { color: label.color, fontWeight: '600' }
+                                                ]}>
+                                                    {label.name}
+                                                </Text>
+                                                {isSelected && (
+                                                    <Ionicons name="checkmark-circle" size={20} color={label.color} />
+                                                )}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
 
-                            <Text style={[styles.labelsModalHint, { color: colors.textMuted }]}>
-                                Mantén presionado un chat para gestionar etiquetas
-                            </Text>
+                                {/* Formulario para crear nueva etiqueta */}
+                                {showNewLabelForm ? (
+                                    <View style={[styles.newLabelForm, { borderColor: colors.border }]}>
+                                        <TextInput
+                                            style={[styles.newLabelInput, { color: colors.textPrimary, borderColor: colors.border }]}
+                                            placeholder="Nombre de la etiqueta"
+                                            placeholderTextColor={colors.textMuted}
+                                            value={newLabelName}
+                                            onChangeText={setNewLabelName}
+                                            maxLength={20}
+                                        />
+                                        <View style={styles.colorPicker}>
+                                            {labelColors.map((color) => (
+                                                <TouchableOpacity
+                                                    key={color}
+                                                    style={[
+                                                        styles.colorOption,
+                                                        { backgroundColor: color },
+                                                        newLabelColor === color && styles.colorOptionSelected
+                                                    ]}
+                                                    onPress={() => setNewLabelColor(color)}
+                                                />
+                                            ))}
+                                        </View>
+                                        <View style={styles.newLabelButtons}>
+                                            <TouchableOpacity
+                                                style={[styles.newLabelButton, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}
+                                                onPress={() => {
+                                                    setShowNewLabelForm(false);
+                                                    setNewLabelName('');
+                                                }}
+                                            >
+                                                <Text style={{ color: colors.textSecondary }}>Cancelar</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={[styles.newLabelButton, { backgroundColor: colors.primary }]}
+                                                onPress={handleCreateLabel}
+                                                disabled={!newLabelName.trim() || isCreatingLabel}
+                                            >
+                                                {isCreatingLabel ? (
+                                                    <ActivityIndicator size="small" color="#fff" />
+                                                ) : (
+                                                    <Text style={{ color: '#fff', fontWeight: '600' }}>Crear</Text>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.addLabelButton, { borderColor: colors.border }]}
+                                        onPress={() => setShowNewLabelForm(true)}
+                                    >
+                                        <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                                        <Text style={[styles.addLabelText, { color: colors.primary }]}>
+                                            Crear nueva etiqueta
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </ScrollView>
                         </Pressable>
                     </Animated.View>
                 </Pressable>
@@ -1288,6 +1374,69 @@ const styles = StyleSheet.create({
         fontSize: 12,
         textAlign: 'center',
         marginTop: 16,
+    },
+    labelsModalScroll: {
+        maxHeight: 350,
+    },
+    newLabelForm: {
+        marginTop: 16,
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    newLabelInput: {
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        marginBottom: 12,
+    },
+    colorPicker: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 12,
+    },
+    colorOption: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+    },
+    colorOptionSelected: {
+        borderWidth: 3,
+        borderColor: '#fff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 3,
+        elevation: 3,
+    },
+    newLabelButtons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    newLabelButton: {
+        flex: 1,
+        paddingVertical: 10,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    addLabelButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 16,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderRadius: 12,
+        gap: 8,
+    },
+    addLabelText: {
+        fontSize: 14,
+        fontWeight: '500',
     },
 });
 
