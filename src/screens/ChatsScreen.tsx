@@ -141,8 +141,18 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
 // Tipos de pestañas para consultores
 type ChatTab = 'usuarios' | 'asesores';
 
-// Función para determinar el tipo de usuario basado en su RFC
-const getUserTypeFromRfc = (rfc: string | undefined): 'usuario' | 'asesor' | 'consultor' => {
+// Función para determinar el tipo de usuario
+// Prioriza el campo 'role' si está disponible, si no, infiere del RFC
+const getUserType = (user: User | undefined): 'usuario' | 'asesor' | 'consultor' => {
+    if (!user) return 'usuario';
+
+    // Usar el rol del usuario si está disponible
+    if (user.role) {
+        return user.role as 'usuario' | 'asesor' | 'consultor';
+    }
+
+    // Fallback: inferir del RFC
+    const rfc = user.rfc;
     if (!rfc) return 'usuario';
     if (rfc === 'ADMIN000CONS' || rfc.startsWith('CONS')) return 'consultor';
     if (rfc.startsWith('ADV')) return 'asesor';
@@ -294,7 +304,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             }
 
             // Filtrar por tipo de usuario
-            const otherUserType = getUserTypeFromRfc(otherUser?.rfc);
+            const otherUserType = getUserType(otherUser);
             if (otherUserType === targetRole) {
                 items.push({ type: 'chat', id: chat.id, chat });
             }
@@ -305,7 +315,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             if (u.id === user?.id) return; // Excluir al usuario actual
             if (usersWithChat.has(u.id)) return; // Ya tiene chat
 
-            const userType = getUserTypeFromRfc(u.rfc);
+            const userType = getUserType(u);
             if (userType !== targetRole) return; // No coincide con el tab
 
             const matchesSearch = u.name?.toLowerCase().includes(searchQuery.toLowerCase());
