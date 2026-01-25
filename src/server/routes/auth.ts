@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { createOrGetUserByRFC, getUserByRFC, updateUser, verifyCredentials } from '../../services/userService';
 import { query } from '../../database/config';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 
@@ -236,6 +237,32 @@ router.post('/logout', async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error en logout:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/auth/setup-admin - Establecer contraseña del admin (uso único)
+router.post('/setup-admin', async (req: Request, res: Response) => {
+    try {
+        const { password, secretKey } = req.body;
+
+        // Clave secreta para proteger este endpoint
+        if (secretKey !== 'SETUP_ADMIN_2026') {
+            return res.status(403).json({ error: 'No autorizado' });
+        }
+
+        if (!password || password.length < 4) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 4 caracteres' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await query('UPDATE users SET password = $1 WHERE rfc = $2', [hashedPassword, 'ADMIN000CONS']);
+
+        console.log('[Auth] Contraseña del admin ADMIN000CONS configurada correctamente');
+        res.json({ success: true, message: 'Contraseña del admin configurada' });
+
+    } catch (error: any) {
+        console.error('Error configurando contraseña del admin:', error);
+        res.status(500).json({ error: error.message || 'Error configurando contraseña' });
     }
 });
 
