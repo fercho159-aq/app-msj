@@ -10,26 +10,25 @@ const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
 // Generar token para una llamada
 router.post('/token', (req: Request, res: Response) => {
     try {
-        const { channelName, uid, role = 'publisher', expiryTime = 3600 } = req.body;
+        const { channelName, role = 'publisher', expiryTime = 3600 } = req.body;
 
-        if (!APP_ID || !APP_CERTIFICATE) {
-            console.error('Faltan credenciales de Agora (AGORA_APP_ID o AGORA_APP_CERTIFICATE)');
-            return res.status(500).json({ error: 'Error de configuración del servidor' });
+        if (!APP_ID) {
+            console.error('❌ Falta AGORA_APP_ID');
+            return res.status(500).json({ error: 'Error de configuración del servidor - falta APP_ID' });
+        }
+
+        if (!APP_CERTIFICATE) {
+            console.error('❌ Falta AGORA_APP_CERTIFICATE');
+            return res.status(500).json({ error: 'Error de configuración del servidor - falta APP_CERTIFICATE' });
         }
 
         if (!channelName) {
             return res.status(400).json({ error: 'channelName es requerido' });
         }
 
-        // Si uid es 0, dejamos que Agora asigne uno, pero mejor pedirlo
-        // Nota: uid debe ser un entero de 32 bits (número) para usar RtcTokenBuilder standard, 
-        // o string si usamos buildTokenWithAccount.
-        // Asumiendo que usamos User Accounts (strings/uuids de nuestra DB):
-        const account = uid ? String(uid) : '';
-
-        if (!account) {
-            return res.status(400).json({ error: 'uid es requerido' });
-        }
+        // Usar UID 0 para permitir que cualquier usuario se una
+        // Esto es más compatible con joinChannel en el cliente
+        const numericUid = 0;
 
         // Definir rol
         let rtcRole = RtcRole.PUBLISHER;
@@ -41,23 +40,23 @@ router.post('/token', (req: Request, res: Response) => {
         const currentTimestamp = Math.floor(Date.now() / 1000);
         const privilegeExpiredTs = currentTimestamp + expiryTime;
 
-        // Generar token
-        const token = RtcTokenBuilder.buildTokenWithAccount(
+        // Generar token con UID numérico (0 = wildcard, cualquier usuario puede unirse)
+        const token = RtcTokenBuilder.buildTokenWithUid(
             APP_ID,
             APP_CERTIFICATE,
             channelName,
-            account,
+            numericUid,
             rtcRole,
             privilegeExpiredTs
         );
 
-        console.log(`✅ Token de Agora generado para canal ${channelName}, usuario ${account}`);
+        console.log(`✅ Token de Agora generado para canal ${channelName}, UID: ${numericUid}`);
 
         res.json({
             token,
             appId: APP_ID,
             channelName,
-            uid: account
+            uid: numericUid
         });
 
     } catch (error) {

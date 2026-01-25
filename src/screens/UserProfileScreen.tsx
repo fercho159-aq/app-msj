@@ -42,7 +42,7 @@ const { width } = Dimensions.get('window');
 const THUMBNAIL_SIZE = (width - 48) / 3;
 
 export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, navigation }) => {
-    const { userId, userName, userAvatar, chatId } = route.params as any;
+    const { userId, userName, userAvatar, userRfc, chatId } = route.params as any;
     const { colors } = useTheme();
     const { user } = useAuth();
     const { startCall } = useCall();
@@ -161,6 +161,13 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                     <Text style={[styles.userName, { color: colors.textPrimary }]}>
                         {userName || 'Usuario'}
                     </Text>
+
+                    {/* RFC */}
+                    {userRfc && (
+                        <Text style={[styles.userRfc, { color: colors.textSecondary }]}>
+                            RFC: {userRfc}
+                        </Text>
+                    )}
 
                     {/* Botón de llamada */}
                     {isAdmin && (
@@ -324,6 +331,10 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 26,
         fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    userRfc: {
+        fontSize: 14,
         marginBottom: 20,
     },
     callButton: {

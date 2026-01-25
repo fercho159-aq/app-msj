@@ -71,38 +71,61 @@ export const AgoraCallProvider: React.FC<AgoraCallProviderProps> = ({ children }
             }
 
             try {
+                console.log('🎙️ Inicializando Agora con App ID:', AGORA_APP_ID.substring(0, 8) + '...');
                 engine.current = createAgoraRtcEngine();
                 engine.current.initialize({ appId: AGORA_APP_ID });
 
+                // Habilitar audio desde la inicialización
+                engine.current.enableAudio();
+                console.log('🔊 Audio habilitado en inicialización');
+
                 // Configurar eventos
-                engine.current.addListener('onJoinChannelSuccess', (connection, elapsed) => {
+                engine.current.addListener('onJoinChannelSuccess', (connection: any, elapsed: number) => {
                     console.log('✅ Unido al canal:', connection.channelId);
+                    console.log('✅ Local UID:', connection.localUid);
+                    console.log('✅ Tiempo de conexión:', elapsed, 'ms');
                     setIsConnected(true);
                     setChannelName(connection.channelId || null);
-                    // Por defecto activar altavoz en llamadas de voz si es comportamiento deseado
-                    // engine.current?.setEnableSpeakerphone(false); 
                 });
 
-                engine.current.addListener('onUserJoined', (connection, remoteUid, elapsed) => {
-                    console.log('👤 Usuario remoto unido:', remoteUid);
+                engine.current.addListener('onUserJoined', (connection: any, remoteUid: number, elapsed: number) => {
+                    console.log('👤 Usuario remoto unido - UID:', remoteUid);
                     setRemoteUsers(prev => [...prev, remoteUid]);
                 });
 
-                engine.current.addListener('onUserOffline', (connection, remoteUid, reason) => {
-                    console.log('👤 Usuario remoto salió:', remoteUid);
+                engine.current.addListener('onUserOffline', (connection: any, remoteUid: number, reason: number) => {
+                    console.log('👤 Usuario remoto salió - UID:', remoteUid, 'Razón:', reason);
                     setRemoteUsers(prev => prev.filter(uid => uid !== remoteUid));
-
-                    // Si el único usuario remoto se va, ¿colgamos? 
-                    // Depende de la lógica de negocio. Por ahora no.
                 });
 
-                engine.current.addListener('onLeaveChannel', (connection, stats) => {
+                engine.current.addListener('onLeaveChannel', (connection: any, stats: any) => {
                     console.log('👋 Salimos del canal');
                     setIsConnected(false);
                     setChannelName(null);
                     setRemoteUsers([]);
                 });
 
+                // Listener para errores
+                engine.current.addListener('onError', (err: number, msg: string) => {
+                    console.error('❌ Agora Error:', err, msg);
+                });
+
+                // Listener para estado de conexión
+                engine.current.addListener('onConnectionStateChanged', (connection: any, state: number, reason: number) => {
+                    console.log('🔗 Estado de conexión:', state, 'Razón:', reason);
+                });
+
+                // Listener para audio
+                engine.current.addListener('onAudioVolumeIndication', (connection: any, speakers: any[], totalVolume: number) => {
+                    if (totalVolume > 0) {
+                        console.log('🎤 Volumen detectado:', totalVolume);
+                    }
+                });
+
+                // Habilitar indicador de volumen para debug
+                engine.current.enableAudioVolumeIndication(2000, 3, true);
+
+                console.log('✅ Agora inicializado correctamente');
             } catch (e) {
                 console.error('❌ Error inicializando Agora:', e);
             }
@@ -203,11 +226,15 @@ export const AgoraCallProvider: React.FC<AgoraCallProviderProps> = ({ children }
             engine.current.muteLocalAudioStream(false); // Asegurar que no está muteado
 
             // Ajustar volumen
-            engine.current.adjustRecordingSignalVolume(100);
-            engine.current.adjustPlaybackSignalVolume(100);
+            engine.current.adjustRecordingSignalVolume(400); // Aumentar volumen de grabación
+            engine.current.adjustPlaybackSignalVolume(400); // Aumentar volumen de reproducción
 
-            // Unirse usando User Account (string ID)
-            engine.current.joinChannelWithUserAccount(token, newChannelName, String(user?.id), {
+            console.log('📞 Uniéndose al canal:', newChannelName);
+            console.log('📞 Con token:', token.substring(0, 20) + '...');
+            console.log('📞 UID:', uid);
+
+            // Unirse al canal con UID numérico (0 = auto-asignado por Agora)
+            engine.current.joinChannel(token, newChannelName, uid || 0, {
                 channelProfile: ChannelProfileType.ChannelProfileCommunication,
                 clientRoleType: ClientRoleType.ClientRoleBroadcaster,
                 publishMicrophoneTrack: true,
@@ -215,7 +242,7 @@ export const AgoraCallProvider: React.FC<AgoraCallProviderProps> = ({ children }
                 autoSubscribeVideo: false,
             });
 
-            console.log('📞 Iniciando llamada en canal:', newChannelName);
+            console.log('📞 Llamada iniciada en canal:', newChannelName);
 
         } catch (error) {
             console.error('Error iniciando llamada:', error);
@@ -259,10 +286,14 @@ export const AgoraCallProvider: React.FC<AgoraCallProviderProps> = ({ children }
             engine.current.muteLocalAudioStream(false);
 
             // Ajustar volumen
-            engine.current.adjustRecordingSignalVolume(100);
-            engine.current.adjustPlaybackSignalVolume(100);
+            engine.current.adjustRecordingSignalVolume(400);
+            engine.current.adjustPlaybackSignalVolume(400);
 
-            engine.current.joinChannelWithUserAccount(token, channel, String(user?.id), {
+            console.log('📞 Uniéndose al canal (join):', channel);
+            console.log('📞 Con token:', token.substring(0, 20) + '...');
+
+            // Unirse al canal con UID 0 (auto-asignado)
+            engine.current.joinChannel(token, channel, 0, {
                 channelProfile: ChannelProfileType.ChannelProfileCommunication,
                 clientRoleType: ClientRoleType.ClientRoleBroadcaster,
                 publishMicrophoneTrack: true,

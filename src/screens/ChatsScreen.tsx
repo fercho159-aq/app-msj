@@ -225,6 +225,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             chatId: chat.id,
             userName: chat.isGroup ? (chat.groupName || 'Grupo') : (otherUser?.name || 'Usuario'),
             userAvatar: chat.isGroup ? (chat.groupAvatar || '') : (otherUser?.avatar_url || ''),
+            userRfc: chat.isGroup ? null : (otherUser?.rfc || null),
             participantId: otherUser?.id, // ID del otro usuario para llamadas
         });
     };

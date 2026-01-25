@@ -15,6 +15,7 @@ import {
     TextInput,
     ScrollView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { format, parseISO } from 'date-fns';
@@ -189,10 +190,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 };
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => {
-    const { chatId, userName, userAvatar, participantId: routeParticipantId } = route.params as any;
+    const { chatId, userName, userAvatar, userRfc, participantId: routeParticipantId } = route.params as any;
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const { startCall } = useCall();
+    const insets = useSafeAreaInsets();
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
@@ -448,6 +450,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             userId: routeParticipantId || '',
             userName: userName,
             userAvatar: userAvatar,
+            userRfc: userRfc,
             chatId: chatId,
         });
     };
@@ -588,6 +591,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             <ChatHeader
                 name={userName}
                 avatar={userAvatar}
+                rfc={userRfc}
                 isAdmin={isAdmin}
                 onBack={() => navigation.goBack()}
                 onCall={handleCall}
@@ -595,7 +599,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 onMore={handleMore}
             />
 
-            <View style={[styles.chatContainer, { backgroundColor: colors.backgroundSecondary }]}>
+            <View style={[styles.chatContainer, { backgroundColor: colors.backgroundSecondary, paddingBottom: insets.bottom }]}>
                 {isLoading ? (
                     <View style={styles.loadingContainer}>
                         <ActivityIndicator size="large" color={colors.primary} />

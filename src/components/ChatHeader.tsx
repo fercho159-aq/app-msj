@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 interface ChatHeaderProps {
     name: string;
     avatar: string;
+    rfc?: string | null;
     status?: 'online' | 'offline' | 'typing';
     lastSeen?: string;
     isAdmin?: boolean;
@@ -19,6 +20,7 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
     name,
     avatar,
+    rfc,
     status = 'offline',
     lastSeen,
     isAdmin = false,
@@ -59,16 +61,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                     <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                         {name}
                     </Text>
-                    <Text
-                        style={[
-                            styles.status,
-                            { color: colors.textMuted },
-                            status === 'online' && { color: colors.online },
-                            status === 'typing' && { color: colors.primary, fontStyle: 'italic' },
-                        ]}
-                    >
-                        {getStatusText()}
-                    </Text>
+                    {status === 'online' || status === 'typing' ? (
+                        <Text
+                            style={[
+                                styles.status,
+                                { color: colors.textMuted },
+                                status === 'online' && { color: colors.online },
+                                status === 'typing' && { color: colors.primary, fontStyle: 'italic' },
+                            ]}
+                        >
+                            {getStatusText()}
+                        </Text>
+                    ) : rfc ? (
+                        <Text style={[styles.status, { color: colors.textMuted }]} numberOfLines={1}>
+                            RFC: {rfc}
+                        </Text>
+                    ) : null}
                 </View>
             </TouchableOpacity>
 

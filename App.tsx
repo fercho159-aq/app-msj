@@ -1,7 +1,8 @@
-import React from 'react';
-import { StatusBar, View, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { StatusBar, View, StyleSheet, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as NavigationBar from 'expo-navigation-bar';
 import { AuthProvider } from './src/context/AuthContext';
 import { CallProvider } from './src/context/CallContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -16,6 +17,14 @@ import Preloader from './src/components/Preloader';
 // Componente interno que tiene acceso al tema
 function AppContent() {
   const { colors, isDark } = useTheme();
+
+  // Ocultar barra de navegación en Android
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setVisibilityAsync('hidden');
+      NavigationBar.setBehaviorAsync('overlay-swipe');
+    }
+  }, []);
 
   return (
     <>
