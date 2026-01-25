@@ -182,6 +182,11 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
         isPollingRef.current = true;
         try {
+            // Asegurar que el rol está configurado en el API client
+            if (isConsultor) {
+                api.setUserRole('consultor');
+            }
+
             // Cargar chats
             const result = await api.getChats();
             if (result.data?.chats) {
@@ -197,6 +202,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             // Si es consultor, también cargar todos los usuarios
             if (isConsultor && isInitialLoad) {
                 const usersResult = await api.getUsers();
+                console.log('📋 Usuarios cargados:', usersResult.data?.users?.length || 0);
                 if (usersResult.data?.users) {
                     setAllUsers(usersResult.data.users);
                 }
