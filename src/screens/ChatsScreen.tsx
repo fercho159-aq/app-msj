@@ -138,6 +138,17 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
     );
 };
 
+// Tipos de pestañas para consultores
+type ChatTab = 'usuarios' | 'asesores';
+
+// Función para determinar el tipo de usuario basado en su RFC
+const getUserTypeFromRfc = (rfc: string | undefined): 'usuario' | 'asesor' | 'consultor' => {
+    if (!rfc) return 'usuario';
+    if (rfc === 'ADMIN000CONS' || rfc.startsWith('CONS')) return 'consultor';
+    if (rfc.startsWith('ADV')) return 'asesor';
+    return 'usuario';
+};
+
 export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const { user } = useAuth();
     const { colors, gradients, isDark } = useTheme();
@@ -146,8 +157,12 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [isSearching, setIsSearching] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState<ChatTab>('usuarios');
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef(false);
+
+    // Verificar si el usuario actual es consultor
+    const isConsultor = user?.rfc === 'ADMIN000CONS' || user?.rfc?.startsWith('CONS');
 
     const loadChats = async (isInitialLoad = false) => {
         if (!user) return;
@@ -211,10 +226,27 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }
     };
 
+    // Filtrar chats por búsqueda y por pestaña activa (solo para consultores)
     const filteredChats = chats.filter((chat) => {
         const otherUser = chat.participants?.find((p) => p.id !== user?.id);
         const name = chat.isGroup ? chat.groupName : otherUser?.name;
-        return name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Filtro de búsqueda
+        const matchesSearch = name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+        // Si no es consultor, mostrar todos los chats
+        if (!isConsultor) return matchesSearch;
+
+        // Si es grupo, mostrar en ambas pestañas
+        if (chat.isGroup) return matchesSearch;
+
+        // Filtrar por tipo de usuario según la pestaña activa
+        const otherUserType = getUserTypeFromRfc(otherUser?.rfc);
+        if (activeTab === 'usuarios') {
+            return matchesSearch && otherUserType === 'usuario';
+        } else {
+            return matchesSearch && otherUserType === 'asesor';
+        }
     });
 
     const handleChatPress = (chat: Chat) => {
@@ -230,8 +262,6 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         });
     };
 
-    const isAdmin = user?.rfc === 'ADMIN000CONS';
-
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
@@ -246,7 +276,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                         <Text style={[styles.greeting, { color: colors.textMuted }]}>Hola, {user?.name?.split(' ')[0] || 'Usuario'} 👋</Text>
                         <Text style={[styles.title, { color: colors.textPrimary }]}>Mensajes</Text>
                     </View>
-                    {isAdmin && (
+                    {isConsultor && (
                         <View style={styles.headerActions}>
                             <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.surface }]} onPress={toggleSearch}>
                                 <Ionicons name="search" size={24} color={colors.textPrimary} />
@@ -255,8 +285,8 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     )}
                 </View>
 
-                {/* Search Bar - Solo admin */}
-                {isAdmin && isSearching && (
+                {/* Search Bar - Solo consultores */}
+                {isConsultor && isSearching && (
                     <View style={styles.searchContainer}>
                         <View style={[styles.searchInputContainer, { backgroundColor: colors.surface }]}>
                             <Ionicons name="search" size={20} color={colors.textMuted} />
@@ -273,6 +303,50 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
                         </View>
+                    </View>
+                )}
+
+                {/* Pestañas - Solo para consultores */}
+                {isConsultor && (
+                    <View style={styles.tabsContainer}>
+                        <TouchableOpacity
+                            style={[
+                                styles.tab,
+                                activeTab === 'usuarios' && { backgroundColor: colors.primary }
+                            ]}
+                            onPress={() => setActiveTab('usuarios')}
+                        >
+                            <Ionicons
+                                name="people"
+                                size={18}
+                                color={activeTab === 'usuarios' ? '#fff' : colors.textMuted}
+                            />
+                            <Text style={[
+                                styles.tabText,
+                                { color: activeTab === 'usuarios' ? '#fff' : colors.textMuted }
+                            ]}>
+                                Usuarios
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.tab,
+                                activeTab === 'asesores' && { backgroundColor: colors.primary }
+                            ]}
+                            onPress={() => setActiveTab('asesores')}
+                        >
+                            <Ionicons
+                                name="briefcase"
+                                size={18}
+                                color={activeTab === 'asesores' ? '#fff' : colors.textMuted}
+                            />
+                            <Text style={[
+                                styles.tabText,
+                                { color: activeTab === 'asesores' ? '#fff' : colors.textMuted }
+                            ]}>
+                                Asesores
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 )}
             </LinearGradient>
@@ -308,9 +382,14 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                         <View style={styles.emptyContainer}>
                             <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
                             <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No hay conversaciones</Text>
-                            {!isAdmin && (
+                            {!isConsultor && (
                                 <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
                                     Esperando conexión con el Consultor...
+                                </Text>
+                            )}
+                            {isConsultor && (
+                                <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                                    No hay {activeTab === 'usuarios' ? 'usuarios' : 'asesores'} con conversaciones
                                 </Text>
                             )}
                         </View>
@@ -318,8 +397,8 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                 />
             )}
 
-            {/* FAB - Solo para Admin */}
-            {isAdmin && (
+            {/* FAB - Solo para Consultores */}
+            {isConsultor && (
                 <TouchableOpacity style={[styles.fab, { shadowColor: colors.primary }]}>
                     <LinearGradient
                         colors={gradients.primary as [string, string, ...string[]]}
@@ -382,6 +461,24 @@ const styles = StyleSheet.create({
     searchInput: {
         flex: 1,
         fontSize: 16,
+    },
+    tabsContainer: {
+        flexDirection: 'row',
+        marginTop: 16,
+        gap: 12,
+    },
+    tab: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        backgroundColor: 'rgba(128, 128, 128, 0.1)',
+        gap: 6,
+    },
+    tabText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
     listContent: {
         flexGrow: 1,
