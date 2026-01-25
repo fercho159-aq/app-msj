@@ -149,15 +149,25 @@ const getUserTypeFromRfc = (rfc: string | undefined): 'usuario' | 'asesor' | 'co
     return 'usuario';
 };
 
+// Tipo unificado para mostrar en la lista (chat existente o usuario sin chat)
+interface ListItem {
+    type: 'chat' | 'user';
+    id: string;
+    chat?: Chat;
+    user?: User;
+}
+
 export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const { user } = useAuth();
     const { colors, gradients, isDark } = useTheme();
     const [chats, setChats] = useState<Chat[]>([]);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<ChatTab>('usuarios');
+    const [isCreatingChat, setIsCreatingChat] = useState(false);
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef(false);
 
@@ -172,16 +182,24 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
         isPollingRef.current = true;
         try {
+            // Cargar chats
             const result = await api.getChats();
             if (result.data?.chats) {
                 setChats(prev => {
-                    // Solo actualizar si hay cambios
                     const newChats = result.data!.chats;
                     if (JSON.stringify(prev) !== JSON.stringify(newChats)) {
                         return newChats;
                     }
                     return prev;
                 });
+            }
+
+            // Si es consultor, también cargar todos los usuarios
+            if (isConsultor && isInitialLoad) {
+                const usersResult = await api.getUsers();
+                if (usersResult.data?.users) {
+                    setAllUsers(usersResult.data.users);
+                }
             }
         } catch (error) {
             console.error('Error loading chats:', error);
@@ -214,9 +232,9 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }, [user])
     );
 
-    const handleRefresh = () => {
+    const handleRefresh = async () => {
         setIsRefreshing(true);
-        loadChats();
+        await loadChats(true); // Recargar todo incluyendo usuarios
     };
 
     const toggleSearch = () => {
@@ -226,28 +244,87 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }
     };
 
-    // Filtrar chats por búsqueda y por pestaña activa (solo para consultores)
-    const filteredChats = chats.filter((chat) => {
-        const otherUser = chat.participants?.find((p) => p.id !== user?.id);
-        const name = chat.isGroup ? chat.groupName : otherUser?.name;
-
-        // Filtro de búsqueda
-        const matchesSearch = name?.toLowerCase().includes(searchQuery.toLowerCase());
-
-        // Si no es consultor, mostrar todos los chats
-        if (!isConsultor) return matchesSearch;
-
-        // Si es grupo, mostrar en ambas pestañas
-        if (chat.isGroup) return matchesSearch;
-
-        // Filtrar por tipo de usuario según la pestaña activa
-        const otherUserType = getUserTypeFromRfc(otherUser?.rfc);
-        if (activeTab === 'usuarios') {
-            return matchesSearch && otherUserType === 'usuario';
-        } else {
-            return matchesSearch && otherUserType === 'asesor';
+    // Obtener IDs de usuarios que ya tienen chat
+    const usersWithChat = new Set<string>();
+    chats.forEach(chat => {
+        if (!chat.isGroup) {
+            chat.participants?.forEach(p => {
+                if (p.id !== user?.id) {
+                    usersWithChat.add(p.id);
+                }
+            });
         }
     });
+
+    // Crear lista combinada para consultores: chats + usuarios sin chat
+    const getCombinedList = (): ListItem[] => {
+        if (!isConsultor) {
+            // Para usuarios normales, solo mostrar chats
+            return chats
+                .filter(chat => {
+                    const otherUser = chat.participants?.find(p => p.id !== user?.id);
+                    const name = chat.isGroup ? chat.groupName : otherUser?.name;
+                    return name?.toLowerCase().includes(searchQuery.toLowerCase());
+                })
+                .map(chat => ({ type: 'chat' as const, id: chat.id, chat }));
+        }
+
+        // Para consultores: combinar chats y usuarios sin chat
+        const items: ListItem[] = [];
+        const targetRole = activeTab === 'usuarios' ? 'usuario' : 'asesor';
+
+        // Agregar chats existentes que coinciden con el tab
+        chats.forEach(chat => {
+            const otherUser = chat.participants?.find(p => p.id !== user?.id);
+            const name = chat.isGroup ? chat.groupName : otherUser?.name;
+            const matchesSearch = name?.toLowerCase().includes(searchQuery.toLowerCase());
+
+            if (!matchesSearch) return;
+
+            // Grupos van en ambas pestañas
+            if (chat.isGroup) {
+                items.push({ type: 'chat', id: chat.id, chat });
+                return;
+            }
+
+            // Filtrar por tipo de usuario
+            const otherUserType = getUserTypeFromRfc(otherUser?.rfc);
+            if (otherUserType === targetRole) {
+                items.push({ type: 'chat', id: chat.id, chat });
+            }
+        });
+
+        // Agregar usuarios sin chat
+        allUsers.forEach(u => {
+            if (u.id === user?.id) return; // Excluir al usuario actual
+            if (usersWithChat.has(u.id)) return; // Ya tiene chat
+
+            const userType = getUserTypeFromRfc(u.rfc);
+            if (userType !== targetRole) return; // No coincide con el tab
+
+            const matchesSearch = u.name?.toLowerCase().includes(searchQuery.toLowerCase());
+            if (!matchesSearch) return;
+
+            items.push({ type: 'user', id: u.id, user: u });
+        });
+
+        // Ordenar: chats con mensajes primero, luego usuarios sin chat
+        return items.sort((a, b) => {
+            // Chats con mensajes recientes primero
+            if (a.type === 'chat' && b.type === 'chat') {
+                const aTime = a.chat?.lastMessage?.timestamp || a.chat?.createdAt || '';
+                const bTime = b.chat?.lastMessage?.timestamp || b.chat?.createdAt || '';
+                return bTime.localeCompare(aTime);
+            }
+            // Chats antes que usuarios sin chat
+            if (a.type === 'chat') return -1;
+            if (b.type === 'chat') return 1;
+            // Usuarios ordenados por nombre
+            return (a.user?.name || '').localeCompare(b.user?.name || '');
+        });
+    };
+
+    const combinedList = getCombinedList();
 
     const handleChatPress = (chat: Chat) => {
         const otherUser = chat.participants?.find((p) => p.id !== user?.id);
@@ -258,8 +335,93 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             userName: chat.isGroup ? (chat.groupName || 'Grupo') : (otherUser?.name || 'Usuario'),
             userAvatar: chat.isGroup ? (chat.groupAvatar || '') : (otherUser?.avatar_url || ''),
             userRfc: chat.isGroup ? null : (otherUser?.rfc || null),
-            participantId: otherUser?.id, // ID del otro usuario para llamadas
+            participantId: otherUser?.id,
         });
+    };
+
+    // Crear chat con usuario que no tiene chat existente
+    const handleUserPress = async (targetUser: User) => {
+        if (isCreatingChat) return;
+
+        setIsCreatingChat(true);
+        try {
+            const result = await api.createChat(targetUser.id);
+            if (result.data?.chat) {
+                navigation.navigate('Chat', {
+                    chatId: result.data.chat.id,
+                    userName: targetUser.name || 'Usuario',
+                    userAvatar: targetUser.avatar_url || '',
+                    userRfc: targetUser.rfc || null,
+                    participantId: targetUser.id,
+                });
+            }
+        } catch (error) {
+            console.error('Error creating chat:', error);
+        } finally {
+            setIsCreatingChat(false);
+        }
+    };
+
+    // Componente para mostrar usuario sin chat
+    const renderUserItem = (targetUser: User) => {
+        const displayName = targetUser.name || 'Usuario';
+        const isOnline = targetUser.status === 'online';
+
+        return (
+            <TouchableOpacity
+                style={[styles.chatItem, { backgroundColor: colors.background, borderBottomColor: colors.divider }]}
+                onPress={() => handleUserPress(targetUser)}
+                activeOpacity={0.7}
+                disabled={isCreatingChat}
+            >
+                <View style={styles.avatarContainer}>
+                    {targetUser.avatar_url ? (
+                        <Image source={{ uri: targetUser.avatar_url }} style={[styles.avatar, { borderColor: colors.border }]} />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
+                            <Text style={[styles.avatarText, { color: colors.background }]}>
+                                {displayName.charAt(0).toUpperCase()}
+                            </Text>
+                        </View>
+                    )}
+                    {isOnline && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.background }]} />}
+                </View>
+
+                <View style={styles.chatContent}>
+                    <View style={styles.chatHeader}>
+                        <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
+                            {displayName}
+                        </Text>
+                    </View>
+                    <View style={styles.chatMessageRow}>
+                        <Text style={[styles.chatMessage, { color: colors.textMuted, fontStyle: 'italic' }]} numberOfLines={1}>
+                            Toca para iniciar conversación
+                        </Text>
+                        <View style={[styles.newChatBadge, { backgroundColor: colors.surface }]}>
+                            <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
+                        </View>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    // Render item de la lista combinada
+    const renderListItem = ({ item }: { item: ListItem }) => {
+        if (item.type === 'chat' && item.chat) {
+            return (
+                <ChatItem
+                    chat={item.chat}
+                    currentUserId={user?.id || ''}
+                    onPress={() => handleChatPress(item.chat!)}
+                    colors={colors}
+                />
+            );
+        }
+        if (item.type === 'user' && item.user) {
+            return renderUserItem(item.user);
+        }
+        return null;
     };
 
     return (
@@ -361,16 +523,9 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                 </View>
             ) : (
                 <FlatList
-                    data={filteredChats}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <ChatItem
-                            chat={item}
-                            currentUserId={user?.id || ''}
-                            onPress={() => handleChatPress(item)}
-                            colors={colors}
-                        />
-                    )}
+                    data={combinedList}
+                    keyExtractor={(item) => `${item.type}-${item.id}`}
+                    renderItem={renderListItem}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
@@ -383,15 +538,15 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
-                            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No hay conversaciones</Text>
+                            <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
+                                {isConsultor
+                                    ? `No hay ${activeTab === 'usuarios' ? 'usuarios' : 'asesores'} registrados`
+                                    : 'No hay conversaciones'
+                                }
+                            </Text>
                             {!isConsultor && (
                                 <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
                                     Esperando conexión con el Consultor...
-                                </Text>
-                            )}
-                            {isConsultor && (
-                                <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
-                                    No hay {activeTab === 'usuarios' ? 'usuarios' : 'asesores'} con conversaciones
                                 </Text>
                             )}
                         </View>
@@ -576,6 +731,14 @@ const styles = StyleSheet.create({
     unreadCount: {
         fontSize: 12,
         fontWeight: 'bold',
+    },
+    newChatBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
     },
     emptyContainer: {
         flex: 1,
