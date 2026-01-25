@@ -79,9 +79,20 @@ export const verifyCredentials = async (identifier: string, password?: string): 
         return { isValid: false, error: 'Usuario no encontrado' };
     }
 
-    if (user.password) {
+    // SIEMPRE requerir contraseña para usuarios con roles especiales (admin, advisor, consultant)
+    const requiresPassword = user.password ||
+        normalizedIdentifier === 'ADMIN000CONS' ||
+        normalizedIdentifier.startsWith('CONS') ||
+        normalizedIdentifier.startsWith('ADV');
+
+    if (requiresPassword) {
         if (!password) {
             return { isValid: false, error: 'Contraseña requerida' };
+        }
+
+        // Si el usuario no tiene contraseña configurada pero la requiere, denegar acceso
+        if (!user.password) {
+            return { isValid: false, error: 'Contraseña no configurada. Contacte al administrador.' };
         }
 
         // Check if password matches (bcrypt compare)
