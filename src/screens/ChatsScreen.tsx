@@ -858,13 +858,13 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     tabPill: {
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 18,
     },
     tabPillText: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 13,
+        fontWeight: '500',
     },
     listContent: {
         flexGrow: 1,
