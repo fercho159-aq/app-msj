@@ -308,17 +308,18 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
                 {/* Pestañas - Solo para consultores */}
                 {isConsultor && (
-                    <View style={styles.tabsContainer}>
+                    <View style={[styles.tabsContainer, { backgroundColor: colors.surface }]}>
                         <TouchableOpacity
                             style={[
                                 styles.tab,
-                                activeTab === 'usuarios' && { backgroundColor: colors.primary }
+                                activeTab === 'usuarios' && [styles.tabActive, { backgroundColor: colors.primary }]
                             ]}
                             onPress={() => setActiveTab('usuarios')}
+                            activeOpacity={0.7}
                         >
                             <Ionicons
                                 name="people"
-                                size={18}
+                                size={16}
                                 color={activeTab === 'usuarios' ? '#fff' : colors.textMuted}
                             />
                             <Text style={[
@@ -331,13 +332,14 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                         <TouchableOpacity
                             style={[
                                 styles.tab,
-                                activeTab === 'asesores' && { backgroundColor: colors.primary }
+                                activeTab === 'asesores' && [styles.tabActive, { backgroundColor: colors.primary }]
                             ]}
                             onPress={() => setActiveTab('asesores')}
+                            activeOpacity={0.7}
                         >
                             <Ionicons
                                 name="briefcase"
-                                size={18}
+                                size={16}
                                 color={activeTab === 'asesores' ? '#fff' : colors.textMuted}
                             />
                             <Text style={[
@@ -465,16 +467,24 @@ const styles = StyleSheet.create({
     tabsContainer: {
         flexDirection: 'row',
         marginTop: 16,
-        gap: 12,
+        borderRadius: 12,
+        padding: 4,
     },
     tab: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        justifyContent: 'center',
         paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: 'rgba(128, 128, 128, 0.1)',
+        borderRadius: 10,
         gap: 6,
+    },
+    tabActive: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
     tabText: {
         fontSize: 14,
