@@ -13,6 +13,7 @@ import {
     Modal,
     Animated,
     Pressable,
+    ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +43,86 @@ const formatMessageTime = (dateString: string): string => {
     return format(date, 'dd/MM/yy', { locale: es });
 };
 
+// Componente de avatar combinado para grupos
+interface GroupAvatarProps {
+    participants: User[];
+    size: number;
+    colors: any;
+}
+
+const GroupAvatar: React.FC<GroupAvatarProps> = ({ participants, size, colors }) => {
+    // Mostrar hasta 4 participantes
+    const displayParticipants = participants.slice(0, 4);
+    const count = displayParticipants.length;
+
+    if (count === 0) {
+        return (
+            <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="people" size={size * 0.5} color="#fff" />
+            </View>
+        );
+    }
+
+    const smallSize = size * 0.55;
+    const offset = size * 0.45;
+
+    if (count === 1) {
+        const p = displayParticipants[0];
+        return p.avatar_url ? (
+            <Image source={{ uri: p.avatar_url }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        ) : (
+            <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#fff', fontSize: size * 0.4, fontWeight: 'bold' }}>
+                    {(p.name || '?').charAt(0).toUpperCase()}
+                </Text>
+            </View>
+        );
+    }
+
+    // 2, 3 o 4 participantes - mostrar en grid
+    return (
+        <View style={{ width: size, height: size, position: 'relative' }}>
+            {displayParticipants.map((p, index) => {
+                const positions = count === 2
+                    ? [{ top: 0, left: 0 }, { bottom: 0, right: 0 }]
+                    : count === 3
+                    ? [{ top: 0, left: size * 0.15 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }]
+                    : [{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }];
+
+                const pos = positions[index];
+
+                return (
+                    <View
+                        key={p.id}
+                        style={[
+                            {
+                                position: 'absolute',
+                                ...pos,
+                                width: smallSize,
+                                height: smallSize,
+                                borderRadius: smallSize / 2,
+                                borderWidth: 2,
+                                borderColor: colors.background,
+                                overflow: 'hidden',
+                            }
+                        ]}
+                    >
+                        {p.avatar_url ? (
+                            <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                        ) : (
+                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                                <Text style={{ color: '#fff', fontSize: smallSize * 0.4, fontWeight: 'bold' }}>
+                                    {(p.name || '?').charAt(0).toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                );
+            })}
+        </View>
+    );
+};
+
 interface ChatItemProps {
     chat: Chat;
     currentUserId: string;
@@ -55,7 +136,7 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
     if (!otherUser && !chat.isGroup) return null;
 
     const displayName = chat.isGroup ? chat.groupName : otherUser?.name || 'Usuario';
-    const displayAvatar = chat.isGroup ? chat.groupAvatar : otherUser?.avatar_url;
+    const displayAvatar = chat.isGroup ? null : otherUser?.avatar_url; // Para grupos usamos GroupAvatar
     const getLastMessageText = () => {
         const msg = chat.lastMessage;
         if (!msg) return '';
@@ -77,6 +158,9 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
     const hasUnread = chat.unreadCount > 0;
     const isOnline = otherUser?.status === 'online';
 
+    // Para grupos, obtener participantes sin el usuario actual
+    const groupParticipants = chat.isGroup ? chat.participants?.filter(p => p.id !== currentUserId) || [] : [];
+
     return (
         <TouchableOpacity
             style={[
@@ -88,7 +172,9 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
             activeOpacity={0.7}
         >
             <View style={styles.avatarContainer}>
-                {displayAvatar ? (
+                {chat.isGroup ? (
+                    <GroupAvatar participants={groupParticipants} size={56} colors={colors} />
+                ) : displayAvatar ? (
                     <Image source={{ uri: displayAvatar }} style={[styles.avatar, { borderColor: colors.border }]} />
                 ) : (
                     <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: colors.primary }]}>
@@ -97,14 +183,19 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
                         </Text>
                     </View>
                 )}
-                {isOnline && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.background }]} />}
+                {!chat.isGroup && isOnline && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.background }]} />}
             </View>
 
             <View style={styles.chatContent}>
                 <View style={styles.chatHeader}>
-                    <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {displayName}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        {chat.isGroup && (
+                            <Ionicons name="people" size={14} color={colors.textMuted} style={{ marginRight: 4 }} />
+                        )}
+                        <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
+                            {displayName}
+                        </Text>
+                    </View>
                     {chat.lastMessage && (
                         <Text style={[styles.chatTime, { color: colors.textMuted }, hasUnread && { color: colors.primary }]}>
                             {formatMessageTime(chat.lastMessage.timestamp)}
@@ -142,7 +233,7 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
 };
 
 // Tipos de pestañas para consultores
-type ChatTab = 'usuarios' | 'asesores';
+type ChatTab = 'usuarios' | 'asesores' | 'consultores' | 'grupos';
 
 // Función para determinar el tipo de usuario
 // Prioriza el campo 'role' si está disponible, si no, infiere del RFC
@@ -290,23 +381,37 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                 .map(chat => ({ type: 'chat' as const, id: chat.id, chat }));
         }
 
-        // Para consultores: combinar chats y usuarios sin chat
+        // Para consultores: manejar pestañas
         const items: ListItem[] = [];
-        const targetRole = activeTab === 'usuarios' ? 'usuario' : 'asesor';
+
+        // Pestaña de grupos - solo mostrar chats grupales
+        if (activeTab === 'grupos') {
+            chats.forEach(chat => {
+                if (!chat.isGroup) return;
+                const matchesSearch = chat.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
+                if (!matchesSearch) return;
+                items.push({ type: 'chat', id: chat.id, chat });
+            });
+
+            return items.sort((a, b) => {
+                const aTime = a.chat?.lastMessage?.timestamp || a.chat?.createdAt || '';
+                const bTime = b.chat?.lastMessage?.timestamp || b.chat?.createdAt || '';
+                return bTime.localeCompare(aTime);
+            });
+        }
+
+        // Determinar el rol objetivo según la pestaña
+        const targetRole = activeTab === 'usuarios' ? 'usuario' : activeTab === 'asesores' ? 'asesor' : 'consultor';
 
         // Agregar chats existentes que coinciden con el tab
         chats.forEach(chat => {
+            if (chat.isGroup) return; // Grupos solo en pestaña de grupos
+
             const otherUser = chat.participants?.find(p => p.id !== user?.id);
-            const name = chat.isGroup ? chat.groupName : otherUser?.name;
+            const name = otherUser?.name;
             const matchesSearch = name?.toLowerCase().includes(searchQuery.toLowerCase());
 
             if (!matchesSearch) return;
-
-            // Grupos van en ambas pestañas
-            if (chat.isGroup) {
-                items.push({ type: 'chat', id: chat.id, chat });
-                return;
-            }
 
             // Filtrar por tipo de usuario
             const otherUserType = getUserType(otherUser);
@@ -516,48 +621,81 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
                 {/* Pestañas - Solo para consultores */}
                 {isConsultor && (
-                    <View style={[styles.tabsContainer, { backgroundColor: colors.surface }]}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.tabsScrollView}
+                        contentContainerStyle={styles.tabsScrollContent}
+                    >
                         <TouchableOpacity
                             style={[
-                                styles.tab,
-                                activeTab === 'usuarios' && [styles.tabActive, { backgroundColor: colors.primary }]
+                                styles.tabPill,
+                                activeTab === 'usuarios'
+                                    ? { backgroundColor: colors.primary }
+                                    : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }
                             ]}
                             onPress={() => setActiveTab('usuarios')}
                             activeOpacity={0.7}
                         >
-                            <Ionicons
-                                name="people"
-                                size={16}
-                                color={activeTab === 'usuarios' ? '#fff' : colors.textMuted}
-                            />
                             <Text style={[
-                                styles.tabText,
-                                { color: activeTab === 'usuarios' ? '#fff' : colors.textMuted }
+                                styles.tabPillText,
+                                { color: activeTab === 'usuarios' ? '#fff' : colors.textSecondary }
                             ]}>
                                 Usuarios
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[
-                                styles.tab,
-                                activeTab === 'asesores' && [styles.tabActive, { backgroundColor: colors.primary }]
+                                styles.tabPill,
+                                activeTab === 'asesores'
+                                    ? { backgroundColor: colors.primary }
+                                    : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }
                             ]}
                             onPress={() => setActiveTab('asesores')}
                             activeOpacity={0.7}
                         >
-                            <Ionicons
-                                name="briefcase"
-                                size={16}
-                                color={activeTab === 'asesores' ? '#fff' : colors.textMuted}
-                            />
                             <Text style={[
-                                styles.tabText,
-                                { color: activeTab === 'asesores' ? '#fff' : colors.textMuted }
+                                styles.tabPillText,
+                                { color: activeTab === 'asesores' ? '#fff' : colors.textSecondary }
                             ]}>
                                 Asesores
                             </Text>
                         </TouchableOpacity>
-                    </View>
+                        <TouchableOpacity
+                            style={[
+                                styles.tabPill,
+                                activeTab === 'consultores'
+                                    ? { backgroundColor: colors.primary }
+                                    : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }
+                            ]}
+                            onPress={() => setActiveTab('consultores')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[
+                                styles.tabPillText,
+                                { color: activeTab === 'consultores' ? '#fff' : colors.textSecondary }
+                            ]}>
+                                Consultores
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.tabPill,
+                                activeTab === 'grupos'
+                                    ? { backgroundColor: colors.primary }
+                                    : { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }
+                            ]}
+                            onPress={() => setActiveTab('grupos')}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[
+                                styles.tabPillText,
+                                { color: activeTab === 'grupos' ? '#fff' : colors.textSecondary }
+                            ]}>
+                                Grupos
+                            </Text>
+                        </TouchableOpacity>
+                    </ScrollView>
                 )}
             </LinearGradient>
 
@@ -586,7 +724,9 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                             <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
                             <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
                                 {isConsultor
-                                    ? `No hay ${activeTab === 'usuarios' ? 'usuarios' : 'asesores'} registrados`
+                                    ? activeTab === 'grupos'
+                                        ? 'No hay grupos'
+                                        : `No hay ${activeTab} registrados`
                                     : 'No hay conversaciones'
                                 }
                             </Text>
@@ -710,30 +850,20 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
     },
-    tabsContainer: {
-        flexDirection: 'row',
+    tabsScrollView: {
         marginTop: 16,
-        borderRadius: 12,
-        padding: 4,
     },
-    tab: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+    tabsScrollContent: {
+        paddingRight: 16,
+        gap: 10,
+    },
+    tabPill: {
+        paddingHorizontal: 20,
         paddingVertical: 10,
-        borderRadius: 10,
-        gap: 6,
+        borderRadius: 20,
     },
-    tabActive: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    tabText: {
-        fontSize: 14,
+    tabPillText: {
+        fontSize: 15,
         fontWeight: '600',
     },
     listContent: {

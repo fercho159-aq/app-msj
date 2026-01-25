@@ -18,9 +18,86 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
-import { api, Message } from '../api';
+import { api, Message, User } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
+
+// Componente de avatar combinado para grupos
+interface GroupAvatarProps {
+    participants: User[];
+    size: number;
+    colors: any;
+}
+
+const GroupAvatar: React.FC<GroupAvatarProps> = ({ participants, size, colors }) => {
+    const displayParticipants = participants.slice(0, 4);
+    const count = displayParticipants.length;
+
+    if (count === 0) {
+        return (
+            <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="people" size={size * 0.5} color="#fff" />
+            </View>
+        );
+    }
+
+    const smallSize = size * 0.55;
+
+    if (count === 1) {
+        const p = displayParticipants[0];
+        return p.avatar_url ? (
+            <Image source={{ uri: p.avatar_url }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        ) : (
+            <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ color: '#fff', fontSize: size * 0.4, fontWeight: 'bold' }}>
+                    {(p.name || '?').charAt(0).toUpperCase()}
+                </Text>
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ width: size, height: size, position: 'relative' }}>
+            {displayParticipants.map((p, index) => {
+                const positions = count === 2
+                    ? [{ top: 0, left: 0 }, { bottom: 0, right: 0 }]
+                    : count === 3
+                    ? [{ top: 0, left: size * 0.15 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }]
+                    : [{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }];
+
+                const pos = positions[index];
+
+                return (
+                    <View
+                        key={p.id}
+                        style={[
+                            {
+                                position: 'absolute',
+                                ...pos,
+                                width: smallSize,
+                                height: smallSize,
+                                borderRadius: smallSize / 2,
+                                borderWidth: 2,
+                                borderColor: colors.background,
+                                overflow: 'hidden',
+                            }
+                        ]}
+                    >
+                        {p.avatar_url ? (
+                            <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                        ) : (
+                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                                <Text style={{ color: '#fff', fontSize: smallSize * 0.4, fontWeight: 'bold' }}>
+                                    {(p.name || '?').charAt(0).toUpperCase()}
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                );
+            })}
+        </View>
+    );
+};
 
 type UserProfileScreenRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
 type UserProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'UserProfile'>;
@@ -42,7 +119,7 @@ const { width } = Dimensions.get('window');
 const THUMBNAIL_SIZE = (width - 48) / 3;
 
 export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, navigation }) => {
-    const { userId, userName, userAvatar, userRfc, chatId } = route.params as any;
+    const { userId, userName, userAvatar, userRfc, chatId, isGroup, participants } = route.params as any;
     const { colors } = useTheme();
     const { user } = useAuth();
     const { startCall } = useCall();
@@ -52,6 +129,9 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
     const [activeTab, setActiveTab] = useState<'images' | 'files'>('images');
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
+
+    // Filtrar participantes excluyendo al usuario actual
+    const groupParticipants = participants?.filter((p: User) => p.id !== user?.id) || [];
 
     // Cargar archivos compartidos del chat
     useEffect(() => {
@@ -139,7 +219,9 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color={colors.textPrimary} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Perfil</Text>
+                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                    {isGroup ? 'Grupo' : 'Perfil'}
+                </Text>
                 <View style={styles.headerPlaceholder} />
             </LinearGradient>
 
@@ -147,30 +229,38 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                 style={styles.scrollContainer}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Perfil del usuario */}
+                {/* Perfil del usuario/grupo */}
                 <View style={styles.profileSection}>
                     {/* Avatar grande */}
                     <View style={[styles.avatarContainer, { borderColor: colors.primary }]}>
-                        <Image
-                            source={{ uri: userAvatar || 'https://via.placeholder.com/120' }}
-                            style={styles.avatar}
-                        />
+                        {isGroup ? (
+                            <GroupAvatar participants={groupParticipants} size={114} colors={colors} />
+                        ) : (
+                            <Image
+                                source={{ uri: userAvatar || 'https://via.placeholder.com/120' }}
+                                style={styles.avatar}
+                            />
+                        )}
                     </View>
 
                     {/* Nombre */}
                     <Text style={[styles.userName, { color: colors.textPrimary }]}>
-                        {userName || 'Usuario'}
+                        {userName || (isGroup ? 'Grupo' : 'Usuario')}
                     </Text>
 
-                    {/* RFC */}
-                    {userRfc && (
+                    {/* Info del grupo o RFC */}
+                    {isGroup ? (
+                        <Text style={[styles.userRfc, { color: colors.textSecondary }]}>
+                            {groupParticipants.length} participantes
+                        </Text>
+                    ) : userRfc && (
                         <Text style={[styles.userRfc, { color: colors.textSecondary }]}>
                             RFC: {userRfc}
                         </Text>
                     )}
 
-                    {/* Botón de llamada */}
-                    {isAdmin && (
+                    {/* Botón de llamada - solo para usuarios, no grupos */}
+                    {isAdmin && !isGroup && (
                         <TouchableOpacity
                             style={[styles.callButton, { backgroundColor: colors.primary }]}
                             onPress={handleCall}
@@ -181,6 +271,37 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                         </TouchableOpacity>
                     )}
                 </View>
+
+                {/* Lista de participantes del grupo */}
+                {isGroup && groupParticipants.length > 0 && (
+                    <View style={styles.participantsSection}>
+                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                            Participantes
+                        </Text>
+                        {groupParticipants.map((participant: User) => (
+                            <View key={participant.id} style={[styles.participantItem, { borderBottomColor: colors.divider }]}>
+                                {participant.avatar_url ? (
+                                    <Image source={{ uri: participant.avatar_url }} style={styles.participantAvatar} />
+                                ) : (
+                                    <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+                                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+                                            {(participant.name || '?').charAt(0).toUpperCase()}
+                                        </Text>
+                                    </View>
+                                )}
+                                <View style={styles.participantInfo}>
+                                    <Text style={[styles.participantName, { color: colors.textPrimary }]}>
+                                        {participant.name || 'Usuario'}
+                                    </Text>
+                                    <Text style={[styles.participantRole, { color: colors.textMuted }]}>
+                                        {participant.role === 'consultor' ? 'Consultor' :
+                                         participant.role === 'asesor' ? 'Asesor' : 'Usuario'}
+                                    </Text>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
 
                 {/* Sección de archivos compartidos */}
                 <View style={styles.filesSection}>
@@ -432,6 +553,37 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 15,
         marginTop: 12,
+    },
+    participantsSection: {
+        paddingHorizontal: 16,
+        marginBottom: 24,
+    },
+    participantItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 0.5,
+    },
+    participantAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        marginRight: 12,
+    },
+    participantAvatarPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    participantInfo: {
+        flex: 1,
+    },
+    participantName: {
+        fontSize: 16,
+        fontWeight: '500',
+    },
+    participantRole: {
+        fontSize: 13,
+        marginTop: 2,
     },
 });
 

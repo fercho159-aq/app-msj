@@ -28,7 +28,7 @@ import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useCall } from '../context/CallContext';
-import { api, Message } from '../api';
+import { api, Message, Chat, User } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
 
@@ -196,6 +196,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const { startCall } = useCall();
     const insets = useSafeAreaInsets();
     const [messages, setMessages] = useState<Message[]>([]);
+    const [chatInfo, setChatInfo] = useState<Chat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
     const flatListRef = useRef<FlatList>(null);
@@ -260,9 +261,22 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         }
     };
 
+    // Cargar info del chat
+    const loadChatInfo = async () => {
+        try {
+            const result = await api.getChat(chatId);
+            if (result.data?.chat) {
+                setChatInfo(result.data.chat);
+            }
+        } catch (error) {
+            console.error('Error loading chat info:', error);
+        }
+    };
+
     // Efecto para carga inicial y configurar polling
     useEffect(() => {
         loadMessages(true);
+        loadChatInfo();
         markAsRead();
 
         // Configurar polling cada 5 segundos
@@ -448,10 +462,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const handleUserPress = () => {
         navigation.navigate('UserProfile', {
             userId: routeParticipantId || '',
-            userName: userName,
-            userAvatar: userAvatar,
-            userRfc: userRfc,
+            userName: chatInfo?.isGroup ? chatInfo.groupName || 'Grupo' : userName,
+            userAvatar: chatInfo?.isGroup ? '' : userAvatar,
+            userRfc: chatInfo?.isGroup ? null : userRfc,
             chatId: chatId,
+            isGroup: chatInfo?.isGroup || false,
+            participants: chatInfo?.participants || [],
         });
     };
 
