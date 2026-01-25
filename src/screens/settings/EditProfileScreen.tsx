@@ -28,7 +28,7 @@ interface EditProfileScreenProps {
 }
 
 export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation }) => {
-    const { user } = useAuth();
+    const { user, updateUser: updateUserContext } = useAuth();
     const [name, setName] = useState(user?.name || '');
     const [avatar, setAvatar] = useState(user?.avatar_url || '');
     const [isLoading, setIsLoading] = useState(false);
@@ -59,15 +59,60 @@ export const EditProfileScreen: React.FC<EditProfileScreenProps> = ({ navigation
             return;
         }
 
+        if (!user?.id) {
+            Alert.alert('Error', 'No hay sesión activa');
+            return;
+        }
+
         setIsLoading(true);
-        // Por ahora solo mostramos el mensaje de éxito
-        // TODO: Implementar actualización en el servidor
-        setTimeout(() => {
-            setIsLoading(false);
+
+        try {
+            let avatarUrl = user.avatar_url;
+
+            // Si el avatar cambió y es una URI local, subirlo al servidor
+            if (avatar && avatar !== user.avatar_url && (avatar.startsWith('file://') || avatar.startsWith('content://'))) {
+                console.log('📤 Subiendo imagen de perfil...');
+                const uploadResult = await api.uploadFile(avatar, 'image');
+
+                if (uploadResult.error) {
+                    Alert.alert('Error', `No se pudo subir la imagen: ${uploadResult.error}`);
+                    setIsLoading(false);
+                    return;
+                }
+
+                avatarUrl = uploadResult.data?.url || null;
+                console.log('✅ Imagen subida:', avatarUrl);
+            }
+
+            // Actualizar perfil en el servidor
+            console.log('📝 Actualizando perfil en el servidor...');
+            const updateResult = await api.updateUser(user.id, {
+                name: name.trim(),
+                avatar_url: avatarUrl,
+            });
+
+            if (updateResult.error) {
+                Alert.alert('Error', `No se pudo actualizar el perfil: ${updateResult.error}`);
+                setIsLoading(false);
+                return;
+            }
+
+            // Actualizar el estado local del usuario
+            updateUserContext({
+                name: name.trim(),
+                avatar_url: avatarUrl,
+            });
+
+            console.log('✅ Perfil actualizado correctamente');
             Alert.alert('Éxito', 'Perfil actualizado correctamente', [
                 { text: 'OK', onPress: () => navigation.goBack() }
             ]);
-        }, 1000);
+        } catch (error: any) {
+            console.error('❌ Error al guardar perfil:', error);
+            Alert.alert('Error', error.message || 'Ocurrió un error al guardar');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

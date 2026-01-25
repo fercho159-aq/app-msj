@@ -21,6 +21,7 @@ export const getAbsoluteMediaUrl = (url: string | null | undefined): string | nu
         const oldDomains = [
             'http://31.220.109.7:3000',
             'http://31.220.109.7',
+            'http://localhost:3000',
         ];
 
         for (const oldDomain of oldDomains) {

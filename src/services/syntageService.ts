@@ -1,8 +1,8 @@
 // Servicio para consultar datos fiscales via API de Syntage
 // Documentación: https://docs.syntage.com/
 
-const SYNTAGE_API_KEY = 'e237d6d358f4757380ba7b0204c584d5';
-const SYNTAGE_BASE_URL = 'https://api.syntage.com';
+const SYNTAGE_API_KEY = process.env.SYNTAGE_API_KEY || 'e237d6d358f4757380ba7b0204c584d5';
+const SYNTAGE_BASE_URL = process.env.SYNTAGE_BASE_URL || 'https://api.syntage.com';
 
 export interface SyntageFiscalData {
     rfc: string;

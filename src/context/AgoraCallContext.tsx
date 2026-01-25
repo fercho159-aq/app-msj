@@ -21,10 +21,10 @@ if (Platform.OS !== 'web') {
     InCallManager = require('react-native-incall-manager').default;
 }
 
-const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || Constants.expoConfig?.extra?.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
 
-// Esta variable debe venir de app.json extra
-const AGORA_APP_ID = Constants.expoConfig?.extra?.EXPO_PUBLIC_AGORA_APP_ID || '';
+// Esta variable debe venir de app.json extra o .env
+const AGORA_APP_ID = process.env.EXPO_PUBLIC_AGORA_APP_ID || Constants.expoConfig?.extra?.EXPO_PUBLIC_AGORA_APP_ID || '';
 
 interface AgoraCallContextType {
     engine: IRtcEngine | null;

@@ -2,7 +2,10 @@ import { io, Socket } from 'socket.io-client';
 import EventEmitter from 'eventemitter3';
 
 // URL del servidor - Ahora usando HTTPS
-const SERVER_URL = 'https://appsoluciones.duckdns.org';
+// URL del servidor
+const SERVER_URL = process.env.EXPO_PUBLIC_API_URL 
+    ? process.env.EXPO_PUBLIC_API_URL.replace('/api', '') 
+    : 'https://appsoluciones.duckdns.org';
 
 export interface OnlineUser {
     userId: string;
