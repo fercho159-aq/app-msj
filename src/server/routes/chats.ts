@@ -8,6 +8,7 @@ import {
     deleteChat
 } from '../../services/chatService';
 import { getChatMessages } from '../../services/messageService';
+import { getChatLabels } from '../../services/labelService';
 
 const router = Router();
 
@@ -22,24 +23,35 @@ router.get('/', async (req: Request, res: Response) => {
 
         const chats = await getUserChats(userId);
 
-        // Formatear respuesta
-        const formattedChats = chats.map(chat => ({
-            id: chat.id,
-            isGroup: chat.is_group,
-            groupName: chat.group_name,
-            groupAvatar: chat.group_avatar_url,
-            participants: chat.participants,
-            lastMessage: chat.last_message ? {
-                id: chat.last_message.id,
-                text: chat.last_message.text,
-                senderId: chat.last_message.sender_id,
-                status: chat.last_message.status,
-                type: chat.last_message.message_type,
-                timestamp: chat.last_message.created_at,
-            } : null,
-            unreadCount: chat.unread_count,
-            createdAt: chat.created_at,
-            updatedAt: chat.updated_at,
+        // Formatear respuesta con etiquetas
+        const formattedChats = await Promise.all(chats.map(async (chat) => {
+            // Obtener etiquetas del chat
+            let labels: any[] = [];
+            try {
+                labels = await getChatLabels(chat.id);
+            } catch (e) {
+                // Si falla, continuar sin etiquetas
+            }
+
+            return {
+                id: chat.id,
+                isGroup: chat.is_group,
+                groupName: chat.group_name,
+                groupAvatar: chat.group_avatar_url,
+                participants: chat.participants,
+                lastMessage: chat.last_message ? {
+                    id: chat.last_message.id,
+                    text: chat.last_message.text,
+                    senderId: chat.last_message.sender_id,
+                    status: chat.last_message.status,
+                    type: chat.last_message.message_type,
+                    timestamp: chat.last_message.created_at,
+                } : null,
+                unreadCount: chat.unread_count,
+                labels: labels,
+                createdAt: chat.created_at,
+                updatedAt: chat.updated_at,
+            };
         }));
 
         res.json({ chats: formattedChats });

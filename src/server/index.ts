@@ -10,6 +10,7 @@ import { chatRoutes } from './routes/chats';
 import { messageRoutes } from './routes/messages';
 import { uploadRoutes } from './routes/upload';
 import { callRoutes } from './routes/calls';
+import { labelRoutes } from './routes/labels';
 // import { streamRoutes } from './routes/stream'; // Deprecated
 import { agoraRoutes } from './routes/agora';
 import { initializeWebSocket } from './websocket/signaling';
@@ -53,6 +54,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/calls', callRoutes);
+app.use('/api/labels', labelRoutes);
 // app.use('/api/stream', streamRoutes);
 app.use('/api/agora', agoraRoutes);
 

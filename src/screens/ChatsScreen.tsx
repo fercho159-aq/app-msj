@@ -23,7 +23,7 @@ import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { api, Chat, User } from '../api';
+import { api, Chat, User, ChatLabel } from '../api';
 import { RootStackParamList } from '../types';
 
 type ChatsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
@@ -86,8 +86,8 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({ participants, size, colors })
                 const positions = count === 2
                     ? [{ top: 0, left: 0 }, { bottom: 0, right: 0 }]
                     : count === 3
-                    ? [{ top: 0, left: size * 0.15 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }]
-                    : [{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }];
+                        ? [{ top: 0, left: size * 0.15 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }]
+                        : [{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }];
 
                 const pos = positions[index];
 
@@ -127,10 +127,11 @@ interface ChatItemProps {
     chat: Chat;
     currentUserId: string;
     onPress: () => void;
+    onLongPress?: () => void;
     colors: any;
 }
 
-const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, colors }) => {
+const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, onLongPress, colors }) => {
     const otherUser = chat.participants?.find((p) => p.id !== currentUserId);
 
     if (!otherUser && !chat.isGroup) return null;
@@ -169,6 +170,8 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
                 hasUnread && { backgroundColor: colors.surfaceLight }
             ]}
             onPress={onPress}
+            onLongPress={onLongPress}
+            delayLongPress={500}
             activeOpacity={0.7}
         >
             <View style={styles.avatarContainer}>
@@ -227,6 +230,28 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, color
                         </View>
                     )}
                 </View>
+
+                {/* Etiquetas del chat */}
+                {chat.labels && chat.labels.length > 0 && (
+                    <View style={styles.labelsRow}>
+                        {chat.labels.slice(0, 3).map((label) => (
+                            <View
+                                key={label.id}
+                                style={[styles.labelPill, { backgroundColor: label.color + '20' }]}
+                            >
+                                <Ionicons name={label.icon as any} size={10} color={label.color} />
+                                <Text style={[styles.labelText, { color: label.color }]}>
+                                    {label.name}
+                                </Text>
+                            </View>
+                        ))}
+                        {chat.labels.length > 3 && (
+                            <Text style={[styles.moreLabels, { color: colors.textMuted }]}>
+                                +{chat.labels.length - 3}
+                            </Text>
+                        )}
+                    </View>
+                )}
             </View>
         </TouchableOpacity>
     );
@@ -273,7 +298,11 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [activeTab, setActiveTab] = useState<ChatTab>('usuarios');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
     const [showFabMenu, setShowFabMenu] = useState(false);
+    const [showLabelsModal, setShowLabelsModal] = useState(false);
+    const [selectedChatForLabels, setSelectedChatForLabels] = useState<Chat | null>(null);
+    const [availableLabels, setAvailableLabels] = useState<ChatLabel[]>([]);
     const fabMenuAnim = useRef(new Animated.Value(0)).current;
+    const labelsModalAnim = useRef(new Animated.Value(0)).current;
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef(false);
 
@@ -513,6 +542,82 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         navigation.navigate('CreateGroup' as any);
     };
 
+    // Funciones para el menú de etiquetas
+    const loadAvailableLabels = async () => {
+        try {
+            const result = await api.getLabels();
+            if (result.data?.labels) {
+                setAvailableLabels(result.data.labels);
+            }
+        } catch (error) {
+            console.error('Error loading labels:', error);
+        }
+    };
+
+    const openLabelsModal = (chat: Chat) => {
+        setSelectedChatForLabels(chat);
+        loadAvailableLabels();
+        setShowLabelsModal(true);
+        Animated.spring(labelsModalAnim, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 50,
+            friction: 7,
+        }).start();
+    };
+
+    const closeLabelsModal = () => {
+        Animated.timing(labelsModalAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => {
+            setShowLabelsModal(false);
+            setSelectedChatForLabels(null);
+        });
+    };
+
+    const handleToggleLabel = async (label: ChatLabel) => {
+        if (!selectedChatForLabels) return;
+
+        const chatLabels = selectedChatForLabels.labels || [];
+        const hasLabel = chatLabels.some(l => l.id === label.id);
+
+        try {
+            if (hasLabel) {
+                await api.removeLabel(selectedChatForLabels.id, label.id);
+            } else {
+                await api.assignLabel(selectedChatForLabels.id, label.id);
+            }
+
+            // Actualizar el chat localmente
+            setChats(prevChats => prevChats.map(chat => {
+                if (chat.id === selectedChatForLabels.id) {
+                    const currentLabels = chat.labels || [];
+                    if (hasLabel) {
+                        return { ...chat, labels: currentLabels.filter(l => l.id !== label.id) };
+                    } else {
+                        return { ...chat, labels: [...currentLabels, label] };
+                    }
+                }
+                return chat;
+            }));
+
+            // Actualizar el chat seleccionado
+            setSelectedChatForLabels(prev => {
+                if (!prev) return null;
+                const currentLabels = prev.labels || [];
+                if (hasLabel) {
+                    return { ...prev, labels: currentLabels.filter(l => l.id !== label.id) };
+                } else {
+                    return { ...prev, labels: [...currentLabels, label] };
+                }
+            });
+        } catch (error) {
+            console.error('Error toggling label:', error);
+        }
+    };
+
     // Componente para mostrar usuario sin chat
     const renderUserItem = (targetUser: User) => {
         const displayName = targetUser.name || 'Usuario';
@@ -565,6 +670,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     chat={item.chat}
                     currentUserId={user?.id || ''}
                     onPress={() => handleChatPress(item.chat!)}
+                    onLongPress={() => openLabelsModal(item.chat!)}
                     colors={colors}
                 />
             );
@@ -798,6 +904,81 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     </Animated.View>
                 </Pressable>
             </Modal>
+
+            {/* Labels Modal */}
+            <Modal
+                visible={showLabelsModal}
+                transparent
+                animationType="none"
+                onRequestClose={closeLabelsModal}
+            >
+                <Pressable style={styles.labelsModalOverlay} onPress={closeLabelsModal}>
+                    <Animated.View
+                        style={[
+                            styles.labelsModalContainer,
+                            {
+                                backgroundColor: colors.surface,
+                                transform: [
+                                    {
+                                        scale: labelsModalAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0.9, 1],
+                                        }),
+                                    },
+                                ],
+                                opacity: labelsModalAnim,
+                            },
+                        ]}
+                    >
+                        <Pressable onPress={(e) => e.stopPropagation()}>
+                            <View style={styles.labelsModalHeader}>
+                                <Text style={[styles.labelsModalTitle, { color: colors.textPrimary }]}>
+                                    Etiquetas
+                                </Text>
+                                <TouchableOpacity onPress={closeLabelsModal}>
+                                    <Ionicons name="close" size={24} color={colors.textMuted} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.labelsModalContent}>
+                                {availableLabels.map((label) => {
+                                    const isSelected = selectedChatForLabels?.labels?.some(l => l.id === label.id);
+                                    return (
+                                        <TouchableOpacity
+                                            key={label.id}
+                                            style={[
+                                                styles.labelOption,
+                                                { borderColor: colors.border },
+                                                isSelected && { backgroundColor: label.color + '20', borderColor: label.color }
+                                            ]}
+                                            onPress={() => handleToggleLabel(label)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={[styles.labelOptionIcon, { backgroundColor: label.color }]}>
+                                                <Ionicons name={label.icon as any} size={16} color="#fff" />
+                                            </View>
+                                            <Text style={[
+                                                styles.labelOptionText,
+                                                { color: colors.textPrimary },
+                                                isSelected && { color: label.color, fontWeight: '600' }
+                                            ]}>
+                                                {label.name}
+                                            </Text>
+                                            {isSelected && (
+                                                <Ionicons name="checkmark-circle" size={20} color={label.color} />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            <Text style={[styles.labelsModalHint, { color: colors.textMuted }]}>
+                                Mantén presionado un chat para gestionar etiquetas
+                            </Text>
+                        </Pressable>
+                    </Animated.View>
+                </Pressable>
+            </Modal>
         </View>
     );
 };
@@ -863,7 +1044,7 @@ const styles = StyleSheet.create({
         borderRadius: 18,
     },
     tabPillText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '500',
     },
     listContent: {
@@ -1029,6 +1210,84 @@ const styles = StyleSheet.create({
     fabMenuText: {
         fontSize: 16,
         fontWeight: '500',
+    },
+    labelsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginTop: 6,
+        gap: 6,
+        alignItems: 'center',
+    },
+    labelPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+        gap: 4,
+    },
+    labelText: {
+        fontSize: 10,
+        fontWeight: '600',
+    },
+    moreLabels: {
+        fontSize: 10,
+        fontWeight: '500',
+    },
+    labelsModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    labelsModalContainer: {
+        width: '100%',
+        maxWidth: 340,
+        borderRadius: 20,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 12,
+    },
+    labelsModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    labelsModalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    labelsModalContent: {
+        gap: 10,
+    },
+    labelOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        gap: 12,
+    },
+    labelOptionIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    labelOptionText: {
+        flex: 1,
+        fontSize: 15,
+    },
+    labelsModalHint: {
+        fontSize: 12,
+        textAlign: 'center',
+        marginTop: 16,
     },
 });
 

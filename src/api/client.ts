@@ -327,6 +327,31 @@ class ApiClient {
             body: JSON.stringify({ userId: this.userId }),
         });
     }
+
+    // ==================== LABELS ====================
+
+    async getLabels() {
+        return this.request<{ labels: ChatLabel[] }>('/labels');
+    }
+
+    async getChatLabels(chatId: string) {
+        return this.request<{ labels: ChatLabel[] }>(`/labels/chat/${chatId}`);
+    }
+
+    async assignLabel(chatId: string, labelId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ success: boolean }>(`/labels/chat/${chatId}`, {
+            method: 'POST',
+            body: JSON.stringify({ labelId, userId: this.userId }),
+        });
+    }
+
+    async removeLabel(chatId: string, labelId: string) {
+        return this.request<{ success: boolean }>(`/labels/chat/${chatId}/${labelId}`, {
+            method: 'DELETE',
+        });
+    }
 }
 
 // Tipos
@@ -339,6 +364,13 @@ export interface User {
     role?: UserRole;
 }
 
+export interface ChatLabel {
+    id: string;
+    name: string;
+    color: string;
+    icon: string;
+}
+
 export interface Chat {
     id: string;
     isGroup: boolean;
@@ -347,6 +379,7 @@ export interface Chat {
     participants: User[];
     lastMessage: Message | null;
     unreadCount: number;
+    labels?: ChatLabel[];
     createdAt: string;
     updatedAt: string;
 }
