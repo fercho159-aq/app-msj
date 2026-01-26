@@ -28,8 +28,11 @@ if (Platform.OS !== 'web') {
     RTCIceCandidate = webrtc.RTCIceCandidate;
     mediaDevices = webrtc.mediaDevices;
     MediaStream = webrtc.MediaStream;
+    console.log('[WebRTC] react-native-webrtc cargado correctamente');
+    console.log('[WebRTC] RTCPeerConnection disponible:', !!RTCPeerConnection);
+    console.log('[WebRTC] mediaDevices disponible:', !!mediaDevices);
   } catch (e) {
-    console.warn('[WebRTC] react-native-webrtc no está instalado');
+    console.error('[WebRTC] Error cargando react-native-webrtc:', e);
   }
 } else {
   // Para Web, usar APIs nativas

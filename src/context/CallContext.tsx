@@ -124,28 +124,34 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
 
         try {
+            console.log('[CallContext] Paso 1: Inicializando media...');
             // Inicializar media local
             const stream = await webrtc.initializeMedia(callType === 'video');
             if (!stream) {
+                console.error('[CallContext] Error: No se obtuvo stream de media');
                 throw new Error('No se pudo obtener acceso al micrófono/cámara');
             }
+            console.log('[CallContext] Paso 2: Media inicializado, uniéndose a sala:', roomName);
 
             // Unirse a la sala de Spreed
             spreedService.joinRoom(roomName);
 
+            console.log('[CallContext] Paso 3: Creando oferta SDP...');
             // Crear oferta SDP
             const offer = await webrtc.createOffer(userId);
             if (!offer) {
+                console.error('[CallContext] Error: No se pudo crear oferta SDP');
                 throw new Error('No se pudo crear la oferta');
             }
 
+            console.log('[CallContext] Paso 4: Enviando oferta a:', userId);
             // Enviar oferta al usuario destino
             spreedService.sendOffer(userId, offer);
 
             console.log('[CallContext] Oferta enviada, esperando respuesta...');
-        } catch (error) {
-            console.error('[CallContext] Error iniciando llamada:', error);
-            Alert.alert('Error', 'No se pudo iniciar la llamada');
+        } catch (error: any) {
+            console.error('[CallContext] Error iniciando llamada:', error?.message || error);
+            Alert.alert('Error', `No se pudo iniciar la llamada: ${error?.message || 'Error desconocido'}`);
             setCallState(initialCallState);
             webrtc.cleanup();
         }
