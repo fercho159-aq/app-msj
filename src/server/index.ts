@@ -13,6 +13,7 @@ import { callRoutes } from './routes/calls';
 import { labelRoutes } from './routes/labels';
 // import { streamRoutes } from './routes/stream'; // Deprecated
 import { agoraRoutes } from './routes/agora';
+import { ocrRoutes } from './routes/ocr';
 import { initializeWebSocket } from './websocket/signaling';
 
 const app = express();
@@ -57,6 +58,7 @@ app.use('/api/calls', callRoutes);
 app.use('/api/labels', labelRoutes);
 // app.use('/api/stream', streamRoutes);
 app.use('/api/agora', agoraRoutes);
+app.use('/api/ocr', ocrRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

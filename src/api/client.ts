@@ -246,6 +246,61 @@ class ApiClient {
         }
     }
 
+    // ==================== OCR FISCAL ====================
+
+    async uploadFiscalDocument(fileUri: string): Promise<ApiResponse<{ success: boolean; data: FiscalDataOCR }>> {
+        try {
+            const formData = new FormData();
+
+            const filename = fileUri.split('/').pop() || `fiscal-${Date.now()}.jpg`;
+            const match = /\.(\w+)$/.exec(filename);
+            const ext = match ? match[1].toLowerCase() : 'jpg';
+
+            // Determinar MIME type
+            let mimeType = 'image/jpeg';
+            if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'webp') mimeType = 'image/webp';
+
+            formData.append('document', {
+                uri: fileUri,
+                name: filename,
+                type: mimeType,
+            } as any);
+
+            const url = `${this.baseUrl}/ocr/fiscal-document`;
+            console.log(`🔍 OCR Request: POST ${url}`);
+
+            // Timeout mas largo para OCR (puede tardar 10+ segundos)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            console.log(`✅ OCR Response:`, data.success ? 'Exito' : data.error);
+
+            if (!response.ok) {
+                return { error: data.error || 'Error al procesar documento' };
+            }
+
+            return { data };
+        } catch (error: any) {
+            console.error('❌ OCR Error:', error);
+
+            if (error.name === 'AbortError') {
+                return { error: 'El procesamiento tardo demasiado. Por favor intente con una imagen mas clara.' };
+            }
+
+            return { error: error.message || 'Error al procesar documento fiscal' };
+        }
+    }
+
     // ==================== MESSAGES ====================
 
     async sendMessage(chatId: string, text: string, type = 'text', mediaUrl?: string) {
@@ -413,6 +468,27 @@ export interface CallRequest {
     status: 'pending' | 'completed' | 'cancelled';
     created_at: string;
     completed_at: string | null;
+}
+
+export interface FiscalDataOCR {
+    rfc: string;
+    curp: string | null;
+    nombre: string;
+    tipoPersona: 'fisica' | 'moral';
+    regimenFiscal: string | null;
+    codigoRegimen: string | null;
+    domicilio: {
+        calle: string | null;
+        numeroExterior: string | null;
+        numeroInterior: string | null;
+        colonia: string | null;
+        municipio: string | null;
+        estado: string | null;
+        codigoPostal: string | null;
+    };
+    fechaInicioOperaciones: string | null;
+    estatusRFC: string | null;
+    confianza: number;
 }
 
 // Exportar instancia única
