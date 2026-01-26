@@ -37,7 +37,7 @@ let worker: Tesseract.Worker | null = null;
 async function getWorker(): Promise<Tesseract.Worker> {
     if (!worker) {
         worker = await Tesseract.createWorker('spa', 1, {
-            logger: m => {
+            logger: (m: { status: string; progress: number }) => {
                 if (m.status === 'recognizing text') {
                     console.log(`[OCR] Procesando: ${Math.round(m.progress * 100)}%`);
                 }
