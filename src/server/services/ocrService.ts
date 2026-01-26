@@ -112,65 +112,119 @@ export async function preprocessImage(imagePath: string): Promise<Buffer> {
 
 /**
  * Extrae datos fiscales del texto usando expresiones regulares
+ * Optimizado para PDFs de Constancia de Situacion Fiscal del SAT
  */
 export function extractFiscalData(text: string): Partial<FiscalDataOCR> {
+    // Normalizar texto para facilitar busquedas
     const normalizedText = text
         .replace(/\r\n/g, '\n')
         .replace(/\s+/g, ' ')
         .trim();
 
+    console.log('[OCR] Extrayendo datos del texto...');
+
     // RFC - Persona Fisica (13 chars) o Moral (12 chars)
-    const rfcMatch = text.match(/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/i) ||
-                     text.match(/([A-ZÑ&]{4}\d{6}[A-Z0-9]{3})/i) ||
-                     text.match(/([A-ZÑ&]{3}\d{6}[A-Z0-9]{3})/i);
+    // Buscar despues de "RFC:" para evitar falsos positivos
+    const rfcMatch = text.match(/RFC[:\s]+([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/i) ||
+                     normalizedText.match(/RFC[:\s]+([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/i);
     const rfc = rfcMatch ? rfcMatch[1].toUpperCase() : '';
+    console.log('[OCR] RFC extraido:', rfc);
 
     // Determinar tipo de persona por longitud del RFC
     const tipoPersona: 'fisica' | 'moral' = rfc.length === 13 ? 'fisica' : 'moral';
 
     // CURP (solo personas fisicas, 18 caracteres)
-    const curpMatch = text.match(/CURP[:\s]*([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)/i) ||
-                      text.match(/([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)/i);
+    const curpMatch = text.match(/CURP[:\s]+([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)/i) ||
+                      normalizedText.match(/CURP[:\s]+([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)/i);
     const curp = curpMatch ? curpMatch[1].toUpperCase() : null;
+    console.log('[OCR] CURP extraido:', curp);
 
-    // Nombre o Razon Social
-    const nombreMatch = text.match(/(?:Nombre|Denominaci[oó]n|Raz[oó]n\s*Social)[:\s]*([^\n]+)/i) ||
-                        text.match(/(?:NOMBRE|DENOMINACIÓN|RAZÓN\s*SOCIAL)[:\s]*([^\n]+)/i);
-    let nombre = nombreMatch ? nombreMatch[1].trim() : '';
-    // Limpiar nombre de caracteres extra y artefactos del OCR
-    nombre = nombre
-        .replace(/^\s*[:|\-]\s*/, '')
-        .replace(/^\s*\([sS]\)[:\s]*/g, '')  // Remover "(s):" al inicio
-        .replace(/^\s*\(\s*[sS]\s*\)[:\s]*/g, '')  // Remover "( s ):" variantes
-        .replace(/^\s*[sS]\s*\)[:\s]*/g, '')  // Remover "s):" si OCR fallo el parentesis
-        .replace(/^\s*\([^)]*\)[:\s]*/g, '')  // Remover cualquier parentesis al inicio
-        .replace(/^\s*[:\-|]\s*/g, '')  // Remover caracteres especiales al inicio
-        .trim();
+    // Nombre completo - PDFs del SAT tienen campos separados:
+    // "Nombre (s):", "Primer Apellido:", "Segundo Apellido:"
+    let nombre = '';
 
-    // Regimen Fiscal (codigo y descripcion)
-    const regimenMatch = text.match(/R[eé]gimen[:\s]*(?:Fiscal)?[:\s]*(\d{3})?[:\s\-]*([^\n]+)?/i);
-    let regimenFiscal = regimenMatch ? (regimenMatch[2] || '').trim() : null;
-    let codigoRegimen = regimenMatch ? (regimenMatch[1] || null) : null;
+    // Extraer partes del nombre
+    const nombreParteMatch = text.match(/Nombre\s*\(?s?\)?[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*(?:Primer|$|\n))/i) ||
+                             normalizedText.match(/Nombre\s*\(?s?\)?[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*Primer)/i);
+    const primerApellidoMatch = text.match(/Primer\s*Apellido[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*(?:Segundo|Fecha|$|\n))/i) ||
+                                 normalizedText.match(/Primer\s*Apellido[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*Segundo)/i);
+    const segundoApellidoMatch = text.match(/Segundo\s*Apellido[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*(?:Fecha|Estatus|$|\n))/i) ||
+                                  normalizedText.match(/Segundo\s*Apellido[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s*Fecha)/i);
 
-    // Buscar codigo de regimen si no se encontro
-    if (!codigoRegimen) {
-        const codigoMatch = text.match(/(\d{3})\s*[-–]\s*(?:Sueldos|Actividades|Arrendamiento|Enajenaci|Intereses|Dividendos|Régimen)/i);
-        if (codigoMatch) {
-            codigoRegimen = codigoMatch[1];
+    if (nombreParteMatch || primerApellidoMatch) {
+        const nombreParte = nombreParteMatch ? nombreParteMatch[1].trim() : '';
+        const primerApellido = primerApellidoMatch ? primerApellidoMatch[1].trim() : '';
+        const segundoApellido = segundoApellidoMatch ? segundoApellidoMatch[1].trim() : '';
+
+        nombre = [nombreParte, primerApellido, segundoApellido]
+            .filter(p => p && p.length > 0)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // Si no se encontro con el metodo de partes, buscar "denominación o razón social"
+    if (!nombre) {
+        const razonSocialMatch = text.match(/(?:denominaci[oó]n|raz[oó]n\s*social)[:\s]+([^\n]+)/i) ||
+                                 normalizedText.match(/(?:denominaci[oó]n|raz[oó]n\s*social)[:\s]+([A-ZÁÉÍÓÚÑ\s\.]+?)(?=\s*(?:idCIF|VALIDA|$))/i);
+        if (razonSocialMatch) {
+            nombre = razonSocialMatch[1].trim();
         }
     }
 
-    // Codigo Postal
+    // Limpiar nombre de artefactos
+    nombre = nombre
+        .replace(/^\s*[:|\-]\s*/, '')
+        .replace(/^\s*\([sS]\)[:\s]*/g, '')
+        .replace(/^\s*\(\s*[sS]\s*\)[:\s]*/g, '')
+        .replace(/idCIF.*$/i, '')
+        .replace(/VALIDA.*$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    console.log('[OCR] Nombre extraido:', nombre);
+
+    // Regimen Fiscal - En PDFs del SAT esta en seccion "Regímenes:"
+    // Buscar los regimenes listados
+    let regimenFiscal: string | null = null;
+    let codigoRegimen: string | null = null;
+
+    // Buscar en la seccion de Regimenes
+    const regimenesSection = text.match(/Reg[ií]menes?[:\s]*([\s\S]*?)(?=Obligaciones|Actividades\s*Econ[oó]micas|Cadena\s*Original|$)/i);
+    if (regimenesSection) {
+        // Buscar el primer regimen (el principal)
+        const regimenLineMatch = regimenesSection[1].match(/R[eé]gimen\s+(?:de\s+)?([^\d\n]+?)(?:\d{2}\/\d{2}\/\d{4}|$)/i);
+        if (regimenLineMatch) {
+            regimenFiscal = regimenLineMatch[1]
+                .replace(/Fecha\s*Inicio.*$/i, '')
+                .replace(/Fecha\s*Fin.*$/i, '')
+                .trim();
+        }
+    }
+
+    // Si no se encontro, buscar patron alternativo
+    if (!regimenFiscal) {
+        const regimenMatch = text.match(/R[eé]gimen\s+(?:de\s+)?(?:las?\s+)?(?:Personas?\s+)?([^\n]+?)(?:\d{2}\/\d{2}\/\d{4}|\n|$)/i);
+        if (regimenMatch) {
+            regimenFiscal = regimenMatch[1]
+                .replace(/Fecha\s*Inicio.*$/i, '')
+                .trim();
+        }
+    }
+    console.log('[OCR] Regimen Fiscal:', regimenFiscal);
+
+    // Codigo Postal - formato "Código Postal:76060" o "Código Postal: 76060"
     const cpMatch = text.match(/C[oó]digo\s*Postal[:\s]*(\d{5})/i) ||
-                    text.match(/CP[:\s]*(\d{5})/i) ||
-                    text.match(/(\d{5})/);
+                    normalizedText.match(/C[oó]digo\s*Postal[:\s]*(\d{5})/i);
     const codigoPostal = cpMatch ? cpMatch[1] : null;
+    console.log('[OCR] Codigo Postal:', codigoPostal);
 
     // Estado / Entidad Federativa
-    // Buscar estado y limpiar texto que no corresponde (como "Entre Calle", "Nombre de", etc.)
-    const estadoMatch = text.match(/(?:Entidad\s*Federativa|Estado)[:\s]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ\s]+?)(?=\s+(?:Entre|Calle|Nombre|Numero|No\.|Col|C\.P\.|Codigo|$|\n))/i) ||
-                        text.match(/(?:Entidad\s*Federativa)[:\s]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ\s]+)/i);
+    // Formato SAT: "Nombre de la Entidad Federativa: QUERETARO" o "Entidad Federativa: CIUDAD DE MEXICO"
+    const estadoMatch = text.match(/(?:Nombre\s*de\s*la\s*)?Entidad\s*Federativa[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+?)(?=\s+(?:Entre|Calle|Y\s+Calle|Actividades|Regímenes|Página|$))/i) ||
+                        normalizedText.match(/(?:Nombre\s*de\s*la\s*)?Entidad\s*Federativa[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s+Entre)/i) ||
+                        text.match(/Entidad\s*Federativa[:\s]+([A-ZÁÉÍÓÚÑ\s]+)/i);
     let estado = estadoMatch ? estadoMatch[1].trim() : null;
+    console.log('[OCR] Estado (raw):', estado);
 
     // Lista de estados validos de Mexico para validacion
     const estadosValidos = [
@@ -211,52 +265,58 @@ export function extractFiscalData(text: string): Partial<FiscalDataOCR> {
     }
 
     // Calle / Nombre de Vialidad
-    const calleMatch = text.match(/(?:Nombre\s*(?:de\s*(?:la\s*)?)?Vialidad|Calle)[:\s]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ0-9\s]+?)(?=\s+(?:Numero|No\.|Ext|Int|Col|\d|$|\n))/i) ||
-                       text.match(/(?:Calle|Nombre\s*(?:de\s*)?Vialidad)[:\s]*([^\n,]+)/i);
+    // Formato SAT: "Nombre de Vialidad: CAMINO REAL DE CARRETAS Número Exterior: 353"
+    const calleMatch = text.match(/Nombre\s*de\s*Vialidad[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s]+?)(?=\s+N[uú]mero\s*Exterior)/i) ||
+                       normalizedText.match(/Nombre\s*de\s*Vialidad[:\s]+([A-ZÁÉÍÓÚÑ0-9\s]+?)(?=\s+N[uú]mero)/i) ||
+                       text.match(/(?:Nombre\s*de\s*)?Vialidad[:\s]+([^\n]+?)(?=\s+N[uú]mero|$)/i);
     let calle = calleMatch ? calleMatch[1].trim() : null;
     // Limpiar la calle de artefactos
     if (calle) {
         calle = calle
-            .replace(/\s*Numero.*$/i, '')
+            .replace(/\s*N[uú]mero.*$/i, '')
             .replace(/\s*No\..*$/i, '')
             .replace(/\s*,.*$/i, '')
             .replace(/\s+$/, '')
             .trim();
     }
+    console.log('[OCR] Calle:', calle);
 
-    // Numero Exterior
-    const numExtMatch = text.match(/N[uú]mero\s*Exterior[:\s]*([A-Za-z0-9\-#]+)/i) ||
-                        text.match(/No\.\s*Ext[.:\s]*([A-Za-z0-9\-#]+)/i) ||
-                        text.match(/Exterior[:\s]*(\d+[A-Za-z]?)/i);
+    // Numero Exterior - Formato SAT: "Número Exterior: 353"
+    const numExtMatch = text.match(/N[uú]mero\s*Exterior[:\s]+(\d+[A-Za-z]?)/i) ||
+                        normalizedText.match(/N[uú]mero\s*Exterior[:\s]+(\d+)/i);
     let numeroExterior = numExtMatch ? numExtMatch[1].trim() : null;
     // Limpiar numero exterior
     if (numeroExterior) {
         numeroExterior = numeroExterior.replace(/[,\s].*$/, '').trim();
     }
+    console.log('[OCR] Numero Exterior:', numeroExterior);
 
-    // Numero Interior
-    const numIntMatch = text.match(/N[uú]mero\s*Interior[:\s]*([A-Za-z0-9\-#]+)/i) ||
-                        text.match(/No\.\s*Int[.:\s]*([A-Za-z0-9\-#]+)/i) ||
-                        text.match(/Interior[:\s]*([A-Za-z0-9\-#]+)/i) ||
-                        text.match(/Int[.:\s]*([A-Za-z0-9\-#]+)/i);
+    // Numero Interior - Formato SAT: "Número Interior:302"
+    const numIntMatch = text.match(/N[uú]mero\s*Interior[:\s]+([A-Za-z0-9\-#]+)/i) ||
+                        normalizedText.match(/N[uú]mero\s*Interior[:\s]+([A-Za-z0-9]+)/i);
     let numeroInterior = numIntMatch ? numIntMatch[1].trim() : null;
     // Limpiar numero interior
     if (numeroInterior) {
         numeroInterior = numeroInterior.replace(/[,\s].*$/, '').trim();
-        // Si es solo un punto o guion, ignorarlo
-        if (numeroInterior === '.' || numeroInterior === '-' || numeroInterior === '#') {
+        // Si es solo un punto, guion, o "Nombre" (artefacto), ignorarlo
+        if (numeroInterior === '.' || numeroInterior === '-' || numeroInterior === '#' ||
+            numeroInterior.toLowerCase().startsWith('nombre')) {
             numeroInterior = null;
         }
     }
+    console.log('[OCR] Numero Interior:', numeroInterior);
 
     // Colonia
-    const coloniaMatch = text.match(/(?:Nombre\s*(?:de\s*(?:la\s*)?)?)?Colonia[:\s]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ0-9\s]+?)(?=\s+(?:C\.P\.|Codigo|CP|\d{5}|Municipio|Delegaci|Alcald|$|\n))/i) ||
-                         text.match(/Colonia[:\s]*([^\n,]+)/i) ||
-                         text.match(/Col\.[:\s]*([^\n,]+)/i);
+    // Formato SAT: "Nombre de la Colonia: MILENIO III"
+    const coloniaMatch = text.match(/Nombre\s*de\s*la\s*Colonia[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9\s]+?)(?=\s+(?:Nombre\s*de\s*la\s*Localidad|Localidad|Municipio|$|\n))/i) ||
+                         normalizedText.match(/Nombre\s*de\s*la\s*Colonia[:\s]+([A-ZÁÉÍÓÚÑ0-9\s]+?)(?=\s+Nombre\s*de\s*la\s*Localidad)/i) ||
+                         text.match(/Colonia[:\s]+([^\n,]+?)(?=\s+(?:Localidad|Municipio|$))/i);
     let colonia = coloniaMatch ? coloniaMatch[1].trim() : null;
     // Limpiar colonia
     if (colonia) {
         colonia = colonia
+            .replace(/\s*Nombre\s*de\s*la\s*Localidad.*$/i, '')
+            .replace(/\s*Localidad.*$/i, '')
             .replace(/\s*C\.P\..*$/i, '')
             .replace(/\s*CP.*$/i, '')
             .replace(/\s*Codigo.*$/i, '')
@@ -264,32 +324,42 @@ export function extractFiscalData(text: string): Partial<FiscalDataOCR> {
             .replace(/\s*Delegaci.*$/i, '')
             .replace(/\s*Alcald.*$/i, '')
             .replace(/\s*,.*$/i, '')
-            .replace(/\s*o\s*Demarcaci.*$/i, '')
             .trim();
     }
+    console.log('[OCR] Colonia:', colonia);
 
     // Municipio / Delegacion / Alcaldia / Demarcacion Territorial
-    const municipioMatch = text.match(/(?:Municipio|Delegaci[oó]n|Alcald[ií]a|Demarcaci[oó]n\s*Territorial)[:\s]*([A-ZÁÉÍÓÚÑ][A-Za-záéíóúñ\s]+?)(?=\s+(?:Entidad|Estado|C\.P\.|$|\n))/i) ||
-                           text.match(/(?:Municipio|Delegaci[oó]n|Alcald[ií]a)[:\s]*([^\n,]+)/i);
+    // Formato SAT: "Nombre del Municipio o Demarcación Territorial: QUERETARO"
+    const municipioMatch = text.match(/(?:Nombre\s*del\s*)?(?:Municipio|Demarcaci[oó]n\s*Territorial)[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+?)(?=\s+(?:Nombre\s*de\s*la\s*Entidad|Entidad|Estado|Entre|$|\n))/i) ||
+                           normalizedText.match(/(?:Municipio|Demarcaci[oó]n\s*Territorial)[:\s]+([A-ZÁÉÍÓÚÑ\s]+?)(?=\s+Nombre\s*de\s*la\s*Entidad)/i) ||
+                           text.match(/(?:Municipio|Delegaci[oó]n|Alcald[ií]a)[:\s]+([^\n,]+)/i);
     let municipio = municipioMatch ? municipioMatch[1].trim() : null;
     // Limpiar municipio
     if (municipio) {
         municipio = municipio
+            .replace(/\s*Nombre\s*de\s*la\s*Entidad.*$/i, '')
             .replace(/\s*Entidad.*$/i, '')
             .replace(/\s*Estado.*$/i, '')
             .replace(/\s*C\.P\..*$/i, '')
             .replace(/\s*,.*$/i, '')
+            .replace(/o\s*Demarcaci[oó]n.*$/i, '')
             .trim();
     }
+    console.log('[OCR] Municipio:', municipio);
 
-    // Fecha de inicio de operaciones
-    const fechaMatch = text.match(/Fecha\s*(?:de\s*)?Inicio\s*(?:de\s*)?Operaciones[:\s]*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i) ||
-                       text.match(/Inicio\s*Operaciones[:\s]*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i);
-    const fechaInicioOperaciones = fechaMatch ? fechaMatch[1] : null;
+    // Fecha de inicio de operaciones - Formato SAT: "Fecha inicio de operaciones: 13 DE FEBRERO DE 2008"
+    // o formato numerico "01/02/2016"
+    const fechaMatch = text.match(/Fecha\s*(?:de\s*)?[Ii]nicio\s*(?:de\s*)?[Oo]peraciones[:\s]+(\d{1,2}\s+DE\s+[A-ZÁÉÍÓÚÑ]+\s+DE\s+\d{4})/i) ||
+                       text.match(/Fecha\s*(?:de\s*)?[Ii]nicio\s*(?:de\s*)?[Oo]peraciones[:\s]+(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i) ||
+                       normalizedText.match(/[Ii]nicio\s*(?:de\s*)?[Oo]peraciones[:\s]+(\d{1,2}\s+DE\s+[A-ZÁÉÍÓÚÑ]+\s+DE\s+\d{4})/i);
+    const fechaInicioOperaciones = fechaMatch ? fechaMatch[1].trim() : null;
+    console.log('[OCR] Fecha Inicio Operaciones:', fechaInicioOperaciones);
 
-    // Estatus en el padron
-    const estatusMatch = text.match(/(?:Estatus|Estado)\s*(?:en\s*el\s*)?(?:padr[oó]n|RFC)[:\s]*([A-Za-záéíóúñ]+)/i);
+    // Estatus en el padron - Formato SAT: "Estatus en el padrón: ACTIVO"
+    const estatusMatch = text.match(/Estatus\s*en\s*el\s*padr[oó]n[:\s]+([A-ZÁÉÍÓÚÑ]+)/i) ||
+                         normalizedText.match(/Estatus\s*en\s*el\s*padr[oó]n[:\s]+([A-Z]+)/i);
     const estatusRFC = estatusMatch ? estatusMatch[1].trim() : null;
+    console.log('[OCR] Estatus RFC:', estatusRFC);
 
     return {
         rfc,
