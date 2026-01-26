@@ -82,7 +82,7 @@ const CallRequestItem: React.FC<CallRequestItemProps> = ({ request, onCall, onCo
 
 // Componente para usuarios en línea
 interface OnlineUserItemProps {
-    user: { userId: string; name: string };
+    user: { id: string; name: string };
     onCallAudio: () => void;
     onCallVideo: () => void;
     colors: any;

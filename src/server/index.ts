@@ -12,7 +12,7 @@ import { uploadRoutes } from './routes/upload';
 import { callRoutes } from './routes/calls';
 import { labelRoutes } from './routes/labels';
 // import { streamRoutes } from './routes/stream'; // Deprecated
-import { agoraRoutes } from './routes/agora';
+// Agora routes removed - now using Spreed-WebRTC
 import { ocrRoutes } from './routes/ocr';
 import { initializeWebSocket } from './websocket/signaling';
 
@@ -57,7 +57,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/calls', callRoutes);
 app.use('/api/labels', labelRoutes);
 // app.use('/api/stream', streamRoutes);
-app.use('/api/agora', agoraRoutes);
+// Agora routes removed - now using Spreed-WebRTC
 app.use('/api/ocr', ocrRoutes);
 
 // 404 handler

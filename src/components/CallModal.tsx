@@ -12,87 +12,75 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCall } from '../context/CallContext';
-import { useAgoraCall } from '../context/AgoraCallContext';
+import { useWebRTC } from '../context/WebRTCContext';
 import { useAuth } from '../context/AuthContext';
 import colors from '../theme/colors';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+// Importación condicional de RTCView para React Native
+let RTCView: any = null;
+if (Platform.OS !== 'web') {
+    try {
+        const webrtc = require('react-native-webrtc');
+        RTCView = webrtc.RTCView;
+    } catch (e) {
+        console.warn('[CallModal] react-native-webrtc no está instalado');
+    }
+}
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export const CallModal: React.FC = () => {
     const { user } = useAuth();
-    const { callState, acceptCall: signalingAccept, rejectCall: signalingReject, endCall: signalingEnd } = useCall();
-    const { joinCall: agoraJoin, endCall: agoraEnd, toggleMute, toggleSpeaker, isMuted, isSpeakerOn, isConnected } = useAgoraCall();
+    const {
+        callState,
+        acceptCall: signalingAccept,
+        rejectCall: signalingReject,
+        endCall: signalingEnd
+    } = useCall();
+    const {
+        localStream,
+        remoteStream,
+        isConnected,
+        isMuted,
+        isSpeakerOn,
+        isVideoEnabled,
+        toggleMute,
+        toggleVideo,
+        toggleSpeaker,
+        switchCamera,
+    } = useWebRTC();
 
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const ringAnim = useRef(new Animated.Value(0)).current;
 
     const isVisible = callState.isRinging || callState.isInCall || callState.isConnecting;
+    const isVideoCall = callState.callType === 'video';
 
     // Manejar Aceptar Llamada
     const handleAcceptCall = async () => {
-        console.log('🟢 Botón ACEPTAR presionado');
-
-        // Obtener el canal de Agora del estado de la llamada
-        const channel = callState.agoraChannel;
-        console.log('📞 Canal de Agora recibido:', channel);
-
-        // Aceptamos la señalización
-        signalingAccept();
-
-        // Unirse al canal de media
-        if (channel) {
-            console.log('📞 Uniéndose al canal de Agora:', channel);
-            await agoraJoin(channel);
-        } else {
-            console.error('❌ No se pudo determinar el nombre del canal - agoraChannel es null');
-        }
+        console.log('[CallModal] Botón ACEPTAR presionado');
+        await signalingAccept();
     };
 
     // Manejar Terminar Llamada
     const handleEndCall = async () => {
-        console.log('🔴 Botón COLGAR presionado');
-        // Terminar media
-        await agoraEnd();
-        // Terminar señalización
+        console.log('[CallModal] Botón COLGAR presionado');
         signalingEnd();
     };
 
     // Manejar Rechazar Llamada
     const handleRejectCall = () => {
-        console.log('🔴 Botón RECHAZAR presionado');
+        console.log('[CallModal] Botón RECHAZAR presionado');
         signalingReject();
     };
 
-    // Efecto para auto-unirse si somos quien llama (outgoing) y pasa a estado isInCall
-    // Ojo: CallContext startCall pone isInCall=false, isConnecting=true.
-    // Cuando el otro contesta, CallContext pone isInCall=true.
-    useEffect(() => {
-        if (callState.isInCall && !isConnected) {
-            const channel = callState.agoraChannel;
-            if (channel) {
-                // Si somos nosotros los que iniciamos, o si acabamos de aceptar
-                // (Aunque handleAcceptCall ya llama a join, esto es backup o para el iniciador)
-                // El iniciador debe unirse cuando inicia? O cuando el otro contesta?
-                // Normalmente el iniciador se une al crear la llamada.
-                // Reviemos lógica de CallContext. startCall no une.
-                // Debemos unirnos si isConnecting también?
-            }
-        }
-    }, [callState.isInCall, isConnected, callState.agoraChannel]);
+    // Manejar cambio de cámara
+    const handleSwitchCamera = async () => {
+        console.log('[CallModal] Cambiar cámara');
+        await switchCamera();
+    };
 
-    // Efecto para unirse al iniciar llamada (outgoing)
-    useEffect(() => {
-        if (callState.isConnecting && callState.callDirection === 'outgoing' && !isConnected) {
-            const channel = callState.agoraChannel;
-            if (channel) {
-                console.log('📞 Iniciando canal Agora (outgoing):', channel);
-                agoraJoin(channel);
-            }
-        }
-    }, [callState.isConnecting, callState.callDirection, isConnected, callState.agoraChannel]);
-
-
-    // Animations (igual que antes)
+    // Animaciones
     useEffect(() => {
         if (callState.isRinging) {
             const pulse = Animated.loop(
@@ -139,6 +127,92 @@ export const CallModal: React.FC = () => {
         return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     };
 
+    // Renderizar video remoto
+    const renderRemoteVideo = () => {
+        if (!isVideoCall || !remoteStream) return null;
+
+        // Para web, usar elemento video nativo
+        if (Platform.OS === 'web') {
+            return (
+                <video
+                    ref={(video) => {
+                        if (video && remoteStream) {
+                            video.srcObject = remoteStream;
+                        }
+                    }}
+                    autoPlay
+                    playsInline
+                    style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                    } as any}
+                />
+            );
+        }
+
+        // Para React Native, usar RTCView
+        if (RTCView && remoteStream) {
+            return (
+                <RTCView
+                    streamURL={remoteStream.toURL()}
+                    style={styles.remoteVideo}
+                    objectFit="cover"
+                    zOrder={0}
+                />
+            );
+        }
+
+        return null;
+    };
+
+    // Renderizar video local (PiP)
+    const renderLocalVideo = () => {
+        if (!isVideoCall || !localStream || !isVideoEnabled) return null;
+
+        // Para web
+        if (Platform.OS === 'web') {
+            return (
+                <View style={styles.localVideoContainer}>
+                    <video
+                        ref={(video) => {
+                            if (video && localStream) {
+                                video.srcObject = localStream;
+                            }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            transform: 'scaleX(-1)',
+                        } as any}
+                    />
+                </View>
+            );
+        }
+
+        // Para React Native
+        if (RTCView && localStream) {
+            return (
+                <View style={styles.localVideoContainer}>
+                    <RTCView
+                        streamURL={localStream.toURL()}
+                        style={styles.localVideo}
+                        objectFit="cover"
+                        mirror={true}
+                        zOrder={1}
+                    />
+                </View>
+            );
+        }
+
+        return null;
+    };
+
     if (!isVisible) return null;
 
     return (
@@ -148,77 +222,131 @@ export const CallModal: React.FC = () => {
             statusBarTranslucent
             transparent={false}
         >
-            <LinearGradient
-                colors={['#1a1a2e', '#16213e', '#0f3460']}
-                style={styles.container}
-            >
-                {/* Avatar con animación */}
-                <View style={styles.avatarContainer}>
-                    {callState.isRinging && callState.callDirection === 'incoming' && (
-                        <>
+            <View style={styles.container}>
+                {/* Video remoto de fondo */}
+                {isVideoCall && callState.isInCall && renderRemoteVideo()}
+
+                {/* Gradiente de fondo (solo si no hay video o no está en llamada) */}
+                {(!isVideoCall || !callState.isInCall || !remoteStream) && (
+                    <LinearGradient
+                        colors={['#1a1a2e', '#16213e', '#0f3460']}
+                        style={StyleSheet.absoluteFillObject}
+                    />
+                )}
+
+                {/* Overlay para video */}
+                {isVideoCall && callState.isInCall && remoteStream && (
+                    <View style={styles.videoOverlay} />
+                )}
+
+                {/* Video local PiP */}
+                {callState.isInCall && renderLocalVideo()}
+
+                {/* Contenido principal */}
+                <View style={styles.content}>
+                    {/* Avatar con animación (solo si no hay video) */}
+                    {(!isVideoCall || !callState.isInCall) && (
+                        <View style={styles.avatarContainer}>
+                            {callState.isRinging && callState.callDirection === 'incoming' && (
+                                <>
+                                    <Animated.View
+                                        style={[
+                                            styles.ring,
+                                            {
+                                                opacity: ringAnim.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: [0.6, 0],
+                                                }),
+                                                transform: [{
+                                                    scale: ringAnim.interpolate({
+                                                        inputRange: [0, 1],
+                                                        outputRange: [1, 2]
+                                                    })
+                                                }],
+                                            },
+                                        ]}
+                                    />
+                                    <Animated.View
+                                        style={[
+                                            styles.ring,
+                                            {
+                                                opacity: ringAnim.interpolate({
+                                                    inputRange: [0, 0.5, 1],
+                                                    outputRange: [0, 0.6, 0],
+                                                }),
+                                                transform: [{
+                                                    scale: ringAnim.interpolate({
+                                                        inputRange: [0, 0.5, 1],
+                                                        outputRange: [1, 1.5, 2]
+                                                    })
+                                                }],
+                                            },
+                                        ]}
+                                    />
+                                </>
+                            )}
+
                             <Animated.View
                                 style={[
-                                    styles.ring,
-                                    {
-                                        opacity: ringAnim.interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: [0.6, 0],
-                                        }),
-                                        transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }],
-                                    },
+                                    styles.avatarWrapper,
+                                    { transform: [{ scale: pulseAnim }] },
                                 ]}
-                            />
-                            <Animated.View
-                                style={[
-                                    styles.ring,
-                                    {
-                                        opacity: ringAnim.interpolate({
-                                            inputRange: [0, 0.5, 1],
-                                            outputRange: [0, 0.6, 0],
-                                        }),
-                                        transform: [{ scale: ringAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.5, 2] }) }],
-                                    },
-                                ]}
-                            />
-                        </>
+                            >
+                                <LinearGradient
+                                    colors={isVideoCall ? ['#667eea', '#764ba2'] : ['#2ed573', '#17c0eb']}
+                                    style={styles.avatar}
+                                >
+                                    <Text style={styles.avatarText}>
+                                        {getInitials(callState.remoteUser?.name || '?')}
+                                    </Text>
+                                </LinearGradient>
+                            </Animated.View>
+                        </View>
                     )}
 
-                    <Animated.View
-                        style={[
-                            styles.avatarWrapper,
-                            { transform: [{ scale: pulseAnim }] },
-                        ]}
-                    >
-                        <LinearGradient
-                            colors={callState.callType === 'video' ? ['#667eea', '#764ba2'] : ['#2ed573', '#17c0eb']}
-                            style={styles.avatar}
-                        >
-                            <Text style={styles.avatarText}>
-                                {getInitials(callState.remoteUser?.name || '?')}
-                            </Text>
-                        </LinearGradient>
-                    </Animated.View>
-                </View>
-
-                {/* Nombre y estado */}
-                <Text style={styles.callerName}>
-                    {callState.remoteUser?.name || 'Usuario'}
-                </Text>
-                <Text style={styles.callStatus}>{getStatusText()}</Text>
-
-                {/* Tipo de llamada */}
-                <View style={styles.callTypeContainer}>
-                    <Ionicons
-                        name={callState.callType === 'video' ? 'videocam' : 'call'}
-                        size={20}
-                        color="rgba(255,255,255,0.6)"
-                    />
-                    <Text style={styles.callTypeText}>
-                        {callState.callType === 'video' ? 'Videollamada' : 'Llamada de voz'}
+                    {/* Nombre y estado */}
+                    <Text style={[
+                        styles.callerName,
+                        isVideoCall && callState.isInCall && styles.callerNameVideo
+                    ]}>
+                        {callState.remoteUser?.name || 'Usuario'}
                     </Text>
+                    <Text style={[
+                        styles.callStatus,
+                        isVideoCall && callState.isInCall && styles.callStatusVideo
+                    ]}>
+                        {getStatusText()}
+                    </Text>
+
+                    {/* Tipo de llamada */}
+                    {!callState.isInCall && (
+                        <View style={styles.callTypeContainer}>
+                            <Ionicons
+                                name={isVideoCall ? 'videocam' : 'call'}
+                                size={20}
+                                color="rgba(255,255,255,0.6)"
+                            />
+                            <Text style={styles.callTypeText}>
+                                {isVideoCall ? 'Videollamada' : 'Llamada de voz'}
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Indicador de conexión */}
+                    {callState.isInCall && (
+                        <View style={styles.connectionIndicator}>
+                            <View style={[
+                                styles.connectionDot,
+                                isConnected ? styles.connectionDotConnected : styles.connectionDotConnecting
+                            ]} />
+                            <Text style={styles.connectionText}>
+                                {isConnected ? 'Conectado' : 'Conectando...'}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
-                {/* Botones de acción (Aceptar/Rechazar/Colgar) */}
+                {/* Botones de acción */}
                 <View style={styles.actionsContainer}>
                     {callState.isRinging && callState.callDirection === 'incoming' ? (
                         <>
@@ -249,7 +377,7 @@ export const CallModal: React.FC = () => {
                     )}
                 </View>
 
-                {/* Controles de llamada activa (Mute/Speaker) */}
+                {/* Controles de llamada activa */}
                 {(callState.isInCall || (callState.isConnecting && callState.callDirection === 'outgoing')) && (
                     <View style={styles.callControls}>
                         <TouchableOpacity
@@ -268,15 +396,28 @@ export const CallModal: React.FC = () => {
                             <Text style={styles.controlLabel}>Altavoz</Text>
                         </TouchableOpacity>
 
-                        {callState.callType === 'video' && (
-                            <TouchableOpacity style={styles.controlButton}>
-                                <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
-                                <Text style={styles.controlLabel}>Cambiar</Text>
-                            </TouchableOpacity>
+                        {isVideoCall && (
+                            <>
+                                <TouchableOpacity
+                                    style={[styles.controlButton, !isVideoEnabled && styles.controlButtonActive]}
+                                    onPress={toggleVideo}
+                                >
+                                    <Ionicons name={isVideoEnabled ? "videocam" : "videocam-off"} size={24} color="#fff" />
+                                    <Text style={styles.controlLabel}>{isVideoEnabled ? "Video" : "Sin video"}</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.controlButton}
+                                    onPress={handleSwitchCamera}
+                                >
+                                    <Ionicons name="camera-reverse-outline" size={24} color="#fff" />
+                                    <Text style={styles.controlLabel}>Cambiar</Text>
+                                </TouchableOpacity>
+                            </>
                         )}
                     </View>
                 )}
-            </LinearGradient>
+            </View>
         </Modal>
     );
 };
@@ -284,9 +425,46 @@ export const CallModal: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#000',
+    },
+    content: {
+        flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    },
+    videoOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    remoteVideo: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
+    },
+    localVideoContainer: {
+        position: 'absolute',
+        top: Platform.OS === 'ios' ? 60 : 40,
+        right: 20,
+        width: 120,
+        height: 160,
+        borderRadius: 12,
+        overflow: 'hidden',
+        backgroundColor: '#000',
+        zIndex: 10,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+    },
+    localVideo: {
+        width: '100%',
+        height: '100%',
     },
     avatarContainer: {
         alignItems: 'center',
@@ -327,10 +505,20 @@ const styles = StyleSheet.create({
         marginBottom: 8,
         textAlign: 'center',
     },
+    callerNameVideo: {
+        textShadowColor: 'rgba(0,0,0,0.75)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+    },
     callStatus: {
         fontSize: 18,
         color: 'rgba(255,255,255,0.7)',
         marginBottom: 20,
+    },
+    callStatusVideo: {
+        textShadowColor: 'rgba(0,0,0,0.75)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
     callTypeContainer: {
         flexDirection: 'row',
@@ -342,10 +530,33 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: 'rgba(255,255,255,0.6)',
     },
+    connectionIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 10,
+    },
+    connectionDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    connectionDotConnected: {
+        backgroundColor: '#2ed573',
+    },
+    connectionDotConnecting: {
+        backgroundColor: '#ffa502',
+    },
+    connectionText: {
+        fontSize: 12,
+        color: 'rgba(255,255,255,0.6)',
+    },
     actionsContainer: {
         flexDirection: 'row',
+        justifyContent: 'center',
         gap: 60,
         marginBottom: 40,
+        paddingHorizontal: 20,
     },
     actionButton: {
         width: 80,
@@ -370,19 +581,22 @@ const styles = StyleSheet.create({
     },
     callControls: {
         flexDirection: 'row',
-        gap: 40,
-        paddingHorizontal: 40,
+        justifyContent: 'center',
+        gap: 30,
+        paddingHorizontal: 20,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
     },
     controlButton: {
         alignItems: 'center',
         padding: 12,
-        borderRadius: 12, // Added visual touch
+        borderRadius: 12,
+        minWidth: 70,
     },
     controlButtonActive: {
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
     controlLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: 'rgba(255,255,255,0.7)',
         marginTop: 6,
     },

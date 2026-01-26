@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Alert, Vibration, Platform } from 'react-native';
-import { socketService, OnlineUser, IncomingCallData } from '../services/socketService';
+import { spreedService } from '../services/spreedService';
+import { useWebRTC } from './WebRTCContext';
 import { useAuth } from './AuthContext';
 
 interface CallState {
@@ -11,7 +12,23 @@ interface CallState {
     remoteUser: { id: string; name: string } | null;
     callDirection: 'incoming' | 'outgoing' | null;
     callDuration: number;
-    agoraChannel: string | null; // Canal de Agora para la llamada
+    roomName: string | null;
+}
+
+export interface OnlineUser {
+    id: string;
+    name: string;
+    status?: {
+        displayName?: string;
+    };
+}
+
+interface PendingCall {
+    from: string;
+    fromName: string;
+    callType: 'audio' | 'video';
+    sdp?: RTCSessionDescriptionInit;
+    roomName?: string;
 }
 
 interface CallContextType {
@@ -23,8 +40,8 @@ interface CallContextType {
     // Acciones
     connect: () => Promise<void>;
     disconnect: () => void;
-    startCall: (userId: string, userName: string, callType: 'audio' | 'video') => void;
-    acceptCall: () => void;
+    startCall: (userId: string, userName: string, callType: 'audio' | 'video') => Promise<void>;
+    acceptCall: () => Promise<void>;
     rejectCall: () => void;
     endCall: () => void;
 }
@@ -37,50 +54,64 @@ const initialCallState: CallState = {
     remoteUser: null,
     callDirection: null,
     callDuration: 0,
-    agoraChannel: null,
+    roomName: null,
 };
 
 const CallContext = createContext<CallContextType | undefined>(undefined);
 
 export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const { user } = useAuth();
+    const webrtc = useWebRTC();
+
     const [isConnected, setIsConnected] = useState(false);
     const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
     const [callState, setCallState] = useState<CallState>(initialCallState);
-    const [pendingCall, setPendingCall] = useState<IncomingCallData | null>(null);
+    const [pendingCall, setPendingCall] = useState<PendingCall | null>(null);
     const [callTimer, setCallTimer] = useState<NodeJS.Timeout | null>(null);
 
-    // Conectar al servidor cuando el usuario inicia sesión
+    // Conectar al servidor Spreed
     const connect = useCallback(async () => {
         if (!user) return;
 
         try {
-            await socketService.connect(user.id, user.name || user.rfc);
+            console.log('[CallContext] Conectando a Spreed...');
+            await spreedService.connect(user.name || user.rfc);
+
+            // Actualizar estado del usuario en Spreed
+            spreedService.updateStatus(user.name || user.rfc);
+
             setIsConnected(true);
+            console.log('[CallContext] Conectado a Spreed');
         } catch (error) {
-            console.error('Error conectando al servidor:', error);
+            console.error('[CallContext] Error conectando a Spreed:', error);
             setIsConnected(false);
         }
     }, [user]);
 
     // Desconectar
     const disconnect = useCallback(() => {
-        socketService.disconnect();
+        spreedService.disconnect();
+        webrtc.cleanup();
         setIsConnected(false);
         setOnlineUsers([]);
         setCallState(initialCallState);
-    }, []);
+        setPendingCall(null);
 
-    // Iniciar llamada (simplificado - sin WebRTC real por ahora)
-    const startCall = useCallback((userId: string, userName: string, callType: 'audio' | 'video') => {
-        console.log(`📞 Iniciando llamada ${callType} a ${userName}`);
+        if (callTimer) {
+            clearInterval(callTimer);
+            setCallTimer(null);
+        }
+    }, [webrtc, callTimer]);
 
-        // Generar nombre de canal de Agora - IDs ordenados para consistencia
+    // Iniciar llamada
+    const startCall = useCallback(async (userId: string, userName: string, callType: 'audio' | 'video') => {
+        console.log(`[CallContext] Iniciando llamada ${callType} a ${userName}`);
+
+        // Generar nombre de sala único
         const [id1, id2] = [user?.id || '', userId].sort();
-        const agoraChannel = `call_${id1}_${id2}`;
+        const roomName = `call_${id1}_${id2}_${Date.now()}`;
 
-        console.log('📞 Canal de Agora generado:', agoraChannel);
-
+        // Actualizar estado
         setCallState({
             isInCall: false,
             isRinging: true,
@@ -89,86 +120,114 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             remoteUser: { id: userId, name: userName },
             callDirection: 'outgoing',
             callDuration: 0,
-            agoraChannel,
+            roomName,
         });
 
-        // Simular oferta WebRTC (en producción usarías WebRTC real)
-        const mockOffer: RTCSessionDescriptionInit = {
-            type: 'offer',
-            sdp: 'mock-sdp-offer'
-        };
+        try {
+            // Inicializar media local
+            const stream = await webrtc.initializeMedia(callType === 'video');
+            if (!stream) {
+                throw new Error('No se pudo obtener acceso al micrófono/cámara');
+            }
 
-        // Enviar llamada con el canal de Agora
-        socketService.callUser(userId, mockOffer, callType, agoraChannel);
-    }, [user]);
+            // Unirse a la sala de Spreed
+            spreedService.joinRoom(roomName);
 
-    // Aceptar llamada
-    const acceptCall = useCallback(() => {
-        console.log('🔊 acceptCall llamado');
-        console.log('📋 pendingCall:', pendingCall);
-        console.log('📋 callState:', JSON.stringify(callState));
+            // Crear oferta SDP
+            const offer = await webrtc.createOffer(userId);
+            if (!offer) {
+                throw new Error('No se pudo crear la oferta');
+            }
+
+            // Enviar oferta al usuario destino
+            spreedService.sendOffer(userId, offer);
+
+            console.log('[CallContext] Oferta enviada, esperando respuesta...');
+        } catch (error) {
+            console.error('[CallContext] Error iniciando llamada:', error);
+            Alert.alert('Error', 'No se pudo iniciar la llamada');
+            setCallState(initialCallState);
+            webrtc.cleanup();
+        }
+    }, [user, webrtc]);
+
+    // Aceptar llamada entrante
+    const acceptCall = useCallback(async () => {
+        console.log('[CallContext] Aceptando llamada');
 
         if (!pendingCall) {
-            console.log('❌ No hay pendingCall, saliendo');
+            console.error('[CallContext] No hay llamada pendiente');
             return;
         }
 
-        console.log('✅ Aceptando llamada de:', pendingCall.from);
-
-        // ¡IMPORTANTE! Detener la vibración al aceptar
+        // Detener vibración
         if (Platform.OS !== 'web') {
-            console.log('🔕 Cancelando vibración...');
             Vibration.cancel();
         }
 
-        // Guardar referencia antes de limpiar pendingCall
-        const callerData = {
-            from: pendingCall.from,
-            fromName: pendingCall.fromName,
-            callType: pendingCall.callType,
-        };
+        const { from, fromName, callType, sdp, roomName } = pendingCall;
 
-        // Actualizar estado primero
-        setCallState(prev => ({
-            ...prev,
-            isRinging: false,
-            isInCall: true,
-            isConnecting: false,
-        }));
+        try {
+            // Inicializar media local
+            const stream = await webrtc.initializeMedia(callType === 'video');
+            if (!stream) {
+                throw new Error('No se pudo obtener acceso al micrófono/cámara');
+            }
 
-        // Simular respuesta WebRTC
-        const mockAnswer: RTCSessionDescriptionInit = {
-            type: 'answer',
-            sdp: 'mock-sdp-answer'
-        };
+            // Unirse a la sala si hay nombre de sala
+            if (roomName) {
+                spreedService.joinRoom(roomName);
+            }
 
-        console.log('📤 Enviando answer-call a:', callerData.from);
-        socketService.answerCall(callerData.from, mockAnswer);
+            // Procesar la oferta y crear respuesta
+            if (sdp) {
+                const answer = await webrtc.handleOffer(from, sdp);
+                if (answer) {
+                    // Enviar respuesta
+                    spreedService.sendAnswer(from, answer);
+                }
+            }
 
-        // Limpiar pendingCall después de enviar respuesta
-        setPendingCall(null);
-
-        // Iniciar contador
-        const timer = setInterval(() => {
+            // Actualizar estado
             setCallState(prev => ({
                 ...prev,
-                callDuration: prev.callDuration + 1,
+                isRinging: false,
+                isInCall: true,
+                isConnecting: false,
             }));
-        }, 1000);
-        setCallTimer(timer);
 
-        console.log('✅ Llamada aceptada exitosamente');
-    }, [pendingCall, callState]);
+            // Iniciar contador de duración
+            const timer = setInterval(() => {
+                setCallState(prev => ({
+                    ...prev,
+                    callDuration: prev.callDuration + 1,
+                }));
+            }, 1000);
+            setCallTimer(timer);
+
+            setPendingCall(null);
+            console.log('[CallContext] Llamada aceptada');
+        } catch (error) {
+            console.error('[CallContext] Error aceptando llamada:', error);
+            Alert.alert('Error', 'No se pudo aceptar la llamada');
+            webrtc.cleanup();
+            setCallState(initialCallState);
+            setPendingCall(null);
+        }
+    }, [pendingCall, webrtc]);
 
     // Rechazar llamada
     const rejectCall = useCallback(() => {
+        console.log('[CallContext] Rechazando llamada');
+
         // Detener vibración
         if (Platform.OS !== 'web') {
             Vibration.cancel();
         }
 
         if (pendingCall) {
-            socketService.rejectCall(pendingCall.from);
+            // Enviar Bye con razón "reject"
+            spreedService.sendBye(pendingCall.from, 'reject');
         }
 
         setPendingCall(null);
@@ -177,15 +236,25 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Terminar llamada
     const endCall = useCallback(() => {
-        // Detener vibración por si acaso
+        console.log('[CallContext] Terminando llamada');
+
+        // Detener vibración
         if (Platform.OS !== 'web') {
             Vibration.cancel();
         }
 
+        // Enviar Bye al usuario remoto
         if (callState.remoteUser) {
-            socketService.endCall(callState.remoteUser.id);
+            spreedService.sendBye(callState.remoteUser.id);
         }
 
+        // Limpiar WebRTC
+        webrtc.endCall();
+
+        // Salir de la sala
+        spreedService.leaveRoom();
+
+        // Limpiar timer
         if (callTimer) {
             clearInterval(callTimer);
             setCallTimer(null);
@@ -193,61 +262,102 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         setCallState(initialCallState);
         setPendingCall(null);
-    }, [callState.remoteUser, callTimer]);
+    }, [callState.remoteUser, webrtc, callTimer]);
 
-    // Configurar listeners del socket
+    // Configurar listeners de Spreed
     useEffect(() => {
-        if (!isConnected) return;
-
-        const handleOnlineUsers = (users: OnlineUser[]) => {
-            // Filtrar el usuario actual
-            const filtered = users.filter(u => u.userId !== user?.id);
-            setOnlineUsers(filtered);
+        // Conexión establecida
+        const handleConnected = () => {
+            console.log('[CallContext] Spreed conectado');
+            setIsConnected(true);
         };
 
-        const handleUserOnline = (newUser: OnlineUser) => {
-            if (newUser.userId !== user?.id) {
+        // Desconexión
+        const handleDisconnected = () => {
+            console.log('[CallContext] Spreed desconectado');
+            setIsConnected(false);
+        };
+
+        // Lista de usuarios en la sala
+        const handleUsers = (users: any[]) => {
+            const mapped = users
+                .filter(u => u.Id !== spreedService.userId)
+                .map(u => ({
+                    id: u.Id,
+                    name: u.Status?.displayName || u.Id,
+                    status: u.Status,
+                }));
+            setOnlineUsers(mapped);
+        };
+
+        // Usuario se unió
+        const handleJoined = (data: { id: string; status?: { displayName?: string } }) => {
+            if (data.id !== spreedService.userId) {
                 setOnlineUsers(prev => {
-                    const exists = prev.some(u => u.userId === newUser.userId);
+                    const exists = prev.some(u => u.id === data.id);
                     if (exists) return prev;
-                    return [...prev, newUser];
+                    return [...prev, {
+                        id: data.id,
+                        name: data.status?.displayName || data.id,
+                        status: data.status,
+                    }];
                 });
             }
         };
 
-        const handleUserOffline = (userId: string) => {
-            setOnlineUsers(prev => prev.filter(u => u.userId !== userId));
+        // Usuario se fue
+        const handleLeft = (data: { id: string }) => {
+            setOnlineUsers(prev => prev.filter(u => u.id !== data.id));
+
+            // Si era nuestro interlocutor, terminar llamada
+            if (callState.remoteUser?.id === data.id) {
+                endCall();
+            }
         };
 
-        const handleIncomingCall = (data: IncomingCallData) => {
-            console.log('📞 Llamada entrante:', data);
-            console.log('📞 De:', data.fromName, '(', data.from, ')');
-            console.log('📞 Tipo:', data.callType);
-            console.log('📞 Canal de Agora:', data.agoraChannel);
+        // Oferta recibida (llamada entrante)
+        const handleOffer = (data: { from: string; sdp: string; type: string }) => {
+            console.log('[CallContext] Oferta recibida de:', data.from);
 
-            // Patrón de vibración menos agresivo: vibrar 300ms, pausa 200ms, repetir
+            // Buscar nombre del usuario
+            const caller = onlineUsers.find(u => u.id === data.from);
+            const callerName = caller?.name || data.from;
+
+            // Vibrar
             if (Platform.OS !== 'web') {
-                console.log('📳 Iniciando vibración...');
                 Vibration.vibrate([0, 300, 200, 300, 200, 300], true);
             }
 
-            setPendingCall(data);
+            // Guardar llamada pendiente
+            setPendingCall({
+                from: data.from,
+                fromName: callerName,
+                callType: 'audio', // Por defecto audio, podría detectarse del SDP
+                sdp: { type: data.type as RTCSdpType, sdp: data.sdp },
+                roomName: spreedService.roomName || undefined,
+            });
+
+            // Actualizar estado
             setCallState({
                 isInCall: false,
                 isRinging: true,
                 isConnecting: false,
-                callType: data.callType,
-                remoteUser: { id: data.from, name: data.fromName },
+                callType: 'audio',
+                remoteUser: { id: data.from, name: callerName },
                 callDirection: 'incoming',
                 callDuration: 0,
-                agoraChannel: data.agoraChannel || null, // Guardar el canal de Agora
+                roomName: spreedService.roomName,
             });
-            console.log('📋 Estado actualizado para llamada entrante');
         };
 
-        const handleCallAnswered = () => {
-            console.log('✅ Llamada respondida');
+        // Respuesta recibida (nuestro interlocutor aceptó)
+        const handleAnswer = async (data: { from: string; sdp: string; type: string }) => {
+            console.log('[CallContext] Respuesta recibida de:', data.from);
 
+            // Procesar la respuesta
+            await webrtc.handleAnswer({ type: data.type as RTCSdpType, sdp: data.sdp });
+
+            // Actualizar estado
             setCallState(prev => ({
                 ...prev,
                 isRinging: false,
@@ -265,54 +375,81 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCallTimer(timer);
         };
 
-        const handleCallRejected = (data: { reason: string }) => {
-            if (Platform.OS !== 'web') {
-                Vibration.cancel();
+        // Candidato ICE recibido
+        const handleCandidate = async (data: {
+            from: string;
+            candidate: string;
+            sdpMLineIndex: number;
+            sdpMid: string;
+        }) => {
+            if (data.candidate) {
+                await webrtc.handleCandidate({
+                    candidate: data.candidate,
+                    sdpMLineIndex: data.sdpMLineIndex,
+                    sdpMid: data.sdpMid,
+                });
             }
-
-            Alert.alert('Llamada rechazada', data.reason);
-            setCallState(initialCallState);
         };
 
-        const handleCallEnded = () => {
+        // Bye recibido (el otro terminó o rechazó)
+        const handleBye = (data: { from: string; reason?: string }) => {
+            console.log('[CallContext] Bye recibido de:', data.from, 'razón:', data.reason);
+
+            // Detener vibración
             if (Platform.OS !== 'web') {
                 Vibration.cancel();
             }
 
+            // Limpiar WebRTC
+            webrtc.cleanup();
+
+            // Limpiar timer
             if (callTimer) {
                 clearInterval(callTimer);
                 setCallTimer(null);
+            }
+
+            // Mostrar mensaje según razón
+            if (data.reason === 'reject') {
+                Alert.alert('Llamada rechazada', 'El usuario rechazó la llamada');
+            } else if (data.reason === 'busy') {
+                Alert.alert('Usuario ocupado', 'El usuario está en otra llamada');
             }
 
             setCallState(initialCallState);
             setPendingCall(null);
         };
 
-        const handleCallError = (data: { message: string }) => {
-            Alert.alert('Error', data.message);
-            setCallState(initialCallState);
+        // Error
+        const handleError = (error: any) => {
+            console.error('[CallContext] Error de Spreed:', error);
         };
 
-        socketService.on('online-users', handleOnlineUsers);
-        socketService.on('user-online', handleUserOnline);
-        socketService.on('user-offline', handleUserOffline);
-        socketService.on('incoming-call', handleIncomingCall);
-        socketService.on('call-answered', handleCallAnswered);
-        socketService.on('call-rejected', handleCallRejected);
-        socketService.on('call-ended', handleCallEnded);
-        socketService.on('call-error', handleCallError);
+        // Registrar listeners
+        spreedService.on('connected', handleConnected);
+        spreedService.on('disconnected', handleDisconnected);
+        spreedService.on('users', handleUsers);
+        spreedService.on('joined', handleJoined);
+        spreedService.on('left', handleLeft);
+        spreedService.on('offer', handleOffer);
+        spreedService.on('answer', handleAnswer);
+        spreedService.on('candidate', handleCandidate);
+        spreedService.on('bye', handleBye);
+        spreedService.on('error', handleError);
 
         return () => {
-            socketService.off('online-users', handleOnlineUsers);
-            socketService.off('user-online', handleUserOnline);
-            socketService.off('user-offline', handleUserOffline);
-            socketService.off('incoming-call', handleIncomingCall);
-            socketService.off('call-answered', handleCallAnswered);
-            socketService.off('call-rejected', handleCallRejected);
-            socketService.off('call-ended', handleCallEnded);
-            socketService.off('call-error', handleCallError);
+            spreedService.off('connected', handleConnected);
+            spreedService.off('disconnected', handleDisconnected);
+            spreedService.off('users', handleUsers);
+            spreedService.off('joined', handleJoined);
+            spreedService.off('left', handleLeft);
+            spreedService.off('offer', handleOffer);
+            spreedService.off('answer', handleAnswer);
+            spreedService.off('candidate', handleCandidate);
+            spreedService.off('bye', handleBye);
+            spreedService.off('error', handleError);
         };
-    }, [isConnected, user, callTimer]);
+    }, [webrtc, callState.remoteUser, callTimer, onlineUsers, endCall]);
 
     // Conectar automáticamente cuando hay usuario
     useEffect(() => {
@@ -321,9 +458,21 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         return () => {
-            disconnect();
+            if (isConnected) {
+                disconnect();
+            }
         };
     }, [user]);
+
+    // Sincronizar duración con WebRTC
+    useEffect(() => {
+        if (webrtc.callDuration !== callState.callDuration && webrtc.isInCall) {
+            setCallState(prev => ({
+                ...prev,
+                callDuration: webrtc.callDuration,
+            }));
+        }
+    }, [webrtc.callDuration, webrtc.isInCall]);
 
     return (
         <CallContext.Provider

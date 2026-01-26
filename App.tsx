@@ -4,15 +4,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as NavigationBar from 'expo-navigation-bar';
 import { AuthProvider } from './src/context/AuthContext';
+import { WebRTCProvider } from './src/context/WebRTCContext';
 import { CallProvider } from './src/context/CallContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
-// StreamCallProvider removed - now using AgoraCallProvider
-import { AgoraCallProvider } from './src/context/AgoraCallContext';
 import { ScreenCaptureProvider } from './src/context/ScreenCaptureContext';
 import { AppNavigator } from './src/navigation';
 import { CallModal } from './src/components/CallModal';
-import Preloader from './src/components/Preloader';
-// import { StreamCallModal } from './src/components/StreamCallModal';
 
 // Componente interno que tiene acceso al tema
 function AppContent() {
@@ -49,11 +46,11 @@ export default function App() {
         <ScreenCaptureProvider protectByDefault={true}>
           <ThemeProvider>
             <AuthProvider>
-              <CallProvider>
-                <AgoraCallProvider>
+              <WebRTCProvider>
+                <CallProvider>
                   <AppContent />
-                </AgoraCallProvider>
-              </CallProvider>
+                </CallProvider>
+              </WebRTCProvider>
             </AuthProvider>
           </ThemeProvider>
         </ScreenCaptureProvider>
