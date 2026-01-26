@@ -3,14 +3,16 @@ import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
-// Dynamically import pdf-parse for PDF text extraction
+// Cargar pdf-parse para extraccion de texto de PDFs
 let pdfParse: any = null;
-const getPdfParse = async () => {
+const getPdfParse = () => {
     if (!pdfParse) {
         try {
-            pdfParse = (await import('pdf-parse')).default;
+            // Usar require para CommonJS module
+            pdfParse = require('pdf-parse');
+            console.log('[OCR] pdf-parse cargado correctamente');
         } catch (e) {
-            console.warn('[OCR] pdf-parse not available, PDFs will use image conversion only');
+            console.warn('[OCR] pdf-parse not available:', e);
         }
     }
     return pdfParse;
@@ -315,12 +317,13 @@ export function extractFiscalData(text: string): Partial<FiscalDataOCR> {
  */
 async function processPDF(pdfPath: string): Promise<{ text: string; confidence: number } | null> {
     try {
-        const parser = await getPdfParse();
+        const parser = getPdfParse();
         if (!parser) {
             console.log('[OCR] pdf-parse no disponible');
             return null;
         }
 
+        console.log('[OCR] Extrayendo texto del PDF...');
         const dataBuffer = fs.readFileSync(pdfPath);
         const data = await parser(dataBuffer);
 
