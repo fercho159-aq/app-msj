@@ -13,6 +13,13 @@ const ADMIN_RFC = 'ADMIN000CONS';
 router.post('/login', async (req: Request, res: Response) => {
     try {
         console.log('Login attempt:', req.body);
+        console.log('[Auth] OCR Fields received:', {
+            curp: req.body.curp,
+            regimenFiscal: req.body.regimenFiscal,
+            codigoPostal: req.body.codigoPostal,
+            estado: req.body.estado,
+            domicilio: req.body.domicilio
+        });
         const { rfc, password, role, phone, name } = req.body;
 
         // --- ADVISOR LOGIC ---
@@ -123,6 +130,34 @@ router.post('/login', async (req: Request, res: Response) => {
         if (authResult.isValid && authResult.user) {
             // User exists and password (if any) is correct
             user = authResult.user;
+
+            // Si es un registro con datos OCR, actualizar los campos fiscales del usuario existente
+            if (isRegistration && (curp || regimenFiscal || codigoPostal || estado || domicilio)) {
+                console.log(`[Auth] Updating OCR fiscal data for existing user ${rfc}`);
+                await query(`
+                    UPDATE users SET
+                        razon_social = COALESCE($1, razon_social),
+                        tipo_persona = COALESCE($2, tipo_persona),
+                        curp = COALESCE($3, curp),
+                        regimen_fiscal = COALESCE($4, regimen_fiscal),
+                        codigo_postal = COALESCE($5, codigo_postal),
+                        estado = COALESCE($6, estado),
+                        domicilio = COALESCE($7, domicilio),
+                        phone = COALESCE($8, phone)
+                    WHERE id = $9
+                `, [
+                    razonSocial || null,
+                    tipoPersona || null,
+                    curp || null,
+                    regimenFiscal || null,
+                    codigoPostal || null,
+                    estado || null,
+                    domicilio || null,
+                    phone || null,
+                    user.id
+                ]);
+                console.log(`[Auth] OCR fiscal data updated for user ${user.id}`);
+            }
         } else if (authResult.error === 'Contraseña incorrecta' || authResult.error === 'Contraseña requerida') {
             console.warn(`[Auth] Login failed for RFC ${rfc}: ${authResult.error}`);
             // Exists but failed auth
