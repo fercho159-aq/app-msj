@@ -16,6 +16,15 @@ export interface User {
     created_at: Date;
     updated_at: Date;
     role?: UserRole;
+    // Campos fiscales del OCR
+    phone?: string | null;
+    razon_social?: string | null;
+    tipo_persona?: string | null;
+    curp?: string | null;
+    regimen_fiscal?: string | null;
+    codigo_postal?: string | null;
+    estado?: string | null;
+    domicilio?: string | null;
 }
 
 // Verificar si un usuario puede chatear con otro según sus roles

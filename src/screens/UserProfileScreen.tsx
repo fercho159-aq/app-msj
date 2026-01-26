@@ -126,7 +126,9 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
 
     const [sharedFiles, setSharedFiles] = useState<SharedFile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'images' | 'files'>('images');
+    const [activeTab, setActiveTab] = useState<'images' | 'files' | 'fiscal'>('images');
+    const [fullUserData, setFullUserData] = useState<User | null>(null);
+    const [isLoadingFiscal, setIsLoadingFiscal] = useState(false);
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
 
@@ -137,6 +139,27 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
     useEffect(() => {
         loadSharedFiles();
     }, [chatId]);
+
+    // Cargar datos completos del usuario (incluyendo fiscales)
+    useEffect(() => {
+        if (userId && !isGroup) {
+            loadUserFiscalData();
+        }
+    }, [userId]);
+
+    const loadUserFiscalData = async () => {
+        try {
+            setIsLoadingFiscal(true);
+            const result = await api.getUser(userId);
+            if (result.data?.user) {
+                setFullUserData(result.data.user);
+            }
+        } catch (error) {
+            console.error('Error loading user fiscal data:', error);
+        } finally {
+            setIsLoadingFiscal(false);
+        }
+    };
 
     const loadSharedFiles = async () => {
         try {
@@ -235,17 +258,26 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                     <View style={[styles.avatarContainer, { borderColor: colors.primary }]}>
                         {isGroup ? (
                             <GroupAvatar participants={groupParticipants} size={114} colors={colors} />
-                        ) : (
+                        ) : userAvatar ? (
                             <Image
-                                source={{ uri: userAvatar || 'https://via.placeholder.com/120' }}
+                                source={{ uri: userAvatar }}
                                 style={styles.avatar}
                             />
+                        ) : (
+                            <LinearGradient
+                                colors={['#4A90D9', '#357ABD']}
+                                style={styles.avatarPlaceholder}
+                            >
+                                <Text style={styles.avatarInitial}>
+                                    {(userName || 'U').replace(/^\s*\([sS]\)[:\s]*/g, '').charAt(0).toUpperCase()}
+                                </Text>
+                            </LinearGradient>
                         )}
                     </View>
 
-                    {/* Nombre */}
+                    {/* Nombre - limpiar artefactos OCR */}
                     <Text style={[styles.userName, { color: colors.textPrimary }]}>
-                        {userName || (isGroup ? 'Grupo' : 'Usuario')}
+                        {(userName || (isGroup ? 'Grupo' : 'Usuario')).replace(/^\s*\([sS]\)[:\s]*/g, '').trim()}
                     </Text>
 
                     {/* Info del grupo o RFC */}
@@ -327,7 +359,7 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                                 styles.tabText,
                                 { color: activeTab === 'images' ? '#FFFFFF' : colors.textMuted }
                             ]}>
-                                Fotos ({imageFiles.length})
+                                Fotos
                             </Text>
                         </TouchableOpacity>
 
@@ -347,19 +379,41 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                                 styles.tabText,
                                 { color: activeTab === 'files' ? '#FFFFFF' : colors.textMuted }
                             ]}>
-                                Documentos ({documentFiles.length})
+                                Docs
                             </Text>
                         </TouchableOpacity>
+
+                        {!isGroup && (
+                            <TouchableOpacity
+                                style={[
+                                    styles.tab,
+                                    activeTab === 'fiscal' && { backgroundColor: colors.primary }
+                                ]}
+                                onPress={() => setActiveTab('fiscal')}
+                            >
+                                <Ionicons
+                                    name="receipt"
+                                    size={20}
+                                    color={activeTab === 'fiscal' ? '#FFFFFF' : colors.textMuted}
+                                />
+                                <Text style={[
+                                    styles.tabText,
+                                    { color: activeTab === 'fiscal' ? '#FFFFFF' : colors.textMuted }
+                                ]}>
+                                    Fiscal
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {/* Contenido */}
-                    {isLoading ? (
+                    {isLoading && activeTab !== 'fiscal' ? (
                         <View style={styles.loadingContainer}>
                             <ActivityIndicator size="large" color={colors.primary} />
                         </View>
                     ) : (
                         <>
-                            {activeTab === 'images' ? (
+                            {activeTab === 'images' && (
                                 imageFiles.length > 0 ? (
                                     <FlatList
                                         key="images-grid"
@@ -378,7 +432,8 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                                         </Text>
                                     </View>
                                 )
-                            ) : (
+                            )}
+                            {activeTab === 'files' && (
                                 documentFiles.length > 0 ? (
                                     <FlatList
                                         key="files-list"
@@ -393,6 +448,166 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                                         <Ionicons name="document-outline" size={48} color={colors.textMuted} />
                                         <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                                             No hay documentos compartidos
+                                        </Text>
+                                    </View>
+                                )
+                            )}
+                            {activeTab === 'fiscal' && (
+                                isLoadingFiscal ? (
+                                    <View style={styles.loadingContainer}>
+                                        <ActivityIndicator size="large" color={colors.primary} />
+                                    </View>
+                                ) : fullUserData ? (
+                                    <View style={styles.fiscalContainer}>
+                                        {/* RFC */}
+                                        <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                            <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                <Ionicons name="card-outline" size={22} color={colors.primary} />
+                                            </View>
+                                            <View style={styles.fiscalInfo}>
+                                                <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>RFC</Text>
+                                                <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                    {fullUserData.rfc || 'No disponible'}
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        {/* CURP */}
+                                        {fullUserData.curp && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>CURP</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.curp}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Razon Social */}
+                                        {fullUserData.razon_social && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="business-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Razon Social</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.razon_social}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Tipo Persona */}
+                                        {fullUserData.tipo_persona && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="person-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Tipo de Persona</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.tipo_persona === 'fisica' ? 'Persona Fisica' : 'Persona Moral'}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Regimen Fiscal */}
+                                        {fullUserData.regimen_fiscal && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="briefcase-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Regimen Fiscal</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.regimen_fiscal}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Codigo Postal */}
+                                        {fullUserData.codigo_postal && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="location-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Codigo Postal</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.codigo_postal}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Estado */}
+                                        {fullUserData.estado && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="map-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Estado</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.estado}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Domicilio */}
+                                        {fullUserData.domicilio && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="home-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Domicilio Fiscal</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.domicilio}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Telefono */}
+                                        {fullUserData.phone && (
+                                            <View style={[styles.fiscalCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                                                <View style={[styles.fiscalIconContainer, { backgroundColor: `${colors.primary}15` }]}>
+                                                    <Ionicons name="call-outline" size={22} color={colors.primary} />
+                                                </View>
+                                                <View style={styles.fiscalInfo}>
+                                                    <Text style={[styles.fiscalLabel, { color: colors.textMuted }]}>Telefono</Text>
+                                                    <Text style={[styles.fiscalValue, { color: colors.textPrimary }]}>
+                                                        {fullUserData.phone}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                        )}
+
+                                        {/* Sin datos fiscales */}
+                                        {!fullUserData.curp && !fullUserData.razon_social && !fullUserData.regimen_fiscal &&
+                                         !fullUserData.codigo_postal && !fullUserData.estado && !fullUserData.domicilio && (
+                                            <View style={styles.emptyState}>
+                                                <Ionicons name="receipt-outline" size={48} color={colors.textMuted} />
+                                                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                                                    No hay informacion fiscal disponible
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                ) : (
+                                    <View style={styles.emptyState}>
+                                        <Ionicons name="receipt-outline" size={48} color={colors.textMuted} />
+                                        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                                            No se pudo cargar la informacion fiscal
                                         </Text>
                                     </View>
                                 )
@@ -449,6 +664,18 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 57,
     },
+    avatarPlaceholder: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 57,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitial: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
     userName: {
         fontSize: 26,
         fontWeight: 'bold',
@@ -488,22 +715,23 @@ const styles = StyleSheet.create({
     tabsContainer: {
         flexDirection: 'row',
         borderRadius: 12,
-        padding: 4,
+        padding: 5,
         marginBottom: 16,
         borderWidth: 1,
+        gap: 4,
     },
     tab: {
         flex: 1,
-        flexDirection: 'row',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 8,
-        gap: 6,
+        paddingVertical: 12,
+        borderRadius: 10,
+        gap: 4,
     },
     tabText: {
-        fontSize: 14,
-        fontWeight: '500',
+        fontSize: 11,
+        fontWeight: '600',
     },
     gridContainer: {
         gap: 4,
@@ -584,6 +812,39 @@ const styles = StyleSheet.create({
     participantRole: {
         fontSize: 13,
         marginTop: 2,
+    },
+    // Estilos para informacion fiscal
+    fiscalContainer: {
+        gap: 12,
+    },
+    fiscalCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    fiscalIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
+    },
+    fiscalInfo: {
+        flex: 1,
+    },
+    fiscalLabel: {
+        fontSize: 12,
+        fontWeight: '500',
+        marginBottom: 4,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    fiscalValue: {
+        fontSize: 15,
+        fontWeight: '600',
     },
 });
 

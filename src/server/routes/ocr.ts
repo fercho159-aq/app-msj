@@ -25,13 +25,13 @@ const storage = multer.diskStorage({
     },
 });
 
-// Filtro para solo aceptar imagenes
+// Filtro para aceptar imagenes y PDFs
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error('Tipo de archivo no permitido. Use JPG, PNG o WebP.'));
+        cb(new Error('Tipo de archivo no permitido. Use JPG, PNG, WebP o PDF.'));
     }
 };
 

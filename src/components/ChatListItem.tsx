@@ -7,6 +7,7 @@ import {
     StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Chat } from '../types';
@@ -85,7 +86,18 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
             activeOpacity={0.7}
         >
             <View style={styles.avatarContainer}>
-                <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+                {displayAvatar ? (
+                    <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+                ) : (
+                    <LinearGradient
+                        colors={['#4A90D9', '#357ABD']}
+                        style={[styles.avatar, styles.avatarPlaceholder]}
+                    >
+                        <Text style={styles.avatarInitial}>
+                            {((displayName || 'U') as string).replace(/^\s*\([sS]\)[:\s]*/g, '').charAt(0).toUpperCase()}
+                        </Text>
+                    </LinearGradient>
+                )}
                 {otherUser.status === 'online' && (
                     <View style={styles.onlineIndicator} />
                 )}
@@ -94,7 +106,7 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
             <View style={styles.content}>
                 <View style={styles.header}>
                     <Text style={styles.name} numberOfLines={1}>
-                        {displayName}
+                        {((displayName || 'Usuario') as string).replace(/^\s*\([sS]\)[:\s]*/g, '').trim()}
                     </Text>
                     <Text style={[styles.time, hasUnread && styles.timeUnread]}>
                         {chat.lastMessage ? formatMessageTime(chat.lastMessage.timestamp) : ''}
@@ -152,6 +164,15 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         borderWidth: 2,
         borderColor: colors.border,
+    },
+    avatarPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitial: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
     },
     onlineIndicator: {
         position: 'absolute',

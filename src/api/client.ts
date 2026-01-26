@@ -248,17 +248,18 @@ class ApiClient {
 
     // ==================== OCR FISCAL ====================
 
-    async uploadFiscalDocument(fileUri: string): Promise<ApiResponse<{ success: boolean; data: FiscalDataOCR }>> {
+    async uploadFiscalDocument(fileUri: string, isPDF: boolean = false): Promise<ApiResponse<{ success: boolean; data: FiscalDataOCR }>> {
         try {
             const formData = new FormData();
 
-            const filename = fileUri.split('/').pop() || `fiscal-${Date.now()}.jpg`;
+            const filename = fileUri.split('/').pop() || `fiscal-${Date.now()}${isPDF ? '.pdf' : '.jpg'}`;
             const match = /\.(\w+)$/.exec(filename);
-            const ext = match ? match[1].toLowerCase() : 'jpg';
+            const ext = match ? match[1].toLowerCase() : (isPDF ? 'pdf' : 'jpg');
 
             // Determinar MIME type
             let mimeType = 'image/jpeg';
-            if (ext === 'png') mimeType = 'image/png';
+            if (ext === 'pdf') mimeType = 'application/pdf';
+            else if (ext === 'png') mimeType = 'image/png';
             else if (ext === 'webp') mimeType = 'image/webp';
 
             formData.append('document', {
@@ -268,11 +269,11 @@ class ApiClient {
             } as any);
 
             const url = `${this.baseUrl}/ocr/fiscal-document`;
-            console.log(`🔍 OCR Request: POST ${url}`);
+            console.log(`🔍 OCR Request: POST ${url} (${isPDF ? 'PDF' : 'Image'})`);
 
-            // Timeout mas largo para OCR (puede tardar 10+ segundos)
+            // Timeout mas largo para OCR (puede tardar 10+ segundos, PDFs pueden tardar mas)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+            const timeoutId = setTimeout(() => controller.abort(), isPDF ? 90000 : 60000);
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -294,7 +295,7 @@ class ApiClient {
             console.error('❌ OCR Error:', error);
 
             if (error.name === 'AbortError') {
-                return { error: 'El procesamiento tardo demasiado. Por favor intente con una imagen mas clara.' };
+                return { error: 'El procesamiento tardo demasiado. Por favor intente con una imagen mas clara o un PDF mas pequeno.' };
             }
 
             return { error: error.message || 'Error al procesar documento fiscal' };
@@ -424,6 +425,15 @@ export interface User {
     avatar_url: string | null;
     status?: 'online' | 'offline' | 'typing';
     role?: UserRole;
+    // Campos fiscales del OCR
+    phone?: string | null;
+    razon_social?: string | null;
+    tipo_persona?: string | null;
+    curp?: string | null;
+    regimen_fiscal?: string | null;
+    codigo_postal?: string | null;
+    estado?: string | null;
+    domicilio?: string | null;
 }
 
 export interface ChatLabel {

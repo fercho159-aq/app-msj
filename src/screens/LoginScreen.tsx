@@ -15,12 +15,14 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../context/AuthContext';
 import { api, FiscalDataOCR } from '../api/client';
 import { GradientButton } from '../components';
 
-type ViewMode = 'ROLE_SELECTION' | 'USER_DOCUMENT_UPLOAD' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
+type ViewMode = 'ROLE_SELECTION' | 'USER_AUTH_CHOICE' | 'USER_DOCUMENT_UPLOAD' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
 
 interface ExtendedFiscalData {
     rfc: string;
@@ -58,10 +60,19 @@ export const LoginScreen: React.FC = () => {
     const [advisorPassword, setAdvisorPassword] = useState('');
     const [clientRfc, setClientRfc] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
+    // Advisor - Client OCR states
+    const [clientDocumentImage, setClientDocumentImage] = useState<string | null>(null);
+    const [isProcessingClientOCR, setIsProcessingClientOCR] = useState(false);
+    const [clientFiscalData, setClientFiscalData] = useState<ExtendedFiscalData | null>(null);
 
     // Consultant states
     const [consultantName, setConsultantName] = useState('');
     const [consultantPassword, setConsultantPassword] = useState('');
+
+    // User login states (for existing users)
+    const [userLoginRfc, setUserLoginRfc] = useState('');
+    const [userLoginPassword, setUserLoginPassword] = useState('');
+    const [isUserRegistering, setIsUserRegistering] = useState(false);
 
     const [showPassword, setShowPassword] = useState(false);
 
@@ -74,6 +85,9 @@ export const LoginScreen: React.FC = () => {
         setTermsAccepted(false);
         setDocumentImage(null);
         setIsProcessingOCR(false);
+        setUserLoginRfc('');
+        setUserLoginPassword('');
+        setIsUserRegistering(false);
     };
 
     // Seleccionar imagen de la constancia fiscal
@@ -94,13 +108,6 @@ export const LoginScreen: React.FC = () => {
                 }
             }
 
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
-                quality: 0.8,
-                ...(fromCamera && { launchImageLibraryAsync: undefined }),
-            });
-
             if (fromCamera) {
                 const cameraResult = await ImagePicker.launchCameraAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -112,6 +119,11 @@ export const LoginScreen: React.FC = () => {
                     processDocument(cameraResult.assets[0].uri);
                 }
             } else {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    quality: 0.8,
+                });
                 if (!result.canceled && result.assets[0]) {
                     setDocumentImage(result.assets[0].uri);
                     processDocument(result.assets[0].uri);
@@ -123,12 +135,31 @@ export const LoginScreen: React.FC = () => {
         }
     };
 
+    // Seleccionar archivo PDF
+    const pickPDFDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/pdf',
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets[0]) {
+                const asset = result.assets[0];
+                setDocumentImage(asset.uri);
+                processDocument(asset.uri, true);
+            }
+        } catch (error) {
+            console.error('Error picking PDF:', error);
+            Alert.alert('Error', 'No se pudo seleccionar el archivo PDF.');
+        }
+    };
+
     // Procesar documento con OCR
-    const processDocument = async (imageUri: string) => {
+    const processDocument = async (imageUri: string, isPDF: boolean = false) => {
         setIsProcessingOCR(true);
 
         try {
-            const result = await api.uploadFiscalDocument(imageUri);
+            const result = await api.uploadFiscalDocument(imageUri, isPDF);
 
             if (result.error) {
                 if (result.error.includes('calidad') || result.error.includes('clara')) {
@@ -151,19 +182,50 @@ export const LoginScreen: React.FC = () => {
             if (result.data?.success && result.data.data) {
                 const ocrData = result.data.data;
 
-                // Construir domicilio completo
+                // Funcion para limpiar texto de etiquetas OCR residuales
+                const cleanOCRText = (text: string | null | undefined): string | null => {
+                    if (!text) return null;
+                    return text
+                        .replace(/^Nombre\s*(?:de\s*(?:la\s*)?)?(?:Vialidad|Colonia)[:\s]*/i, '')
+                        .replace(/^Calle[:\s]*/i, '')
+                        .replace(/^Colonia[:\s]*/i, '')
+                        .replace(/^Col\.[:\s]*/i, '')
+                        .replace(/^N[uú]mero\s*(?:Exterior|Interior)[:\s]*/i, '')
+                        .replace(/^No\.\s*(?:Ext|Int)[.:\s]*/i, '')
+                        .replace(/^Int\.[:\s]*/i, '')
+                        .replace(/^Ext\.[:\s]*/i, '')
+                        .replace(/^Municipio[:\s]*/i, '')
+                        .replace(/^(?:Demarcaci[oó]n\s*Territorial|Delegaci[oó]n|Alcald[ií]a)[:\s]*/i, '')
+                        .replace(/\s*o\s*Demarcaci[oó]n.*$/i, '')
+                        .replace(/\s+/g, ' ')
+                        .trim() || null;
+                };
+
+                // Construir domicilio completo con datos limpios
+                const calle = cleanOCRText(ocrData.domicilio?.calle);
+                const numExt = cleanOCRText(ocrData.domicilio?.numeroExterior);
+                const numInt = cleanOCRText(ocrData.domicilio?.numeroInterior);
+                const colonia = cleanOCRText(ocrData.domicilio?.colonia);
+                const municipio = cleanOCRText(ocrData.domicilio?.municipio);
+
                 const domicilioParts = [
-                    ocrData.domicilio?.calle,
-                    ocrData.domicilio?.numeroExterior && `#${ocrData.domicilio.numeroExterior}`,
-                    ocrData.domicilio?.numeroInterior && `Int. ${ocrData.domicilio.numeroInterior}`,
-                    ocrData.domicilio?.colonia && `Col. ${ocrData.domicilio.colonia}`,
-                    ocrData.domicilio?.municipio,
+                    calle,
+                    numExt && `#${numExt}`,
+                    numInt && `Int. ${numInt}`,
+                    colonia && `Col. ${colonia}`,
+                    municipio,
                 ].filter(Boolean).join(', ');
+
+                // Limpiar nombre de artefactos OCR como "(s):"
+                const nombreLimpio = (ocrData.nombre || '')
+                    .replace(/^\s*\([sS]\)[:\s]*/g, '')
+                    .replace(/^\s*[sS]\s*\)[:\s]*/g, '')
+                    .trim();
 
                 setFiscalData({
                     rfc: ocrData.rfc,
                     curp: ocrData.curp,
-                    razonSocial: ocrData.nombre,
+                    razonSocial: nombreLimpio,
                     tipoPersona: ocrData.tipoPersona,
                     regimenFiscal: ocrData.regimenFiscal,
                     codigoPostal: ocrData.domicilio?.codigoPostal || null,
@@ -172,7 +234,7 @@ export const LoginScreen: React.FC = () => {
                     confianza: ocrData.confianza,
                 });
 
-                setViewMode('USER_TERMS');
+                // No cambiar de vista automaticamente, el usuario hara clic en CONTINUAR
             } else {
                 Alert.alert('Error', 'No se pudieron extraer los datos del documento.');
                 setDocumentImage(null);
@@ -184,6 +246,165 @@ export const LoginScreen: React.FC = () => {
             setDocumentImage(null);
         } finally {
             setIsProcessingOCR(false);
+        }
+    };
+
+    // Seleccionar imagen de constancia del cliente (para Asesor)
+    const pickClientFiscalDocument = async (fromCamera: boolean) => {
+        try {
+            if (fromCamera) {
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la camara para tomar la foto.');
+                    return;
+                }
+            } else {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la galeria para seleccionar la imagen.');
+                    return;
+                }
+            }
+
+            if (fromCamera) {
+                const cameraResult = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    quality: 0.8,
+                });
+                if (!cameraResult.canceled && cameraResult.assets[0]) {
+                    setClientDocumentImage(cameraResult.assets[0].uri);
+                    processClientDocument(cameraResult.assets[0].uri);
+                }
+            } else {
+                const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    quality: 0.8,
+                });
+                if (!result.canceled && result.assets[0]) {
+                    setClientDocumentImage(result.assets[0].uri);
+                    processClientDocument(result.assets[0].uri);
+                }
+            }
+        } catch (error) {
+            console.error('Error picking client image:', error);
+            Alert.alert('Error', 'No se pudo seleccionar la imagen.');
+        }
+    };
+
+    // Seleccionar PDF del cliente (para Asesor)
+    const pickClientPDFDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: 'application/pdf',
+                copyToCacheDirectory: true,
+            });
+
+            if (!result.canceled && result.assets && result.assets[0]) {
+                const asset = result.assets[0];
+                setClientDocumentImage(asset.uri);
+                processClientDocument(asset.uri, true);
+            }
+        } catch (error) {
+            console.error('Error picking client PDF:', error);
+            Alert.alert('Error', 'No se pudo seleccionar el archivo PDF.');
+        }
+    };
+
+    // Procesar documento del cliente con OCR (para Asesor)
+    const processClientDocument = async (imageUri: string, isPDF: boolean = false) => {
+        setIsProcessingClientOCR(true);
+
+        try {
+            const result = await api.uploadFiscalDocument(imageUri, isPDF);
+
+            if (result.error) {
+                if (result.error.includes('calidad') || result.error.includes('clara')) {
+                    Alert.alert(
+                        'Imagen no clara',
+                        result.error,
+                        [
+                            { text: 'Cancelar', style: 'cancel', onPress: () => setClientDocumentImage(null) },
+                            { text: 'Tomar otra foto', onPress: () => pickClientFiscalDocument(true) },
+                            { text: 'Seleccionar otra', onPress: () => pickClientFiscalDocument(false) },
+                        ]
+                    );
+                } else {
+                    Alert.alert('Error', result.error);
+                    setClientDocumentImage(null);
+                }
+                return;
+            }
+
+            if (result.data?.success && result.data.data) {
+                const ocrData = result.data.data;
+
+                // Funcion para limpiar texto de etiquetas OCR residuales
+                const cleanText = (text: string | null | undefined): string | null => {
+                    if (!text) return null;
+                    return text
+                        .replace(/^Nombre\s*(?:de\s*(?:la\s*)?)?(?:Vialidad|Colonia)[:\s]*/i, '')
+                        .replace(/^Calle[:\s]*/i, '')
+                        .replace(/^Colonia[:\s]*/i, '')
+                        .replace(/^Col\.[:\s]*/i, '')
+                        .replace(/^N[uú]mero\s*(?:Exterior|Interior)[:\s]*/i, '')
+                        .replace(/^No\.\s*(?:Ext|Int)[.:\s]*/i, '')
+                        .replace(/^Int\.[:\s]*/i, '')
+                        .replace(/^Ext\.[:\s]*/i, '')
+                        .replace(/^Municipio[:\s]*/i, '')
+                        .replace(/^(?:Demarcaci[oó]n\s*Territorial|Delegaci[oó]n|Alcald[ií]a)[:\s]*/i, '')
+                        .replace(/\s*o\s*Demarcaci[oó]n.*$/i, '')
+                        .replace(/\s+/g, ' ')
+                        .trim() || null;
+                };
+
+                // Construir domicilio completo con datos limpios
+                const calle = cleanText(ocrData.domicilio?.calle);
+                const numExt = cleanText(ocrData.domicilio?.numeroExterior);
+                const numInt = cleanText(ocrData.domicilio?.numeroInterior);
+                const colonia = cleanText(ocrData.domicilio?.colonia);
+                const municipio = cleanText(ocrData.domicilio?.municipio);
+
+                const domicilioParts = [
+                    calle,
+                    numExt && `#${numExt}`,
+                    numInt && `Int. ${numInt}`,
+                    colonia && `Col. ${colonia}`,
+                    municipio,
+                ].filter(Boolean).join(', ');
+
+                // Limpiar nombre de artefactos OCR
+                const nombreLimpio = (ocrData.nombre || '')
+                    .replace(/^\s*\([sS]\)[:\s]*/g, '')
+                    .replace(/^\s*[sS]\s*\)[:\s]*/g, '')
+                    .trim();
+
+                setClientFiscalData({
+                    rfc: ocrData.rfc,
+                    curp: ocrData.curp,
+                    razonSocial: nombreLimpio,
+                    tipoPersona: ocrData.tipoPersona,
+                    regimenFiscal: ocrData.regimenFiscal,
+                    codigoPostal: ocrData.domicilio?.codigoPostal || null,
+                    estado: ocrData.domicilio?.estado || null,
+                    domicilioCompleto: domicilioParts || null,
+                    confianza: ocrData.confianza,
+                });
+
+                // Actualizar el RFC del cliente con el extraido
+                setClientRfc(ocrData.rfc);
+            } else {
+                Alert.alert('Error', 'No se pudieron extraer los datos del documento.');
+                setClientDocumentImage(null);
+            }
+
+        } catch (error: any) {
+            console.error('Client OCR Error:', error);
+            Alert.alert('Error', 'No se pudo procesar el documento. Intente de nuevo.');
+            setClientDocumentImage(null);
+        } finally {
+            setIsProcessingClientOCR(false);
         }
     };
 
@@ -239,6 +460,34 @@ export const LoginScreen: React.FC = () => {
             }
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Error al registrar');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Handle user login (existing users)
+    const handleUserLogin = async () => {
+        if (!userLoginRfc) {
+            Alert.alert('Error', 'RFC es requerido');
+            return;
+        }
+        if (!userLoginPassword) {
+            Alert.alert('Error', 'Contraseña es requerida');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const result = await login(userLoginRfc.toUpperCase(), {
+                password: userLoginPassword,
+                role: 'user',
+            });
+
+            if (!result.success) {
+                Alert.alert('Error', result.error || 'Credenciales incorrectas');
+            }
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Error al iniciar sesión');
         } finally {
             setIsLoading(false);
         }
@@ -316,19 +565,22 @@ export const LoginScreen: React.FC = () => {
             setAdvisorPhone('');
             setAdvisorPassword('');
             setClientRfc('');
+            setClientDocumentImage(null);
+            setClientFiscalData(null);
+            setIsRegistering(false);
             return;
         }
 
         if (role === 'user') {
             resetUserStates();
-            setViewMode('USER_DOCUMENT_UPLOAD');
+            setViewMode('USER_LOGIN');
             return;
         }
     };
 
     const goBack = () => {
         switch (viewMode) {
-            case 'USER_DOCUMENT_UPLOAD':
+            case 'USER_LOGIN':
             case 'CONSULTANT_LOGIN':
             case 'ADVISOR_LOGIN':
                 setViewMode('ROLE_SELECTION');
@@ -336,10 +588,10 @@ export const LoginScreen: React.FC = () => {
             case 'USER_TERMS':
                 setDocumentImage(null);
                 setFiscalData(null);
-                setViewMode('USER_DOCUMENT_UPLOAD');
+                setViewMode('USER_LOGIN');
+                setIsUserRegistering(true);
                 break;
             case 'USER_REGISTER':
-            case 'USER_LOGIN':
                 setViewMode('USER_TERMS');
                 break;
             default:
@@ -400,6 +652,216 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
             </View>
         </Modal>
     );
+
+    // USER LOGIN Screen - Login or Register with toggle
+    if (viewMode === 'USER_LOGIN') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        <View style={styles.logoContainer}>
+                            <Image
+                                source={require('../../assets/logo.png')}
+                                style={styles.logo}
+                                resizeMode="contain"
+                            />
+                        </View>
+
+                        <Text style={styles.welcomeText}>{isUserRegistering ? 'Registro' : 'Bienvenido'}</Text>
+
+                        <View style={styles.formSection}>
+                            {/* Login mode - RFC and Password */}
+                            {!isUserRegistering && (
+                                <>
+                                    <Text style={styles.label}>RFC</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={userLoginRfc}
+                                        onChangeText={(text) => setUserLoginRfc(text.toUpperCase())}
+                                        placeholder="Ingrese su RFC"
+                                        placeholderTextColor="#A0AEC0"
+                                        autoCapitalize="characters"
+                                        maxLength={13}
+                                    />
+
+                                    <Text style={styles.label}>Contrasena</Text>
+                                    <View style={styles.passwordContainer}>
+                                        <TextInput
+                                            style={styles.passwordInput}
+                                            value={userLoginPassword}
+                                            onChangeText={setUserLoginPassword}
+                                            secureTextEntry={!showPassword}
+                                            placeholder="Ingrese su contrasena"
+                                            placeholderTextColor="#A0AEC0"
+                                        />
+                                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                            <Ionicons
+                                                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                                                size={20}
+                                                color="#697CA3"
+                                            />
+                                        </TouchableOpacity>
+                                    </View>
+                                </>
+                            )}
+
+                            {/* Register mode - OCR Upload */}
+                            {isUserRegistering && (
+                                <>
+                                    {/* Title and description */}
+                                    <Text style={styles.uploadTitle}>
+                                        Suba su Constancia Fiscal
+                                    </Text>
+                                    <Text style={styles.uploadDescription}>
+                                        Documento del SAT en imagen o PDF
+                                    </Text>
+
+                                    {isProcessingOCR ? (
+                                        <View style={styles.processingCard}>
+                                            <View style={styles.processingSpinner}>
+                                                <ActivityIndicator size="large" color="#5474BC" />
+                                            </View>
+                                            <Text style={styles.processingTitle}>Procesando documento</Text>
+                                            <Text style={styles.processingSubtitle}>Extrayendo datos fiscales...</Text>
+                                        </View>
+                                    ) : fiscalData ? (
+                                        <View style={styles.successCard}>
+                                            <View style={styles.successHeader}>
+                                                <View style={styles.successIconContainer}>
+                                                    <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                                                </View>
+                                                <Text style={styles.successTitle}>Datos Extraidos</Text>
+                                            </View>
+                                            <View style={styles.successDataList}>
+                                                <View style={styles.successDataRow}>
+                                                    <Text style={styles.successDataLabel}>RFC</Text>
+                                                    <Text style={styles.successDataValue}>{fiscalData.rfc}</Text>
+                                                </View>
+                                                <View style={styles.successDataRow}>
+                                                    <Text style={styles.successDataLabel}>Nombre</Text>
+                                                    <Text style={styles.successDataValue} numberOfLines={2}>{fiscalData.razonSocial}</Text>
+                                                </View>
+                                                {fiscalData.curp && (
+                                                    <View style={styles.successDataRow}>
+                                                        <Text style={styles.successDataLabel}>CURP</Text>
+                                                        <Text style={styles.successDataValue}>{fiscalData.curp}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <TouchableOpacity
+                                                style={styles.changeDocButton}
+                                                onPress={() => {
+                                                    setDocumentImage(null);
+                                                    setFiscalData(null);
+                                                }}
+                                            >
+                                                <Ionicons name="refresh" size={18} color="#5474BC" />
+                                                <Text style={styles.changeDocText}>Cambiar documento</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.uploadOptionsVertical}>
+                                            {/* Upload Option - Camera */}
+                                            <TouchableOpacity
+                                                style={styles.uploadOptionRow}
+                                                onPress={() => pickFiscalDocument(true)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.uploadOptionIconBlue}>
+                                                    <Ionicons name="camera" size={24} color="#5474BC" />
+                                                </View>
+                                                <View style={styles.uploadOptionTextContainer}>
+                                                    <Text style={styles.uploadOptionRowTitle}>Tomar Foto</Text>
+                                                    <Text style={styles.uploadOptionRowDesc}>Usar la camara del dispositivo</Text>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                            </TouchableOpacity>
+
+                                            {/* Upload Option - Gallery */}
+                                            <TouchableOpacity
+                                                style={styles.uploadOptionRow}
+                                                onPress={() => pickFiscalDocument(false)}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.uploadOptionIconBlue}>
+                                                    <Ionicons name="images" size={24} color="#5474BC" />
+                                                </View>
+                                                <View style={styles.uploadOptionTextContainer}>
+                                                    <Text style={styles.uploadOptionRowTitle}>Galeria</Text>
+                                                    <Text style={styles.uploadOptionRowDesc}>Seleccionar imagen existente</Text>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                            </TouchableOpacity>
+
+                                            {/* Upload Option - PDF */}
+                                            <TouchableOpacity
+                                                style={styles.uploadOptionRow}
+                                                onPress={pickPDFDocument}
+                                                activeOpacity={0.7}
+                                            >
+                                                <View style={styles.uploadOptionIconBlue}>
+                                                    <Ionicons name="document-text" size={24} color="#5474BC" />
+                                                </View>
+                                                <View style={styles.uploadOptionTextContainer}>
+                                                    <Text style={styles.uploadOptionRowTitle}>Archivo PDF</Text>
+                                                    <Text style={styles.uploadOptionRowDesc}>Seleccionar documento PDF</Text>
+                                                </View>
+                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </>
+                            )}
+
+                            <GradientButton
+                                title={isUserRegistering ? 'CONTINUAR' : 'INICIAR SESION'}
+                                onPress={() => {
+                                    if (isUserRegistering) {
+                                        if (fiscalData) {
+                                            setViewMode('USER_TERMS');
+                                        } else {
+                                            Alert.alert('Error', 'Por favor suba su Constancia de Situacion Fiscal');
+                                        }
+                                    } else {
+                                        handleUserLogin();
+                                    }
+                                }}
+                                disabled={isLoading || (isUserRegistering && !fiscalData)}
+                                loading={isLoading}
+                                style={{ marginTop: 40 }}
+                            />
+
+                            <TouchableOpacity
+                                style={{ marginTop: 20, alignItems: 'center' }}
+                                onPress={() => {
+                                    setIsUserRegistering(!isUserRegistering);
+                                    setDocumentImage(null);
+                                    setFiscalData(null);
+                                    setUserLoginRfc('');
+                                    setUserLoginPassword('');
+                                }}
+                            >
+                                <Text style={{ color: '#5474BC', fontWeight: 'bold' }}>
+                                    {isUserRegistering ? '¿Ya tienes cuenta? Inicia Sesion' : '¿No tienes cuenta? Registrate'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={goBack}
+                            >
+                                <Text style={styles.backButtonText}>Volver</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </View>
+        );
+    }
 
     // USER DOCUMENT UPLOAD Screen
     if (viewMode === 'USER_DOCUMENT_UPLOAD') {
@@ -818,34 +1280,128 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
 
                         {isRegistering && (
                             <>
-                                <Text style={styles.label}>Ingrese RFC Cliente</Text>
-                                <View style={styles.passwordContainer}>
-                                    <TextInput
-                                        style={styles.passwordInput}
-                                        value={clientRfc}
-                                        onChangeText={setClientRfc}
-                                        placeholder="YAA731015LE9"
-                                        placeholderTextColor="#A0AEC0"
-                                        autoCapitalize="characters"
-                                    />
-                                </View>
+                                {/* Simple description text */}
+                                <Text style={[styles.uploadDescription, { marginTop: 24 }]}>
+                                    Suba la Constancia de Situacion Fiscal del cliente
+                                </Text>
+
+                                {isProcessingClientOCR ? (
+                                    <View style={styles.processingCard}>
+                                        <View style={styles.processingSpinner}>
+                                            <ActivityIndicator size="large" color="#5474BC" />
+                                        </View>
+                                        <Text style={styles.processingTitle}>Procesando documento</Text>
+                                        <Text style={styles.processingSubtitle}>Extrayendo datos del cliente...</Text>
+                                    </View>
+                                ) : clientFiscalData ? (
+                                    <View style={styles.successCard}>
+                                        <View style={styles.successHeader}>
+                                            <View style={[styles.successIconContainer, { backgroundColor: '#38A169' }]}>
+                                                <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
+                                            </View>
+                                            <Text style={styles.successTitle}>Datos del Cliente</Text>
+                                        </View>
+                                        <View style={styles.successDataList}>
+                                            <View style={styles.successDataRow}>
+                                                <Text style={styles.successDataLabel}>RFC</Text>
+                                                <Text style={styles.successDataValue}>{clientFiscalData.rfc}</Text>
+                                            </View>
+                                            <View style={styles.successDataRow}>
+                                                <Text style={styles.successDataLabel}>Nombre</Text>
+                                                <Text style={styles.successDataValue} numberOfLines={2}>{clientFiscalData.razonSocial}</Text>
+                                            </View>
+                                            {clientFiscalData.curp && (
+                                                <View style={styles.successDataRow}>
+                                                    <Text style={styles.successDataLabel}>CURP</Text>
+                                                    <Text style={styles.successDataValue}>{clientFiscalData.curp}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.changeDocButton}
+                                            onPress={() => {
+                                                setClientDocumentImage(null);
+                                                setClientFiscalData(null);
+                                                setClientRfc('');
+                                            }}
+                                        >
+                                            <Ionicons name="refresh" size={18} color="#5474BC" />
+                                            <Text style={styles.changeDocText}>Cambiar documento</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={styles.uploadOptionsVertical}>
+                                        {/* Upload Option - Camera */}
+                                        <TouchableOpacity
+                                            style={styles.uploadOptionRow}
+                                            onPress={() => pickClientFiscalDocument(true)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={styles.uploadOptionIconBlue}>
+                                                <Ionicons name="camera" size={24} color="#5474BC" />
+                                            </View>
+                                            <View style={styles.uploadOptionTextContainer}>
+                                                <Text style={styles.uploadOptionRowTitle}>Tomar Foto</Text>
+                                                <Text style={styles.uploadOptionRowDesc}>Usar la camara del dispositivo</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                        </TouchableOpacity>
+
+                                        {/* Upload Option - Gallery */}
+                                        <TouchableOpacity
+                                            style={styles.uploadOptionRow}
+                                            onPress={() => pickClientFiscalDocument(false)}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={styles.uploadOptionIconBlue}>
+                                                <Ionicons name="images" size={24} color="#5474BC" />
+                                            </View>
+                                            <View style={styles.uploadOptionTextContainer}>
+                                                <Text style={styles.uploadOptionRowTitle}>Galeria</Text>
+                                                <Text style={styles.uploadOptionRowDesc}>Seleccionar imagen existente</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                        </TouchableOpacity>
+
+                                        {/* Upload Option - PDF */}
+                                        <TouchableOpacity
+                                            style={styles.uploadOptionRow}
+                                            onPress={pickClientPDFDocument}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={styles.uploadOptionIconBlue}>
+                                                <Ionicons name="document-text" size={24} color="#5474BC" />
+                                            </View>
+                                            <View style={styles.uploadOptionTextContainer}>
+                                                <Text style={styles.uploadOptionRowTitle}>Archivo PDF</Text>
+                                                <Text style={styles.uploadOptionRowDesc}>Seleccionar documento PDF</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
                             </>
                         )}
 
                         <GradientButton
-                            title={isRegistering ? 'REGISTRARSE' : 'INICIAR SESIÓN'}
+                            title={isRegistering ? 'REGISTRARSE' : 'INICIAR SESION'}
                             onPress={performAdvisorLogin}
-                            disabled={isLoading}
+                            disabled={isLoading || (isRegistering && !clientFiscalData)}
                             loading={isLoading}
                             style={{ marginTop: 40 }}
                         />
 
                         <TouchableOpacity
                             style={{ marginTop: 20, alignItems: 'center' }}
-                            onPress={() => setIsRegistering(!isRegistering)}
+                            onPress={() => {
+                                setIsRegistering(!isRegistering);
+                                setClientDocumentImage(null);
+                                setClientFiscalData(null);
+                                setClientRfc('');
+                            }}
                         >
                             <Text style={{ color: '#5474BC', fontWeight: 'bold' }}>
-                                {isRegistering ? '¿Ya tienes cuenta? Inicia Sesión' : '¿No tienes cuenta? Regístrate'}
+                                {isRegistering ? '¿Ya tienes cuenta? Inicia Sesion' : '¿No tienes cuenta? Registrate'}
                             </Text>
                         </TouchableOpacity>
 
@@ -1310,6 +1866,269 @@ const styles = StyleSheet.create({
         height: 80,
         textAlignVertical: 'top',
         paddingTop: 12,
+    },
+    // Estilos para USER_AUTH_CHOICE
+    authChoiceButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        shadowColor: '#697CA3',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    authChoiceIconContainer: {
+        width: 50,
+        height: 50,
+        borderRadius: 12,
+        backgroundColor: '#F0F4FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 16,
+    },
+    authChoiceTextContainer: {
+        flex: 1,
+    },
+    authChoiceTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1A2138',
+        marginBottom: 4,
+    },
+    authChoiceSubtitle: {
+        fontSize: 13,
+        color: '#697CA3',
+    },
+    // Estilos para OCR del cliente (Asesor)
+    uploadButtonSmall: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingVertical: 28,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+    },
+    uploadButtonTextSmall: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#5474BC',
+        marginTop: 10,
+    },
+    clientDataCard: {
+        backgroundColor: '#F0FFF4',
+        borderRadius: 16,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#9AE6B4',
+        marginTop: 16,
+    },
+    clientDataHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 10,
+    },
+    clientDataTitle: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#276749',
+    },
+    clientDataRow: {
+        flexDirection: 'row',
+        marginBottom: 10,
+        alignItems: 'flex-start',
+    },
+    clientDataLabel: {
+        fontSize: 14,
+        color: '#697CA3',
+        width: 75,
+    },
+    clientDataValue: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#1A2138',
+        flex: 1,
+    },
+    changeDocumentButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#9AE6B4',
+        gap: 8,
+    },
+    changeDocumentText: {
+        fontSize: 14,
+        color: '#5474BC',
+        fontWeight: '600',
+    },
+    // Upload title
+    uploadTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#1A2138',
+        textAlign: 'center',
+        marginTop: 20,
+        marginBottom: 8,
+    },
+    // Upload description text
+    uploadDescription: {
+        fontSize: 15,
+        color: '#697CA3',
+        textAlign: 'center',
+        marginBottom: 20,
+        lineHeight: 22,
+    },
+    // Vertical upload options
+    uploadOptionsVertical: {
+        gap: 12,
+        marginBottom: 10,
+    },
+    uploadOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    uploadOptionIconBlue: {
+        width: 48,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: '#EBF4FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 14,
+    },
+    uploadOptionTextContainer: {
+        flex: 1,
+    },
+    uploadOptionRowTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#1A2138',
+        marginBottom: 2,
+    },
+    uploadOptionRowDesc: {
+        fontSize: 13,
+        color: '#A0AEC0',
+    },
+    processingCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 32,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+        marginBottom: 10,
+    },
+    processingSpinner: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#EBF4FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    processingTitle: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: '#1A2138',
+        marginBottom: 4,
+    },
+    processingSubtitle: {
+        fontSize: 14,
+        color: '#697CA3',
+    },
+    successCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+        marginBottom: 10,
+    },
+    successHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    successIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#38A169',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    successTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#1A2138',
+    },
+    successDataList: {
+        gap: 12,
+    },
+    successDataRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    successDataLabel: {
+        fontSize: 13,
+        color: '#697CA3',
+        width: 70,
+        fontWeight: '500',
+    },
+    successDataValue: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1A2138',
+        flex: 1,
+    },
+    changeDocButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+        gap: 8,
+    },
+    changeDocText: {
+        fontSize: 14,
+        color: '#5474BC',
+        fontWeight: '600',
     },
 });
 

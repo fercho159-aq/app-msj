@@ -53,13 +53,24 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
             <TouchableOpacity style={styles.userInfo} activeOpacity={0.7} onPress={onUserPress}>
                 <View style={styles.avatarContainer}>
-                    <Image source={{ uri: avatar }} style={[styles.avatar, { borderColor: colors.border }]} />
+                    {avatar ? (
+                        <Image source={{ uri: avatar }} style={[styles.avatar, { borderColor: colors.border }]} />
+                    ) : (
+                        <LinearGradient
+                            colors={['#4A90D9', '#357ABD']}
+                            style={[styles.avatar, styles.avatarPlaceholder, { borderColor: colors.border }]}
+                        >
+                            <Text style={styles.avatarInitial}>
+                                {(name || 'U').replace(/^\s*\([sS]\)[:\s]*/g, '').charAt(0).toUpperCase()}
+                            </Text>
+                        </LinearGradient>
+                    )}
                     {status === 'online' && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.backgroundSecondary }]} />}
                 </View>
 
                 <View style={styles.textContainer}>
                     <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                        {name}
+                        {(name || 'Usuario').replace(/^\s*\([sS]\)[:\s]*/g, '').trim()}
                     </Text>
                     {status === 'online' || status === 'typing' ? (
                         <Text
@@ -128,6 +139,15 @@ const styles = StyleSheet.create({
         height: 44,
         borderRadius: 22,
         borderWidth: 2,
+    },
+    avatarPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitial: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
     },
     onlineIndicator: {
         position: 'absolute',
