@@ -53,8 +53,12 @@ export const CallModal: React.FC = () => {
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const ringAnim = useRef(new Animated.Value(0)).current;
 
-    const isVisible = callState.isRinging || callState.isInCall || callState.isConnecting;
-    const isVideoCall = callState.callType === 'video';
+    // Protección para evitar errores si callState no está listo
+    const isVisible = callState?.isRinging || callState?.isInCall || callState?.isConnecting || false;
+    const isVideoCall = callState?.callType === 'video';
+
+    // Debug log
+    console.log('[CallModal] isVisible:', isVisible, 'callState:', JSON.stringify(callState));
 
     // Manejar Aceptar Llamada
     const handleAcceptCall = async () => {

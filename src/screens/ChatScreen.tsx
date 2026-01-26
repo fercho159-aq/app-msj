@@ -298,7 +298,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         await api.markChatAsRead(chatId);
     };
 
-    const handleSendMessage = async (text: string, type: 'text' | 'image' | 'file' = 'text', mediaUrl?: string) => {
+    const handleSendMessage = async (text: string, type: 'text' | 'image' | 'file' | 'audio' = 'text', mediaUrl?: string) => {
         const tempMessage: Message = {
             id: `temp-${Date.now()}`,
             chatId,
@@ -387,7 +387,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         }
     };
 
-    const uploadAndSend = async (uri: string, type: 'image' | 'file') => {
+    const uploadAndSend = async (uri: string, type: 'image' | 'file' | 'audio') => {
         setIsUploading(true);
         try {
             const uploadResult = await api.uploadFile(uri, type);
@@ -399,11 +399,11 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
             const { url, filename } = uploadResult.data as any;
 
-
-
             // Enviar mensaje con el adjunto
+            // Para imagen y audio usamos texto vacío, para archivo usamos el nombre del archivo
+            const messageText = type === 'file' ? filename : '';
             await handleSendMessage(
-                type === 'image' ? '' : filename, // Si es imagen, texto vacío. Si es archivo, nombre.
+                messageText,
                 type,
                 url
             );
