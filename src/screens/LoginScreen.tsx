@@ -198,6 +198,10 @@ export const LoginScreen: React.FC = () => {
 
     // Handle user registration
     const handleUserRegister = async () => {
+        if (!fiscalData?.rfc) {
+            Alert.alert('Error', 'RFC es requerido');
+            return;
+        }
         if (!userPhone || userPhone.length < 10) {
             Alert.alert('Error', 'Ingrese un número de teléfono válido');
             return;
@@ -214,14 +218,20 @@ export const LoginScreen: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const result = await login(fiscalData?.rfc || userRfc, {
+            const result = await login(fiscalData.rfc, {
                 password: userPassword,
                 phone: userPhone,
-                razonSocial: fiscalData?.razonSocial || '',
-                tipoPersona: fiscalData?.tipoPersona || 'fisica',
+                razonSocial: fiscalData.razonSocial || '',
+                tipoPersona: fiscalData.tipoPersona || 'fisica',
                 termsAccepted: true,
                 isRegistration: true,
-                role: 'user'
+                role: 'user',
+                // Campos adicionales del OCR
+                curp: fiscalData.curp || null,
+                regimenFiscal: fiscalData.regimenFiscal || null,
+                codigoPostal: fiscalData.codigoPostal || null,
+                estado: fiscalData.estado || null,
+                domicilio: fiscalData.domicilioCompleto || null,
             });
 
             if (!result.success) {

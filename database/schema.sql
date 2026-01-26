@@ -18,6 +18,12 @@ CREATE TABLE IF NOT EXISTS users (
     tipo_persona VARCHAR(20),
     terms_accepted BOOLEAN DEFAULT FALSE,
     terms_accepted_at TIMESTAMP WITH TIME ZONE,
+    -- Campos adicionales del OCR de Constancia de Situacion Fiscal
+    curp VARCHAR(18),
+    regimen_fiscal VARCHAR(255),
+    codigo_postal VARCHAR(5),
+    estado VARCHAR(100),
+    domicilio TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

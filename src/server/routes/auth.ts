@@ -106,7 +106,13 @@ router.post('/login', async (req: Request, res: Response) => {
             razonSocial,
             tipoPersona,
             termsAccepted,
-            isRegistration // Flag to indicate this is a new registration
+            isRegistration, // Flag to indicate this is a new registration
+            // Campos adicionales del OCR
+            curp,
+            regimenFiscal,
+            codigoPostal,
+            estado,
+            domicilio
         } = req.body;
 
         // 1. Try to verify credentials first
@@ -149,8 +155,13 @@ router.post('/login', async (req: Request, res: Response) => {
                         tipo_persona = $4,
                         terms_accepted = $5,
                         terms_accepted_at = NOW(),
-                        name = $6
-                    WHERE id = $7
+                        name = $6,
+                        curp = $7,
+                        regimen_fiscal = $8,
+                        codigo_postal = $9,
+                        estado = $10,
+                        domicilio = $11
+                    WHERE id = $12
                 `, [
                     phone,
                     'usuario',
@@ -158,6 +169,11 @@ router.post('/login', async (req: Request, res: Response) => {
                     tipoPersona || null,
                     true,
                     razonSocial || name || `Usuario ${rfc.substring(0, 4)}`,
+                    curp || null,
+                    regimenFiscal || null,
+                    codigoPostal || null,
+                    estado || null,
+                    domicilio || null,
                     user.id
                 ]);
 
@@ -168,7 +184,12 @@ router.post('/login', async (req: Request, res: Response) => {
                     razon_social: razonSocial,
                     tipo_persona: tipoPersona,
                     terms_accepted: true,
-                    name: razonSocial || name || user.name
+                    name: razonSocial || name || user.name,
+                    curp,
+                    regimen_fiscal: regimenFiscal,
+                    codigo_postal: codigoPostal,
+                    estado,
+                    domicilio
                 };
             } else {
                 // Not a registration, user doesn't exist - return error
