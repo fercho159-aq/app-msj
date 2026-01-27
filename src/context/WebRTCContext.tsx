@@ -103,9 +103,15 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Obtener configuración ICE combinada (servidores estáticos + dinámicos de Spreed)
   const getIceConfiguration = useCallback((): RTCConfiguration => {
     const dynamicServers = spreedService.iceServers;
+    // Filtrar servidores con URLs vacías que causan error en PeerConnection
+    const allServers = [...(ICE_SERVERS.iceServers || []), ...dynamicServers].filter(server => {
+      if (!server.urls) return false;
+      if (Array.isArray(server.urls) && server.urls.length === 0) return false;
+      return true;
+    });
     return {
       ...ICE_SERVERS,
-      iceServers: [...(ICE_SERVERS.iceServers || []), ...dynamicServers],
+      iceServers: allServers,
     };
   }, []);
 

@@ -458,7 +458,7 @@ class SpreedService {
       }];
     }
 
-    if (self.Stun) {
+    if (self.Stun && self.Stun.length > 0) {
       this.turnServers.push({
         urls: self.Stun,
       });
@@ -508,11 +508,16 @@ class SpreedService {
   joinRoom(roomName: string): void {
     console.log('[Spreed] Uniéndose a sala:', roomName);
 
+    // Primero salir de cualquier sala existente
+    if (this.currentRoom && this.currentRoom !== roomName) {
+      this.leaveRoom();
+    }
+
     const room: RoomDocument = {
       Type: 'Room',
       Room: {
         Name: roomName,
-        Type: '',
+        Type: 'conference',
       },
     };
     this.send(room);

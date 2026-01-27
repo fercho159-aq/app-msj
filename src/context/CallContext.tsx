@@ -77,8 +77,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.log('[CallContext] Conectando a Spreed...');
             await spreedService.connect(user.name || user.rfc);
 
-            // Actualizar estado del usuario en Spreed
-            spreedService.updateStatus(user.name || user.rfc);
+            // Nota: No llamar updateStatus aquí porque requiere estar en una sala
+            // Se actualizará el estado cuando se una a una sala de llamada
 
             setIsConnected(true);
             console.log('[CallContext] Conectado a Spreed');
