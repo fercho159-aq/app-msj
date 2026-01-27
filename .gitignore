@@ -25,3 +25,5 @@ yarn-error.log*
 # IDE
 .vscode/
 .idea/
+app-debug.apk
+*.apk
