@@ -23,7 +23,8 @@
         },
         "UIBackgroundModes": [
           "audio",
-          "voip"
+          "voip",
+          "remote-notification"
         ]
       }
     },
@@ -39,7 +40,13 @@
     "plugins": [
       "./plugins/withAndroidCleartextTraffic",
       "./plugins/withWebRTCPermissions",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png",

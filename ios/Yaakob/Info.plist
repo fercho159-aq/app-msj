@@ -45,7 +45,7 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your camera</string>
+    <string>Este app necesita acceso a la cámara para realizar videollamadas</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Este app necesita acceso al micrófono para realizar llamadas de voz</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
@@ -58,6 +58,7 @@
     <array>
       <string>audio</string>
       <string>voip</string>
+      <string>remote-notification</string>
     </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>

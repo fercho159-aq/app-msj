@@ -231,7 +231,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         setPreviewMedia({ visible: false, url: null, type: 'image' });
     };
 
-    const isAdmin = user?.rfc === 'ADMIN000CONS';
+    const isAdmin = user?.rfc === 'ADMIN000CONS' || user?.role === 'consultor';
 
     // Función para cargar mensajes (usada tanto para carga inicial como polling)
     const loadMessages = async (isInitialLoad = false) => {

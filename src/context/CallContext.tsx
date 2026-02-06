@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { Alert, Vibration, Platform } from 'react-native';
-import { spreedService } from '../services/spreedService';
+import { socketService, IncomingCallData } from '../services/socketService';
 import { useWebRTC } from './WebRTCContext';
 import { useAuth } from './AuthContext';
 
@@ -27,8 +27,7 @@ interface PendingCall {
     from: string;
     fromName: string;
     callType: 'audio' | 'video';
-    sdp?: RTCSessionDescriptionInit;
-    roomName?: string;
+    offer?: RTCSessionDescriptionInit;
 }
 
 interface CallContextType {
@@ -69,28 +68,24 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [pendingCall, setPendingCall] = useState<PendingCall | null>(null);
     const [callTimer, setCallTimer] = useState<NodeJS.Timeout | null>(null);
 
-    // Conectar al servidor Spreed
+    // Conectar al servidor Socket.io
     const connect = useCallback(async () => {
         if (!user) return;
 
         try {
-            console.log('[CallContext] Conectando a Spreed...');
-            await spreedService.connect(user.name || user.rfc);
-
-            // Nota: No llamar updateStatus aquí porque requiere estar en una sala
-            // Se actualizará el estado cuando se una a una sala de llamada
-
+            console.log('[CallContext] Conectando a Socket.io...');
+            await socketService.connect(user.id, user.name || user.rfc);
             setIsConnected(true);
-            console.log('[CallContext] Conectado a Spreed');
+            console.log('[CallContext] Conectado a Socket.io');
         } catch (error) {
-            console.error('[CallContext] Error conectando a Spreed:', error);
+            console.error('[CallContext] Error conectando a Socket.io:', error);
             setIsConnected(false);
         }
     }, [user]);
 
     // Desconectar
     const disconnect = useCallback(() => {
-        spreedService.disconnect();
+        socketService.disconnect();
         webrtc.cleanup();
         setIsConnected(false);
         setOnlineUsers([]);
@@ -107,9 +102,24 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const startCall = useCallback(async (userId: string, userName: string, callType: 'audio' | 'video') => {
         console.log(`[CallContext] Iniciando llamada ${callType} a ${userName}`);
 
-        // Generar nombre de sala único
-        const [id1, id2] = [user?.id || '', userId].sort();
-        const roomName = `call_${id1}_${id2}_${Date.now()}`;
+        // Verificar y reconectar socket si es necesario
+        if (!socketService.isConnected()) {
+            console.log('[CallContext] Socket no conectado, intentando reconectar...');
+            if (user) {
+                try {
+                    await socketService.connect(user.id, user.name || user.rfc);
+                    setIsConnected(true);
+                    console.log('[CallContext] Reconectado exitosamente');
+                } catch (error) {
+                    console.error('[CallContext] Error reconectando:', error);
+                    Alert.alert('Error', 'No se pudo conectar al servidor de llamadas. Verifica tu conexión.');
+                    return;
+                }
+            } else {
+                Alert.alert('Error', 'No hay sesión activa');
+                return;
+            }
+        }
 
         // Actualizar estado
         setCallState({
@@ -120,7 +130,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             remoteUser: { id: userId, name: userName },
             callDirection: 'outgoing',
             callDuration: 0,
-            roomName,
+            roomName: null,
         });
 
         try {
@@ -131,12 +141,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 console.error('[CallContext] Error: No se obtuvo stream de media');
                 throw new Error('No se pudo obtener acceso al micrófono/cámara');
             }
-            console.log('[CallContext] Paso 2: Media inicializado, uniéndose a sala:', roomName);
 
-            // Unirse a la sala de Spreed
-            spreedService.joinRoom(roomName);
-
-            console.log('[CallContext] Paso 3: Creando oferta SDP...');
+            console.log('[CallContext] Paso 2: Creando oferta SDP...');
             // Crear oferta SDP
             const offer = await webrtc.createOffer(userId);
             if (!offer) {
@@ -144,11 +150,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 throw new Error('No se pudo crear la oferta');
             }
 
-            console.log('[CallContext] Paso 4: Enviando oferta a:', userId);
-            // Enviar oferta al usuario destino
-            spreedService.sendOffer(userId, offer);
+            console.log('[CallContext] Paso 3: Enviando llamada via Socket.io a:', userId);
+            console.log('[CallContext] Socket conectado:', socketService.isConnected());
+            // Enviar llamada via Socket.io
+            const callSent = socketService.callUser(userId, offer, callType);
 
-            console.log('[CallContext] Oferta enviada, esperando respuesta...');
+            if (!callSent) {
+                throw new Error('No se pudo enviar la llamada. Verifica tu conexión.');
+            }
+
+            console.log('[CallContext] Llamada enviada, esperando respuesta...');
         } catch (error: any) {
             console.error('[CallContext] Error iniciando llamada:', error?.message || error);
             Alert.alert('Error', `No se pudo iniciar la llamada: ${error?.message || 'Error desconocido'}`);
@@ -171,7 +182,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             Vibration.cancel();
         }
 
-        const { from, fromName, callType, sdp, roomName } = pendingCall;
+        const { from, fromName, callType, offer } = pendingCall;
 
         try {
             // Inicializar media local
@@ -180,17 +191,12 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 throw new Error('No se pudo obtener acceso al micrófono/cámara');
             }
 
-            // Unirse a la sala si hay nombre de sala
-            if (roomName) {
-                spreedService.joinRoom(roomName);
-            }
-
             // Procesar la oferta y crear respuesta
-            if (sdp) {
-                const answer = await webrtc.handleOffer(from, sdp);
+            if (offer) {
+                const answer = await webrtc.handleOffer(from, offer);
                 if (answer) {
-                    // Enviar respuesta
-                    spreedService.sendAnswer(from, answer);
+                    // Enviar respuesta via Socket.io
+                    socketService.answerCall(from, answer);
                 }
             }
 
@@ -232,8 +238,8 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
 
         if (pendingCall) {
-            // Enviar Bye con razón "reject"
-            spreedService.sendBye(pendingCall.from, 'reject');
+            // Enviar rechazo via Socket.io
+            socketService.rejectCall(pendingCall.from, 'Llamada rechazada');
         }
 
         setPendingCall(null);
@@ -249,16 +255,13 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             Vibration.cancel();
         }
 
-        // Enviar Bye al usuario remoto
+        // Enviar fin de llamada via Socket.io
         if (callState.remoteUser) {
-            spreedService.sendBye(callState.remoteUser.id);
+            socketService.endCall(callState.remoteUser.id);
         }
 
         // Limpiar WebRTC
         webrtc.endCall();
-
-        // Salir de la sala
-        spreedService.leaveRoom();
 
         // Limpiar timer
         if (callTimer) {
@@ -270,64 +273,55 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setPendingCall(null);
     }, [callState.remoteUser, webrtc, callTimer]);
 
-    // Configurar listeners de Spreed
+    // Configurar listeners de Socket.io
     useEffect(() => {
         // Conexión establecida
         const handleConnected = () => {
-            console.log('[CallContext] Spreed conectado');
+            console.log('[CallContext] Socket.io conectado');
             setIsConnected(true);
         };
 
         // Desconexión
         const handleDisconnected = () => {
-            console.log('[CallContext] Spreed desconectado');
+            console.log('[CallContext] Socket.io desconectado');
             setIsConnected(false);
         };
 
-        // Lista de usuarios en la sala
-        const handleUsers = (users: any[]) => {
+        // Lista de usuarios en línea
+        const handleOnlineUsers = (users: { userId: string; name: string }[]) => {
             const mapped = users
-                .filter(u => u.Id !== spreedService.userId)
+                .filter(u => u.userId !== user?.id)
                 .map(u => ({
-                    id: u.Id,
-                    name: u.Status?.displayName || u.Id,
-                    status: u.Status,
+                    id: u.userId,
+                    name: u.name,
                 }));
             setOnlineUsers(mapped);
         };
 
-        // Usuario se unió
-        const handleJoined = (data: { id: string; status?: { displayName?: string } }) => {
-            if (data.id !== spreedService.userId) {
+        // Usuario se conectó
+        const handleUserOnline = (data: { userId: string; name: string }) => {
+            if (data.userId !== user?.id) {
                 setOnlineUsers(prev => {
-                    const exists = prev.some(u => u.id === data.id);
+                    const exists = prev.some(u => u.id === data.userId);
                     if (exists) return prev;
-                    return [...prev, {
-                        id: data.id,
-                        name: data.status?.displayName || data.id,
-                        status: data.status,
-                    }];
+                    return [...prev, { id: data.userId, name: data.name }];
                 });
             }
         };
 
-        // Usuario se fue
-        const handleLeft = (data: { id: string }) => {
-            setOnlineUsers(prev => prev.filter(u => u.id !== data.id));
+        // Usuario se desconectó
+        const handleUserOffline = (userId: string) => {
+            setOnlineUsers(prev => prev.filter(u => u.id !== userId));
 
             // Si era nuestro interlocutor, terminar llamada
-            if (callState.remoteUser?.id === data.id) {
+            if (callState.remoteUser?.id === userId) {
                 endCall();
             }
         };
 
-        // Oferta recibida (llamada entrante)
-        const handleOffer = (data: { from: string; sdp: string; type: string }) => {
-            console.log('[CallContext] Oferta recibida de:', data.from);
-
-            // Buscar nombre del usuario
-            const caller = onlineUsers.find(u => u.id === data.from);
-            const callerName = caller?.name || data.from;
+        // Llamada entrante
+        const handleIncomingCall = (data: IncomingCallData) => {
+            console.log('[CallContext] Llamada entrante de:', data.fromName);
 
             // Vibrar
             if (Platform.OS !== 'web') {
@@ -337,10 +331,9 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Guardar llamada pendiente
             setPendingCall({
                 from: data.from,
-                fromName: callerName,
-                callType: 'audio', // Por defecto audio, podría detectarse del SDP
-                sdp: { type: data.type as RTCSdpType, sdp: data.sdp },
-                roomName: spreedService.roomName || undefined,
+                fromName: data.fromName,
+                callType: data.callType,
+                offer: data.offer,
             });
 
             // Actualizar estado
@@ -348,20 +341,20 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isInCall: false,
                 isRinging: true,
                 isConnecting: false,
-                callType: 'audio',
-                remoteUser: { id: data.from, name: callerName },
+                callType: data.callType,
+                remoteUser: { id: data.from, name: data.fromName },
                 callDirection: 'incoming',
                 callDuration: 0,
-                roomName: spreedService.roomName,
+                roomName: null,
             });
         };
 
-        // Respuesta recibida (nuestro interlocutor aceptó)
-        const handleAnswer = async (data: { from: string; sdp: string; type: string }) => {
-            console.log('[CallContext] Respuesta recibida de:', data.from);
+        // Llamada respondida
+        const handleCallAnswered = async (data: { from: string; answer: RTCSessionDescriptionInit }) => {
+            console.log('[CallContext] Llamada respondida por:', data.from);
 
             // Procesar la respuesta
-            await webrtc.handleAnswer({ type: data.type as RTCSdpType, sdp: data.sdp });
+            await webrtc.handleAnswer(data.answer);
 
             // Actualizar estado
             setCallState(prev => ({
@@ -381,25 +374,27 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setCallTimer(timer);
         };
 
-        // Candidato ICE recibido
-        const handleCandidate = async (data: {
-            from: string;
-            candidate: string;
-            sdpMLineIndex: number;
-            sdpMid: string;
-        }) => {
-            if (data.candidate) {
-                await webrtc.handleCandidate({
-                    candidate: data.candidate,
-                    sdpMLineIndex: data.sdpMLineIndex,
-                    sdpMid: data.sdpMid,
-                });
+        // Llamada rechazada
+        const handleCallRejected = (data: { from: string; reason: string }) => {
+            console.log('[CallContext] Llamada rechazada:', data.reason);
+
+            // Detener vibración
+            if (Platform.OS !== 'web') {
+                Vibration.cancel();
             }
+
+            // Limpiar WebRTC
+            webrtc.cleanup();
+
+            Alert.alert('Llamada rechazada', data.reason || 'El usuario rechazó la llamada');
+
+            setCallState(initialCallState);
+            setPendingCall(null);
         };
 
-        // Bye recibido (el otro terminó o rechazó)
-        const handleBye = (data: { from: string; reason?: string }) => {
-            console.log('[CallContext] Bye recibido de:', data.from, 'razón:', data.reason);
+        // Llamada terminada
+        const handleCallEnded = () => {
+            console.log('[CallContext] Llamada terminada por el otro usuario');
 
             // Detener vibración
             if (Platform.OS !== 'web') {
@@ -415,47 +410,52 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setCallTimer(null);
             }
 
-            // Mostrar mensaje según razón
-            if (data.reason === 'reject') {
-                Alert.alert('Llamada rechazada', 'El usuario rechazó la llamada');
-            } else if (data.reason === 'busy') {
-                Alert.alert('Usuario ocupado', 'El usuario está en otra llamada');
-            }
-
             setCallState(initialCallState);
             setPendingCall(null);
         };
 
-        // Error
-        const handleError = (error: any) => {
-            console.error('[CallContext] Error de Spreed:', error);
+        // ICE Candidate
+        const handleIceCandidate = async (data: { from: string; candidate: RTCIceCandidateInit }) => {
+            if (data.candidate) {
+                await webrtc.handleCandidate(data.candidate);
+            }
+        };
+
+        // Error de llamada
+        const handleCallError = (data: { message: string; userId: string }) => {
+            console.error('[CallContext] Error de llamada:', data.message);
+            Alert.alert('Error', data.message);
+            setCallState(initialCallState);
+            webrtc.cleanup();
         };
 
         // Registrar listeners
-        spreedService.on('connected', handleConnected);
-        spreedService.on('disconnected', handleDisconnected);
-        spreedService.on('users', handleUsers);
-        spreedService.on('joined', handleJoined);
-        spreedService.on('left', handleLeft);
-        spreedService.on('offer', handleOffer);
-        spreedService.on('answer', handleAnswer);
-        spreedService.on('candidate', handleCandidate);
-        spreedService.on('bye', handleBye);
-        spreedService.on('error', handleError);
+        socketService.on('connected', handleConnected);
+        socketService.on('disconnected', handleDisconnected);
+        socketService.on('online-users', handleOnlineUsers);
+        socketService.on('user-online', handleUserOnline);
+        socketService.on('user-offline', handleUserOffline);
+        socketService.on('incoming-call', handleIncomingCall);
+        socketService.on('call-answered', handleCallAnswered);
+        socketService.on('call-rejected', handleCallRejected);
+        socketService.on('call-ended', handleCallEnded);
+        socketService.on('ice-candidate', handleIceCandidate);
+        socketService.on('call-error', handleCallError);
 
         return () => {
-            spreedService.off('connected', handleConnected);
-            spreedService.off('disconnected', handleDisconnected);
-            spreedService.off('users', handleUsers);
-            spreedService.off('joined', handleJoined);
-            spreedService.off('left', handleLeft);
-            spreedService.off('offer', handleOffer);
-            spreedService.off('answer', handleAnswer);
-            spreedService.off('candidate', handleCandidate);
-            spreedService.off('bye', handleBye);
-            spreedService.off('error', handleError);
+            socketService.off('connected', handleConnected);
+            socketService.off('disconnected', handleDisconnected);
+            socketService.off('online-users', handleOnlineUsers);
+            socketService.off('user-online', handleUserOnline);
+            socketService.off('user-offline', handleUserOffline);
+            socketService.off('incoming-call', handleIncomingCall);
+            socketService.off('call-answered', handleCallAnswered);
+            socketService.off('call-rejected', handleCallRejected);
+            socketService.off('call-ended', handleCallEnded);
+            socketService.off('ice-candidate', handleIceCandidate);
+            socketService.off('call-error', handleCallError);
         };
-    }, [webrtc, callState.remoteUser, callTimer, onlineUsers, endCall]);
+    }, [user, webrtc, callState.remoteUser, callTimer, endCall]);
 
     // Conectar automáticamente cuando hay usuario
     useEffect(() => {

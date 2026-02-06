@@ -134,7 +134,7 @@ export interface LeftDocument {
 
 export interface AliveDocument {
   Type: 'Alive';
-  Alive: number;
+  Alive: Record<string, never>;  // Empty object as per Spreed protocol
 }
 
 // Mensaje envuelto del servidor
@@ -675,7 +675,7 @@ class SpreedService {
       if (this.isConnected) {
         const alive: AliveDocument = {
           Type: 'Alive',
-          Alive: Date.now(),
+          Alive: {},
         };
         this.send(alive);
       }

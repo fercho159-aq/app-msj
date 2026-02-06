@@ -147,20 +147,34 @@ class SocketService extends EventEmitter {
         offer: RTCSessionDescriptionInit,
         callType: 'audio' | 'video',
         agoraChannel?: string
-    ): void {
-        if (!this.socket || !this.currentUser) {
-            console.error('No conectado al servidor');
-            return;
+    ): boolean {
+        console.log('[SocketService] callUser - socket:', !!this.socket, 'connected:', this.socket?.connected, 'currentUser:', !!this.currentUser);
+
+        if (!this.socket) {
+            console.error('[SocketService] No hay socket inicializado');
+            return false;
         }
 
+        if (!this.socket.connected) {
+            console.error('[SocketService] Socket no está conectado');
+            return false;
+        }
+
+        if (!this.currentUser) {
+            console.error('[SocketService] No hay usuario registrado');
+            return false;
+        }
+
+        console.log('[SocketService] Emitiendo call-user a:', targetUserId);
         this.socket.emit('call-user', {
             to: targetUserId,
             from: this.currentUser.id,
             fromName: this.currentUser.name,
             offer,
             callType,
-            agoraChannel, // Canal de Agora para la llamada
+            agoraChannel,
         });
+        return true;
     }
 
     // Responder llamada

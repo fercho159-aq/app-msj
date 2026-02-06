@@ -15,14 +15,54 @@ import {
     Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../context/AuthContext';
-import { api, FiscalDataOCR } from '../api/client';
+import { api, CheckIdResponse } from '../api/client';
 import { GradientButton } from '../components';
 
-type ViewMode = 'ROLE_SELECTION' | 'USER_AUTH_CHOICE' | 'USER_DOCUMENT_UPLOAD' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
+type ViewMode = 'ROLE_SELECTION' | 'USER_AUTH_CHOICE' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_WELCOME' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
+
+// Obtener estado de México a partir del código postal
+const getEstadoFromCP = (cp: string | null): string | null => {
+    if (!cp || cp.length < 2) return null;
+    const prefix = parseInt(cp.substring(0, 2), 10);
+
+    if (prefix >= 1 && prefix <= 16) return 'Ciudad de México';
+    if (prefix === 20) return 'Aguascalientes';
+    if (prefix >= 21 && prefix <= 22) return 'Baja California';
+    if (prefix === 23) return 'Baja California Sur';
+    if (prefix === 24) return 'Campeche';
+    if (prefix >= 25 && prefix <= 27) return 'Coahuila';
+    if (prefix === 28) return 'Colima';
+    if (prefix >= 29 && prefix <= 30) return 'Chiapas';
+    if (prefix >= 31 && prefix <= 33) return 'Chihuahua';
+    if (prefix >= 34 && prefix <= 35) return 'Durango';
+    if (prefix >= 36 && prefix <= 38) return 'Guanajuato';
+    if (prefix >= 39 && prefix <= 41) return 'Guerrero';
+    if (prefix >= 42 && prefix <= 43) return 'Hidalgo';
+    if (prefix >= 44 && prefix <= 49) return 'Jalisco';
+    if (prefix >= 50 && prefix <= 57) return 'Estado de México';
+    if (prefix >= 58 && prefix <= 61) return 'Michoacán';
+    if (prefix === 62) return 'Morelos';
+    if (prefix === 63) return 'Nayarit';
+    if (prefix >= 64 && prefix <= 67) return 'Nuevo León';
+    if (prefix >= 68 && prefix <= 71) return 'Oaxaca';
+    if (prefix >= 72 && prefix <= 75) return 'Puebla';
+    if (prefix === 76) return 'Querétaro';
+    if (prefix === 77) return 'Quintana Roo';
+    if (prefix >= 78 && prefix <= 79) return 'San Luis Potosí';
+    if (prefix >= 80 && prefix <= 82) return 'Sinaloa';
+    if (prefix >= 83 && prefix <= 85) return 'Sonora';
+    if (prefix === 86) return 'Tabasco';
+    if (prefix >= 87 && prefix <= 89) return 'Tamaulipas';
+    if (prefix === 90) return 'Tlaxcala';
+    if (prefix >= 91 && prefix <= 96) return 'Veracruz';
+    if (prefix === 97) return 'Yucatán';
+    if (prefix >= 98 && prefix <= 99) return 'Zacatecas';
+
+    return null;
+};
 
 interface ExtendedFiscalData {
     rfc: string;
@@ -49,10 +89,11 @@ export const LoginScreen: React.FC = () => {
     const [fiscalData, setFiscalData] = useState<ExtendedFiscalData | null>(null);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
+    const [userProfilePhoto, setUserProfilePhoto] = useState<string | null>(null);
 
-    // OCR states
-    const [documentImage, setDocumentImage] = useState<string | null>(null);
-    const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+    // RFC Input states
+    const [rfcInput, setRfcInput] = useState('');
+    const [isConsultingRFC, setIsConsultingRFC] = useState(false);
 
     // Advisor states
     const [advisorName, setAdvisorName] = useState('');
@@ -83,169 +124,164 @@ export const LoginScreen: React.FC = () => {
         setUserConfirmPassword('');
         setFiscalData(null);
         setTermsAccepted(false);
-        setDocumentImage(null);
-        setIsProcessingOCR(false);
+        setRfcInput('');
+        setIsConsultingRFC(false);
         setUserLoginRfc('');
         setUserLoginPassword('');
         setIsUserRegistering(false);
+        setUserProfilePhoto(null);
     };
 
-    // Seleccionar imagen de la constancia fiscal
-    const pickFiscalDocument = async (fromCamera: boolean) => {
+    // Seleccionar foto de perfil del usuario
+    const pickUserProfilePhoto = async (fromCamera: boolean) => {
         try {
-            // Solicitar permisos
             if (fromCamera) {
                 const { status } = await ImagePicker.requestCameraPermissionsAsync();
                 if (status !== 'granted') {
-                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la camara para tomar la foto.');
+                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara para tomar la foto.');
                     return;
+                }
+                const result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    aspect: [1, 1],
+                    quality: 0.8,
+                });
+                if (!result.canceled && result.assets[0]) {
+                    setUserProfilePhoto(result.assets[0].uri);
                 }
             } else {
                 const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
                 if (status !== 'granted') {
-                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la galeria para seleccionar la imagen.');
+                    Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería para seleccionar la imagen.');
                     return;
                 }
-            }
-
-            if (fromCamera) {
-                const cameraResult = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    quality: 0.8,
-                });
-                if (!cameraResult.canceled && cameraResult.assets[0]) {
-                    setDocumentImage(cameraResult.assets[0].uri);
-                    processDocument(cameraResult.assets[0].uri);
-                }
-            } else {
                 const result = await ImagePicker.launchImageLibraryAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
                     allowsEditing: true,
+                    aspect: [1, 1],
                     quality: 0.8,
                 });
                 if (!result.canceled && result.assets[0]) {
-                    setDocumentImage(result.assets[0].uri);
-                    processDocument(result.assets[0].uri);
+                    setUserProfilePhoto(result.assets[0].uri);
                 }
             }
         } catch (error) {
-            console.error('Error picking image:', error);
+            console.error('Error picking profile photo:', error);
             Alert.alert('Error', 'No se pudo seleccionar la imagen.');
         }
     };
 
-    // Seleccionar archivo PDF
-    const pickPDFDocument = async () => {
-        try {
-            const result = await DocumentPicker.getDocumentAsync({
-                type: 'application/pdf',
-                copyToCacheDirectory: true,
-            });
-
-            if (!result.canceled && result.assets && result.assets[0]) {
-                const asset = result.assets[0];
-                setDocumentImage(asset.uri);
-                processDocument(asset.uri, true);
-            }
-        } catch (error) {
-            console.error('Error picking PDF:', error);
-            Alert.alert('Error', 'No se pudo seleccionar el archivo PDF.');
-        }
+    // Mostrar opciones para foto de perfil
+    const showPhotoOptions = () => {
+        Alert.alert(
+            'Foto de Perfil',
+            'Selecciona una opción',
+            [
+                { text: 'Cámara', onPress: () => pickUserProfilePhoto(true) },
+                { text: 'Galería', onPress: () => pickUserProfilePhoto(false) },
+                { text: 'Cancelar', style: 'cancel' },
+            ]
+        );
     };
 
-    // Procesar documento con OCR
-    const processDocument = async (imageUri: string, isPDF: boolean = false) => {
-        setIsProcessingOCR(true);
+    // Consultar RFC usando API CheckId
+    const consultarRFCCheckId = async () => {
+        const termino = rfcInput.trim().toUpperCase();
+
+        // Validar formato: RFC (12-13 chars)
+        if (termino.length < 12 || termino.length > 13) {
+            Alert.alert('Error', 'Ingrese un RFC válido (12-13 caracteres)');
+            return;
+        }
+
+        setIsConsultingRFC(true);
 
         try {
-            const result = await api.uploadFiscalDocument(imageUri, isPDF);
+            const result = await api.consultarRFC(termino);
 
             if (result.error) {
-                if (result.error.includes('calidad') || result.error.includes('clara')) {
-                    Alert.alert(
-                        'Imagen no clara',
-                        result.error,
-                        [
-                            { text: 'Cancelar', style: 'cancel', onPress: () => setDocumentImage(null) },
-                            { text: 'Tomar otra foto', onPress: () => pickFiscalDocument(true) },
-                            { text: 'Seleccionar otra', onPress: () => pickFiscalDocument(false) },
-                        ]
-                    );
-                } else {
-                    Alert.alert('Error', result.error);
-                    setDocumentImage(null);
-                }
+                Alert.alert('Error', result.error);
                 return;
             }
 
-            if (result.data?.success && result.data.data) {
-                const ocrData = result.data.data;
-
-                // Funcion para limpiar texto de etiquetas OCR residuales
-                const cleanOCRText = (text: string | null | undefined): string | null => {
-                    if (!text) return null;
-                    return text
-                        .replace(/^Nombre\s*(?:de\s*(?:la\s*)?)?(?:Vialidad|Colonia)[:\s]*/i, '')
-                        .replace(/^Calle[:\s]*/i, '')
-                        .replace(/^Colonia[:\s]*/i, '')
-                        .replace(/^Col\.[:\s]*/i, '')
-                        .replace(/^N[uú]mero\s*(?:Exterior|Interior)[:\s]*/i, '')
-                        .replace(/^No\.\s*(?:Ext|Int)[.:\s]*/i, '')
-                        .replace(/^Int\.[:\s]*/i, '')
-                        .replace(/^Ext\.[:\s]*/i, '')
-                        .replace(/^Municipio[:\s]*/i, '')
-                        .replace(/^(?:Demarcaci[oó]n\s*Territorial|Delegaci[oó]n|Alcald[ií]a)[:\s]*/i, '')
-                        .replace(/\s*o\s*Demarcaci[oó]n.*$/i, '')
-                        .replace(/\s+/g, ' ')
-                        .trim() || null;
-                };
-
-                // Construir domicilio completo con datos limpios
-                const calle = cleanOCRText(ocrData.domicilio?.calle);
-                const numExt = cleanOCRText(ocrData.domicilio?.numeroExterior);
-                const numInt = cleanOCRText(ocrData.domicilio?.numeroInterior);
-                const colonia = cleanOCRText(ocrData.domicilio?.colonia);
-                const municipio = cleanOCRText(ocrData.domicilio?.municipio);
-
-                const domicilioParts = [
-                    calle,
-                    numExt && `#${numExt}`,
-                    numInt && `Int. ${numInt}`,
-                    colonia && `Col. ${colonia}`,
-                    municipio,
-                ].filter(Boolean).join(', ');
-
-                // Limpiar nombre de artefactos OCR como "(s):"
-                const nombreLimpio = (ocrData.nombre || '')
-                    .replace(/^\s*\([sS]\)[:\s]*/g, '')
-                    .replace(/^\s*[sS]\s*\)[:\s]*/g, '')
-                    .trim();
-
-                setFiscalData({
-                    rfc: ocrData.rfc,
-                    curp: ocrData.curp,
-                    razonSocial: nombreLimpio,
-                    tipoPersona: ocrData.tipoPersona,
-                    regimenFiscal: ocrData.regimenFiscal,
-                    codigoPostal: ocrData.domicilio?.codigoPostal || null,
-                    estado: ocrData.domicilio?.estado || null,
-                    domicilioCompleto: domicilioParts || null,
-                    confianza: ocrData.confianza,
-                });
-
-                // No cambiar de vista automaticamente, el usuario hara clic en CONTINUAR
-            } else {
-                Alert.alert('Error', 'No se pudieron extraer los datos del documento.');
-                setDocumentImage(null);
+            if (!result.data) {
+                Alert.alert('Error', 'No se recibió respuesta del servidor');
+                return;
             }
 
+            const checkIdData = result.data;
+
+            // Manejar errores de CheckId
+            if (!checkIdData.exitoso) {
+                const errorCode = checkIdData.codigoError || '';
+                let errorMessage = 'Error al consultar datos fiscales';
+
+                if (errorCode === 'E100' || errorCode === 'E101') {
+                    errorMessage = 'Ingrese un RFC válido';
+                } else if (errorCode === 'E200' || errorCode === 'E202') {
+                    errorMessage = 'No se encontró información para este RFC';
+                } else if (errorCode === 'E201') {
+                    errorMessage = 'Error temporal, intente de nuevo';
+                } else if (errorCode.startsWith('E9')) {
+                    errorMessage = 'Servicio no disponible, contacte soporte';
+                } else if (checkIdData.error) {
+                    errorMessage = checkIdData.error;
+                }
+
+                Alert.alert('Error', errorMessage);
+                return;
+            }
+
+            // Mapear respuesta de CheckId a ExtendedFiscalData
+            const rfcData = checkIdData.resultado?.rfc;
+            const curpData = checkIdData.resultado?.curp;
+            const cpData = checkIdData.resultado?.codigoPostal;
+            const regimenData = checkIdData.resultado?.regimenFiscal;
+
+            if (!rfcData && !curpData) {
+                Alert.alert('Error', 'No se encontraron datos fiscales para este RFC');
+                return;
+            }
+
+            // Determinar tipo de persona por longitud de RFC
+            const rfcValue = rfcData?.rfc || termino;
+            const tipoPersona: 'fisica' | 'moral' = rfcValue.length === 13 ? 'fisica' : 'moral';
+
+            // Construir nombre/razón social
+            let razonSocial = rfcData?.razonSocial || '';
+            if (!razonSocial && curpData) {
+                razonSocial = [
+                    curpData.nombres,
+                    curpData.primerApellido,
+                    curpData.segundoApellido
+                ].filter(Boolean).join(' ');
+            }
+
+            // Obtener el código postal y derivar el estado
+            const codigoPostal = cpData?.codigoPostal || null;
+            const estado = getEstadoFromCP(codigoPostal);
+
+            setFiscalData({
+                rfc: rfcValue,
+                curp: rfcData?.curp || curpData?.curp || null,
+                razonSocial: razonSocial,
+                tipoPersona: tipoPersona,
+                regimenFiscal: regimenData?.regimenesFiscales || null,
+                codigoPostal: codigoPostal,
+                estado: estado,
+                domicilioCompleto: null,
+                confianza: 100, // Datos verificados del SAT
+            });
+
+            // Navegar directamente a pantalla de registro
+            setViewMode('USER_REGISTER');
+
         } catch (error: any) {
-            console.error('OCR Error:', error);
-            Alert.alert('Error', 'No se pudo procesar el documento. Intente de nuevo.');
-            setDocumentImage(null);
+            console.error('CheckId Error:', error);
+            Alert.alert('Error', 'No se pudo consultar los datos fiscales. Intente de nuevo.');
         } finally {
-            setIsProcessingOCR(false);
+            setIsConsultingRFC(false);
         }
     };
 
@@ -439,6 +475,16 @@ export const LoginScreen: React.FC = () => {
         setIsLoading(true);
 
         try {
+            // Subir foto de perfil si el usuario seleccionó una
+            let avatarUrl: string | null = null;
+            if (userProfilePhoto) {
+                const uploadResult = await api.uploadFile(userProfilePhoto, 'image');
+                if (uploadResult.data?.url) {
+                    avatarUrl = uploadResult.data.url;
+                }
+                // Si falla la subida de foto, continuar sin ella (es opcional)
+            }
+
             const result = await login(fiscalData.rfc, {
                 password: userPassword,
                 phone: userPhone,
@@ -447,12 +493,13 @@ export const LoginScreen: React.FC = () => {
                 termsAccepted: true,
                 isRegistration: true,
                 role: 'user',
-                // Campos adicionales del OCR
+                // Campos adicionales
                 curp: fiscalData.curp || null,
                 regimenFiscal: fiscalData.regimenFiscal || null,
                 codigoPostal: fiscalData.codigoPostal || null,
                 estado: fiscalData.estado || null,
                 domicilio: fiscalData.domicilioCompleto || null,
+                avatarUrl: avatarUrl,
             });
 
             if (!result.success) {
@@ -586,13 +633,19 @@ export const LoginScreen: React.FC = () => {
                 setViewMode('ROLE_SELECTION');
                 break;
             case 'USER_TERMS':
-                setDocumentImage(null);
+                setRfcInput('');
                 setFiscalData(null);
                 setViewMode('USER_LOGIN');
                 setIsUserRegistering(true);
                 break;
             case 'USER_REGISTER':
-                setViewMode('USER_TERMS');
+                setRfcInput('');
+                setFiscalData(null);
+                setViewMode('USER_LOGIN');
+                setIsUserRegistering(true);
+                break;
+            case 'USER_WELCOME':
+                setViewMode('USER_REGISTER');
                 break;
             default:
                 setViewMode('ROLE_SELECTION');
@@ -709,137 +762,93 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                                 </>
                             )}
 
-                            {/* Register mode - OCR Upload */}
+                            {/* Register mode - RFC Input */}
                             {isUserRegistering && (
                                 <>
-                                    {/* Title and description */}
-                                    <Text style={styles.uploadTitle}>
-                                        Suba su Constancia Fiscal
-                                    </Text>
-                                    <Text style={styles.uploadDescription}>
-                                        Documento del SAT en imagen o PDF
-                                    </Text>
+                                    {/* Subtítulo */}
+                                    <Text style={styles.registerSubtitle}>REGISTRE SU RFC</Text>
 
-                                    {isProcessingOCR ? (
+                                    {isConsultingRFC ? (
                                         <View style={styles.processingCard}>
                                             <View style={styles.processingSpinner}>
                                                 <ActivityIndicator size="large" color="#5474BC" />
                                             </View>
-                                            <Text style={styles.processingTitle}>Procesando documento</Text>
-                                            <Text style={styles.processingSubtitle}>Extrayendo datos fiscales...</Text>
-                                        </View>
-                                    ) : fiscalData ? (
-                                        <View style={styles.successCard}>
-                                            <View style={styles.successHeader}>
-                                                <View style={styles.successIconContainer}>
-                                                    <Ionicons name="checkmark-circle" size={28} color="#FFFFFF" />
-                                                </View>
-                                                <Text style={styles.successTitle}>Datos Extraidos</Text>
-                                            </View>
-                                            <View style={styles.successDataList}>
-                                                <View style={styles.successDataRow}>
-                                                    <Text style={styles.successDataLabel}>RFC</Text>
-                                                    <Text style={styles.successDataValue}>{fiscalData.rfc}</Text>
-                                                </View>
-                                                <View style={styles.successDataRow}>
-                                                    <Text style={styles.successDataLabel}>Nombre</Text>
-                                                    <Text style={styles.successDataValue} numberOfLines={2}>{fiscalData.razonSocial}</Text>
-                                                </View>
-                                                {fiscalData.curp && (
-                                                    <View style={styles.successDataRow}>
-                                                        <Text style={styles.successDataLabel}>CURP</Text>
-                                                        <Text style={styles.successDataValue}>{fiscalData.curp}</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                            <TouchableOpacity
-                                                style={styles.changeDocButton}
-                                                onPress={() => {
-                                                    setDocumentImage(null);
-                                                    setFiscalData(null);
-                                                }}
-                                            >
-                                                <Ionicons name="refresh" size={18} color="#5474BC" />
-                                                <Text style={styles.changeDocText}>Cambiar documento</Text>
-                                            </TouchableOpacity>
+                                            <Text style={styles.processingTitle}>Consultando datos</Text>
+                                            <Text style={styles.processingSubtitle}>Obteniendo información del SAT...</Text>
                                         </View>
                                     ) : (
-                                        <View style={styles.uploadOptionsVertical}>
-                                            {/* Upload Option - Camera */}
-                                            <TouchableOpacity
-                                                style={styles.uploadOptionRow}
-                                                onPress={() => pickFiscalDocument(true)}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={styles.uploadOptionIconBlue}>
-                                                    <Ionicons name="camera" size={24} color="#5474BC" />
-                                                </View>
-                                                <View style={styles.uploadOptionTextContainer}>
-                                                    <Text style={styles.uploadOptionRowTitle}>Tomar Foto</Text>
-                                                    <Text style={styles.uploadOptionRowDesc}>Usar la camara del dispositivo</Text>
-                                                </View>
-                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
-                                            </TouchableOpacity>
-
-                                            {/* Upload Option - Gallery */}
-                                            <TouchableOpacity
-                                                style={styles.uploadOptionRow}
-                                                onPress={() => pickFiscalDocument(false)}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={styles.uploadOptionIconBlue}>
-                                                    <Ionicons name="images" size={24} color="#5474BC" />
-                                                </View>
-                                                <View style={styles.uploadOptionTextContainer}>
-                                                    <Text style={styles.uploadOptionRowTitle}>Galeria</Text>
-                                                    <Text style={styles.uploadOptionRowDesc}>Seleccionar imagen existente</Text>
-                                                </View>
-                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
-                                            </TouchableOpacity>
-
-                                            {/* Upload Option - PDF */}
-                                            <TouchableOpacity
-                                                style={styles.uploadOptionRow}
-                                                onPress={pickPDFDocument}
-                                                activeOpacity={0.7}
-                                            >
-                                                <View style={styles.uploadOptionIconBlue}>
-                                                    <Ionicons name="document-text" size={24} color="#5474BC" />
-                                                </View>
-                                                <View style={styles.uploadOptionTextContainer}>
-                                                    <Text style={styles.uploadOptionRowTitle}>Archivo PDF</Text>
-                                                    <Text style={styles.uploadOptionRowDesc}>Seleccionar documento PDF</Text>
-                                                </View>
-                                                <Ionicons name="chevron-forward" size={20} color="#A0AEC0" />
-                                            </TouchableOpacity>
+                                        <View style={styles.rfcInputWithIcon}>
+                                            <Ionicons name="card-outline" size={24} color="#5474BC" style={styles.rfcInputIcon} />
+                                            <TextInput
+                                                style={styles.rfcInputField}
+                                                value={rfcInput}
+                                                onChangeText={(text) => setRfcInput(text.toUpperCase())}
+                                                placeholder="RFC"
+                                                placeholderTextColor="#A0AEC0"
+                                                autoCapitalize="characters"
+                                                maxLength={13}
+                                            />
+                                            {rfcInput.length > 0 && (
+                                                <TouchableOpacity onPress={() => setRfcInput('')}>
+                                                    <Ionicons name="close-circle" size={20} color="#A0AEC0" />
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                     )}
                                 </>
                             )}
 
-                            <GradientButton
-                                title={isUserRegistering ? 'CONTINUAR' : 'INICIAR SESION'}
-                                onPress={() => {
-                                    if (isUserRegistering) {
-                                        if (fiscalData) {
-                                            setViewMode('USER_TERMS');
-                                        } else {
-                                            Alert.alert('Error', 'Por favor suba su Constancia de Situacion Fiscal');
-                                        }
-                                    } else {
-                                        handleUserLogin();
-                                    }
-                                }}
-                                disabled={isLoading || (isUserRegistering && !fiscalData)}
-                                loading={isLoading}
-                                style={{ marginTop: 40 }}
-                            />
+                            {isUserRegistering ? (
+                                <>
+                                    {/* Botón outline para registro */}
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.outlineButton,
+                                            (isLoading || isConsultingRFC || rfcInput.trim().length < 12) && styles.outlineButtonDisabled
+                                        ]}
+                                        onPress={consultarRFCCheckId}
+                                        disabled={isLoading || isConsultingRFC || rfcInput.trim().length < 12}
+                                    >
+                                        {isConsultingRFC ? (
+                                            <ActivityIndicator size="small" color="#697CA3" />
+                                        ) : (
+                                            <Text style={styles.outlineButtonText}>INICIAR SESIÓN</Text>
+                                        )}
+                                    </TouchableOpacity>
+
+                                    {/* Términos y condiciones */}
+                                    <View style={styles.termsFooter}>
+                                        <View style={styles.termsCheckbox}>
+                                            <View style={styles.termsCheckboxCircle} />
+                                        </View>
+                                        <Text style={styles.termsFooterText}>
+                                            Al tocar "Aceptar y Continuar" a continuación, acepta los{' '}
+                                            <Text style={styles.termsFooterLink} onPress={() => setShowTermsModal(true)}>
+                                                Términos y Condiciones de Servicio
+                                            </Text>
+                                            , y reconoces que le leiste la{' '}
+                                            <Text style={styles.termsFooterLink} onPress={() => setShowTermsModal(true)}>
+                                                Política de Privacidad
+                                            </Text>
+                                            .
+                                        </Text>
+                                    </View>
+                                </>
+                            ) : (
+                                <GradientButton
+                                    title="INICIAR SESION"
+                                    onPress={handleUserLogin}
+                                    disabled={isLoading}
+                                    loading={isLoading}
+                                    style={{ marginTop: 40 }}
+                                />
+                            )}
 
                             <TouchableOpacity
                                 style={{ marginTop: 20, alignItems: 'center' }}
                                 onPress={() => {
                                     setIsUserRegistering(!isUserRegistering);
-                                    setDocumentImage(null);
+                                    setRfcInput('');
                                     setFiscalData(null);
                                     setUserLoginRfc('');
                                     setUserLoginPassword('');
@@ -859,87 +868,6 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
-            </View>
-        );
-    }
-
-    // USER DOCUMENT UPLOAD Screen
-    if (viewMode === 'USER_DOCUMENT_UPLOAD') {
-        return (
-            <View style={styles.container}>
-                <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../../assets/logo.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    <Text style={styles.welcomeText}>Registro de Usuario</Text>
-                    <Text style={styles.subtitleText}>Suba su Constancia de Situacion Fiscal</Text>
-
-                    <View style={styles.formSection}>
-                        {/* Instrucciones */}
-                        <View style={styles.instructionsCard}>
-                            <Ionicons name="document-text-outline" size={32} color="#5474BC" />
-                            <Text style={styles.instructionsTitle}>Constancia de Situacion Fiscal</Text>
-                            <Text style={styles.instructionsText}>
-                                Tome una foto clara de su Constancia de Situacion Fiscal del SAT.
-                                Asegurese de que el documento sea legible y este bien iluminado.
-                            </Text>
-                        </View>
-
-                        {/* Preview de imagen o botones */}
-                        {isProcessingOCR ? (
-                            <View style={styles.processingContainer}>
-                                <ActivityIndicator size="large" color="#5474BC" />
-                                <Text style={styles.processingText}>Procesando documento...</Text>
-                                <Text style={styles.processingSubtext}>Esto puede tardar unos segundos</Text>
-                            </View>
-                        ) : documentImage ? (
-                            <View style={styles.previewContainer}>
-                                <Image
-                                    source={{ uri: documentImage }}
-                                    style={styles.documentPreview}
-                                    resizeMode="contain"
-                                />
-                                <TouchableOpacity
-                                    style={styles.removeImageButton}
-                                    onPress={() => setDocumentImage(null)}
-                                >
-                                    <Ionicons name="close-circle" size={28} color="#E53E3E" />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <View style={styles.uploadButtonsContainer}>
-                                <TouchableOpacity
-                                    style={styles.uploadButton}
-                                    onPress={() => pickFiscalDocument(true)}
-                                >
-                                    <Ionicons name="camera-outline" size={32} color="#5474BC" />
-                                    <Text style={styles.uploadButtonText}>Tomar Foto</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={styles.uploadButton}
-                                    onPress={() => pickFiscalDocument(false)}
-                                >
-                                    <Ionicons name="images-outline" size={32} color="#5474BC" />
-                                    <Text style={styles.uploadButtonText}>Seleccionar de Galeria</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={goBack}
-                        >
-                            <Text style={styles.backButtonText}>Volver</Text>
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
             </View>
         );
     }
@@ -1149,75 +1077,192 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../../assets/logo.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    <Text style={styles.welcomeText}>Completa tu Registro</Text>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.label}>Número de Teléfono</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={userPhone}
-                            onChangeText={setUserPhone}
-                            placeholder="10 dígitos"
-                            placeholderTextColor="#A0AEC0"
-                            keyboardType="phone-pad"
-                            maxLength={10}
-                        />
-
-                        <Text style={styles.label}>Contraseña</Text>
-                        <View style={styles.passwordContainer}>
-                            <TextInput
-                                style={styles.passwordInput}
-                                value={userPassword}
-                                onChangeText={setUserPassword}
-                                secureTextEntry={!showPassword}
-                                placeholder="Mínimo 6 caracteres"
-                                placeholderTextColor="#A0AEC0"
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        {/* Logo */}
+                        <View style={styles.logoContainer}>
+                            <Image
+                                source={require('../../assets/logo.png')}
+                                style={styles.logoLarge}
+                                resizeMode="contain"
                             />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons
-                                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                                    size={20}
-                                    color="#697CA3"
+                        </View>
+
+                        <View style={styles.formSection}>
+                            {/* Nombre (solo lectura, viene del RFC) */}
+                            <Text style={styles.labelSmall}>Nombre</Text>
+                            <View style={styles.inputSimple}>
+                                <Text style={styles.inputSimpleText} numberOfLines={2}>
+                                    {fiscalData?.razonSocial || 'Sin nombre'}
+                                </Text>
+                            </View>
+
+                            <Text style={styles.labelSmall}>Telefono</Text>
+                            <TextInput
+                                style={styles.inputSimple}
+                                value={userPhone}
+                                onChangeText={setUserPhone}
+                                placeholder="55 5393 2100"
+                                placeholderTextColor="#A0AEC0"
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                            />
+
+                            <Text style={styles.labelSmall}>Contraseña</Text>
+                            <View style={styles.inputWithIconRight}>
+                                <TextInput
+                                    style={styles.inputWithIconField}
+                                    value={userPassword}
+                                    onChangeText={setUserPassword}
+                                    secureTextEntry={!showPassword}
+                                    placeholder="Contraseña"
+                                    placeholderTextColor="#A0AEC0"
                                 />
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                    <Ionicons
+                                        name="lock-closed-outline"
+                                        size={20}
+                                        color="#5474BC"
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <Text style={styles.labelSmall}>Confirmar contraseña</Text>
+                            <View style={styles.inputWithIconRight}>
+                                <TextInput
+                                    style={styles.inputWithIconField}
+                                    value={userConfirmPassword}
+                                    onChangeText={setUserConfirmPassword}
+                                    secureTextEntry={!showPassword}
+                                    placeholder="Confirmar contraseña"
+                                    placeholderTextColor="#A0AEC0"
+                                />
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                    <Ionicons
+                                        name="lock-closed-outline"
+                                        size={20}
+                                        color="#5474BC"
+                                    />
+                                </TouchableOpacity>
+                            </View>
+
+                            <GradientButton
+                                title="COMENZAR"
+                                onPress={() => {
+                                    // Validar campos antes de continuar
+                                    if (!userPhone || userPhone.length < 10) {
+                                        Alert.alert('Error', 'Ingrese un número de teléfono válido');
+                                        return;
+                                    }
+                                    if (!userPassword || userPassword.length < 6) {
+                                        Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+                                        return;
+                                    }
+                                    if (userPassword !== userConfirmPassword) {
+                                        Alert.alert('Error', 'Las contraseñas no coinciden');
+                                        return;
+                                    }
+                                    setViewMode('USER_WELCOME');
+                                }}
+                                disabled={isLoading}
+                                loading={isLoading}
+                                style={{ marginTop: 50 }}
+                            />
+
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={goBack}
+                            >
+                                <Text style={styles.backButtonText}>Volver</Text>
                             </TouchableOpacity>
                         </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+            </View>
+        );
+    }
 
-                        <Text style={styles.label}>Confirmar Contraseña</Text>
-                        <View style={styles.passwordContainer}>
-                            <TextInput
-                                style={styles.passwordInput}
-                                value={userConfirmPassword}
-                                onChangeText={setUserConfirmPassword}
-                                secureTextEntry={!showPassword}
-                                placeholder="Repita su contraseña"
-                                placeholderTextColor="#A0AEC0"
+    // USER WELCOME Screen - Pantalla de bienvenida con foto de perfil
+    if (viewMode === 'USER_WELCOME') {
+        return (
+            <View style={styles.container}>
+                <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+                <ScrollView contentContainerStyle={styles.welcomeScrollContent}>
+                    {/* Título */}
+                    <Text style={styles.welcomeTitleBold}>BIENVENIDO</Text>
+
+                    {/* Foto de Perfil editable */}
+                    <TouchableOpacity
+                        style={styles.welcomePhotoContainer}
+                        onPress={showPhotoOptions}
+                        activeOpacity={0.7}
+                    >
+                        {userProfilePhoto ? (
+                            <Image
+                                source={{ uri: userProfilePhoto }}
+                                style={styles.welcomePhotoImage}
                             />
+                        ) : (
+                            <View style={styles.welcomePhotoPlaceholder}>
+                                <Ionicons name="camera" size={32} color="#FFFFFF" />
+                            </View>
+                        )}
+                        <View style={styles.welcomePhotoBadge}>
+                            <Ionicons name="pencil" size={12} color="#FFFFFF" />
                         </View>
+                    </TouchableOpacity>
 
-                        <GradientButton
-                            title="REGISTRARME"
-                            onPress={handleUserRegister}
-                            disabled={isLoading}
-                            loading={isLoading}
-                            style={{ marginTop: 40 }}
-                        />
-
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={goBack}
-                        >
-                            <Text style={styles.backButtonText}>Volver</Text>
-                        </TouchableOpacity>
+                    {/* Razón Social */}
+                    <View style={styles.welcomeInfoCard}>
+                        <Text style={styles.welcomeInfoText} numberOfLines={2}>
+                            {fiscalData?.razonSocial || 'Sin nombre'}
+                        </Text>
+                        <Ionicons name="qr-code-outline" size={20} color="#5474BC" />
                     </View>
+
+                    {/* RFC */}
+                    <View style={styles.welcomeInfoCard}>
+                        <Text style={styles.welcomeInfoText}>
+                            {fiscalData?.rfc || ''}
+                        </Text>
+                        <Ionicons name="lock-closed-outline" size={20} color="#5474BC" />
+                    </View>
+
+                    {/* Logo Yaakob BE FREE */}
+                    <View style={styles.welcomeLogoContainer}>
+                        <Image
+                            source={require('../../assets/logo.png')}
+                            style={styles.welcomeLogoSmall}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.welcomeLogoText}>BE FREE</Text>
+                    </View>
+
+                    {/* Texto de seguridad */}
+                    <View style={styles.welcomeSecurityContainer}>
+                        <Ionicons name="shield-checkmark" size={20} color="#5474BC" />
+                        <Text style={styles.welcomeSecurityText}>
+                            Su registro a sido completado, su información se encuentra protegida por{' '}
+                            <Text style={styles.welcomeSecurityLink}>algoritmos criptográficos PQC</Text>
+                            , bajos los estatutos del{' '}
+                            <Text style={styles.welcomeSecurityLink}>Instituto de Nacional de Normas y Tecnología</Text>.
+                        </Text>
+                    </View>
+
+                    {/* Botón Siguiente */}
+                    <GradientButton
+                        title="SIGUIENTE"
+                        onPress={handleUserRegister}
+                        disabled={isLoading}
+                        loading={isLoading}
+                        style={{ marginTop: 30, marginHorizontal: 40 }}
+                    />
                 </ScrollView>
             </View>
         );
@@ -1228,8 +1273,15 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <View style={styles.logoContainer}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={styles.logoContainer}>
                         <Image
                             source={require('../../assets/logo.png')}
                             style={styles.logo}
@@ -1274,7 +1326,7 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                                 placeholderTextColor="#A0AEC0"
                             />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons name={showPassword ? "eye-off-outline" : "lock-closed"} size={20} color="#697CA3" />
+                                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#697CA3" />
                             </TouchableOpacity>
                         </View>
 
@@ -1413,6 +1465,7 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
+                </KeyboardAvoidingView>
             </View>
         );
     }
@@ -1422,58 +1475,66 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
         return (
             <View style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-                <View style={styles.content}>
-                    <View style={styles.logoContainer}>
-                        <Image
-                            source={require('../../assets/logo.png')}
-                            style={styles.logo}
-                            resizeMode="contain"
-                        />
-                    </View>
-
-                    <Text style={styles.welcomeText}>Bienvenido</Text>
-
-                    <View style={styles.formSection}>
-                        <Text style={styles.label}>Nombre</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={consultantName}
-                            onChangeText={setConsultantName}
-                            placeholder="Ingrese nombre"
-                            placeholderTextColor="#A0AEC0"
-                        />
-
-                        <Text style={styles.label}>Contraseña</Text>
-                        <View style={styles.passwordContainer}>
-                            <TextInput
-                                style={styles.passwordInput}
-                                value={consultantPassword}
-                                onChangeText={setConsultantPassword}
-                                secureTextEntry={!showPassword}
-                                placeholder="Ingrese contraseña"
-                                placeholderTextColor="#A0AEC0"
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={styles.logoContainer}>
+                            <Image
+                                source={require('../../assets/logo.png')}
+                                style={styles.logo}
+                                resizeMode="contain"
                             />
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                                <Ionicons name={showPassword ? "eye-off-outline" : "lock-closed"} size={20} color="#697CA3" />
-                            </TouchableOpacity>
                         </View>
 
-                        <GradientButton
-                            title="INICIAR SESIÓN"
-                            onPress={handleConsultantSubmit}
-                            disabled={isLoading}
-                            loading={isLoading}
-                            style={{ marginTop: 40 }}
-                        />
+                        <Text style={styles.welcomeText}>Bienvenido</Text>
 
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={goBack}
-                        >
-                            <Text style={styles.backButtonText}>Volver</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                        <View style={styles.formSection}>
+                            <Text style={styles.label}>Nombre</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={consultantName}
+                                onChangeText={setConsultantName}
+                                placeholder="Ingrese nombre"
+                                placeholderTextColor="#A0AEC0"
+                            />
+
+                            <Text style={styles.label}>Contraseña</Text>
+                            <View style={styles.passwordContainer}>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    value={consultantPassword}
+                                    onChangeText={setConsultantPassword}
+                                    secureTextEntry={!showPassword}
+                                    placeholder="Ingrese contraseña"
+                                    placeholderTextColor="#A0AEC0"
+                                />
+                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#697CA3" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <GradientButton
+                                title="INICIAR SESIÓN"
+                                onPress={handleConsultantSubmit}
+                                disabled={isLoading}
+                                loading={isLoading}
+                                style={{ marginTop: 40 }}
+                            />
+
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={goBack}
+                            >
+                                <Text style={styles.backButtonText}>Volver</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
+                </KeyboardAvoidingView>
             </View>
         );
     }
@@ -2129,6 +2190,347 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#5474BC',
         fontWeight: '600',
+    },
+    // Estilos para RFC Input
+    registerSubtitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#A0AEC0',
+        textAlign: 'center',
+        letterSpacing: 1,
+        marginBottom: 32,
+        textTransform: 'uppercase',
+    },
+    rfcInputWithIcon: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+        height: 56,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#FFFFFF',
+        marginBottom: 20,
+    },
+    rfcInputIcon: {
+        marginRight: 12,
+    },
+    rfcInputField: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#1A2138',
+        letterSpacing: 0.5,
+    },
+    outlineButton: {
+        width: '100%',
+        height: 56,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        marginTop: 10,
+    },
+    outlineButtonDisabled: {
+        opacity: 0.6,
+    },
+    outlineButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#697CA3',
+        letterSpacing: 0.5,
+    },
+    termsFooter: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginTop: 40,
+        paddingHorizontal: 10,
+    },
+    termsCheckbox: {
+        marginRight: 10,
+        marginTop: 2,
+    },
+    termsCheckboxCircle: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        backgroundColor: '#FFFFFF',
+    },
+    termsFooterText: {
+        flex: 1,
+        fontSize: 11,
+        color: '#9CA3AF',
+        lineHeight: 16,
+    },
+    termsFooterLink: {
+        color: '#5474BC',
+        fontWeight: '500',
+    },
+    rfcInputHeader: {
+        alignItems: 'center',
+        marginBottom: 32,
+    },
+    rfcIconContainer: {
+        width: 72,
+        height: 72,
+        borderRadius: 20,
+        backgroundColor: '#EBF4FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    rfcInputContainer: {
+        marginBottom: 10,
+    },
+    rfcInput: {
+        width: '100%',
+        height: 60,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 30,
+        paddingHorizontal: 24,
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#1A2138',
+        backgroundColor: '#F8FAFC',
+        textAlign: 'center',
+        letterSpacing: 1,
+    },
+    rfcInputHelp: {
+        fontSize: 13,
+        color: '#A0AEC0',
+        textAlign: 'center',
+        marginTop: 12,
+        lineHeight: 18,
+    },
+    // Estilos para foto de perfil
+    profilePhotoContainer: {
+        alignSelf: 'center',
+        marginBottom: 24,
+        position: 'relative',
+    },
+    profilePhotoImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#F1F5F9',
+    },
+    profilePhotoPlaceholder: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#F1F5F9',
+        borderWidth: 2,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    profilePhotoText: {
+        fontSize: 12,
+        color: '#A0AEC0',
+        marginTop: 4,
+    },
+    removePhotoButton: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+    },
+    // Estilos para foto de perfil centrada (pantalla registro)
+    profilePhotoContainerCentered: {
+        alignSelf: 'center',
+        marginBottom: 30,
+        position: 'relative',
+    },
+    profilePhotoLarge: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#5474BC',
+    },
+    profilePhotoPlaceholderLarge: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#A8BEE8',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editPhotoBadge: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#5474BC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 3,
+        borderColor: '#FFFFFF',
+    },
+    // Input de solo lectura
+    readOnlyInput: {
+        width: '100%',
+        minHeight: 50,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        backgroundColor: '#F8FAFC',
+        justifyContent: 'center',
+    },
+    readOnlyText: {
+        fontSize: 16,
+        color: '#1A2138',
+    },
+    // Estilos para pantalla de registro simplificada
+    logoLarge: {
+        width: 140,
+        height: 140,
+    },
+    labelSmall: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#5474BC',
+        marginBottom: 6,
+        marginTop: 16,
+    },
+    inputSimple: {
+        width: '100%',
+        height: 50,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        paddingHorizontal: 0,
+        fontSize: 16,
+        color: '#1A2138',
+        backgroundColor: 'transparent',
+        justifyContent: 'center',
+    },
+    inputSimpleText: {
+        fontSize: 16,
+        color: '#1A2138',
+    },
+    inputWithIconRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: '100%',
+        height: 50,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
+        backgroundColor: 'transparent',
+    },
+    inputWithIconField: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1A2138',
+        paddingHorizontal: 0,
+    },
+    // Estilos para pantalla USER_WELCOME
+    welcomeScrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 30,
+        paddingVertical: 60,
+        alignItems: 'center',
+    },
+    welcomeTitleBold: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#1A2138',
+        marginBottom: 30,
+        letterSpacing: 1,
+    },
+    welcomePhotoContainer: {
+        position: 'relative',
+        marginBottom: 40,
+    },
+    welcomePhotoImage: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#5474BC',
+    },
+    welcomePhotoPlaceholder: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: '#A8BEE8',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    welcomePhotoBadge: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#5474BC',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
+    welcomeInfoCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        marginBottom: 12,
+    },
+    welcomeInfoText: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#1A2138',
+        marginRight: 10,
+    },
+    welcomeLogoContainer: {
+        alignItems: 'center',
+        marginTop: 30,
+        marginBottom: 20,
+    },
+    welcomeLogoSmall: {
+        width: 80,
+        height: 80,
+    },
+    welcomeLogoText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#1A2138',
+        letterSpacing: 2,
+        marginTop: 4,
+    },
+    welcomeSecurityContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingHorizontal: 10,
+        marginTop: 20,
+    },
+    welcomeSecurityText: {
+        flex: 1,
+        fontSize: 10,
+        color: '#9CA3AF',
+        lineHeight: 14,
+        marginLeft: 8,
+    },
+    welcomeSecurityLink: {
+        color: '#5474BC',
+        fontWeight: '500',
     },
 });
 

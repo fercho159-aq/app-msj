@@ -1,13 +1,31 @@
 // Configuración de la API - Ahora usando HTTPS
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
 
+// Configuración de reintentos
+const RETRY_CONFIG = {
+    maxRetries: 3,
+    baseDelay: 1000, // 1 segundo
+    maxDelay: 10000, // 10 segundos máximo
+};
+
 interface ApiResponse<T> {
     data?: T;
     error?: string;
+    isNetworkError?: boolean;
 }
 
 // Tipos de rol de usuario
 export type UserRole = 'usuario' | 'asesor' | 'consultor';
+
+// Función para esperar con backoff exponencial
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const calculateBackoff = (attempt: number): number => {
+    const delay = RETRY_CONFIG.baseDelay * Math.pow(2, attempt);
+    // Agregar jitter (variación aleatoria) para evitar thundering herd
+    const jitter = delay * 0.2 * Math.random();
+    return Math.min(delay + jitter, RETRY_CONFIG.maxDelay);
+};
 
 class ApiClient {
     private baseUrl: string;
@@ -16,6 +34,33 @@ class ApiClient {
 
     constructor(baseUrl: string) {
         this.baseUrl = baseUrl;
+    }
+
+    // Método para probar la conectividad con el servidor
+    async testServerConnection(): Promise<{ success: boolean; latency?: number; error?: string }> {
+        const start = Date.now();
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+            const response = await fetch(`${this.baseUrl}/health`, {
+                method: 'GET',
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            const latency = Date.now() - start;
+
+            if (response.ok) {
+                return { success: true, latency };
+            }
+            return { success: false, error: `Server responded with ${response.status}` };
+        } catch (error: any) {
+            return {
+                success: false,
+                error: error.name === 'AbortError' ? 'Timeout' : 'Sin conexión al servidor',
+            };
+        }
     }
 
     setUserId(userId: string) {
@@ -36,15 +81,18 @@ class ApiClient {
 
     private async request<T>(
         endpoint: string,
-        options: RequestInit = {}
+        options: RequestInit = {},
+        retryCount: number = 0
     ): Promise<ApiResponse<T>> {
         const url = `${this.baseUrl}${endpoint}`;
-        console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
+
+        console.log(`🌐 API Request: ${options.method || 'GET'} ${url}${retryCount > 0 ? ` (intento ${retryCount + 1})` : ''}`);
 
         try {
             // Crear un AbortController para timeout
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+            const timeoutMs = retryCount > 0 ? 45000 : 30000; // Más tiempo en reintentos
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
             const response = await fetch(url, {
                 ...options,
@@ -62,6 +110,15 @@ class ApiClient {
 
             if (!response.ok) {
                 console.error('❌ API Error Response:', data);
+
+                // Reintentar en errores de servidor (5xx) pero no en errores de cliente (4xx)
+                if (response.status >= 500 && retryCount < RETRY_CONFIG.maxRetries) {
+                    const delay = calculateBackoff(retryCount);
+                    console.log(`⏳ Reintentando en ${Math.round(delay / 1000)}s...`);
+                    await wait(delay);
+                    return this.request<T>(endpoint, options, retryCount + 1);
+                }
+
                 return { error: data.error || 'Error en la solicitud' };
             }
 
@@ -71,17 +128,32 @@ class ApiClient {
                 message: error.message,
                 name: error.name,
                 url: url,
+                attempt: retryCount + 1,
             });
+
+            // Determinar si debemos reintentar
+            const isRetryable =
+                error.name === 'AbortError' ||
+                error.message?.includes('Network request failed') ||
+                error.message?.includes('Failed to fetch') ||
+                error.message?.includes('timeout');
+
+            if (isRetryable && retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = calculateBackoff(retryCount);
+                console.log(`⏳ Error de red, reintentando en ${Math.round(delay / 1000)}s...`);
+                await wait(delay);
+                return this.request<T>(endpoint, options, retryCount + 1);
+            }
 
             // Mensaje más descriptivo según el tipo de error
             let errorMessage = 'Error de conexión';
             if (error.name === 'AbortError') {
                 errorMessage = 'Tiempo de espera agotado. Verifica tu conexión a internet.';
             } else if (error.message?.includes('Network request failed')) {
-                errorMessage = `No se pudo conectar al servidor. URL: ${url}`;
+                errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión a internet.';
             }
 
-            return { error: errorMessage };
+            return { error: errorMessage, isNetworkError: true };
         }
     }
 
@@ -200,7 +272,7 @@ class ApiClient {
 
     // ==================== UPLOAD ====================
 
-    async uploadFile(fileUri: string, type: 'image' | 'video' | 'audio' | 'file') {
+    async uploadFile(fileUri: string, type: 'image' | 'video' | 'audio' | 'file', retryCount: number = 0): Promise<ApiResponse<{ url: string; filename: string; type: string }>> {
         if (!this.userId) return { error: 'No hay sesión activa' };
 
         try {
@@ -211,44 +283,71 @@ class ApiClient {
             const ext = match ? match[1] : '';
 
             let mimeType = 'application/octet-stream';
-            if (type === 'image') mimeType = `image/${ext === 'text' ? 'jpeg' : ext}`; // Simple fix for type
+            if (type === 'image') mimeType = `image/${ext === 'text' ? 'jpeg' : ext}`;
             else if (type === 'audio') mimeType = `audio/${ext}`;
             else if (type === 'video') mimeType = `video/${ext}`;
 
-            // En React Native la propiedad se llama uri, name, type
             formData.append('file', {
                 uri: fileUri,
                 name: filename,
                 type: mimeType,
             } as any);
 
-            // Endpoint específico para subir
             const url = `${this.baseUrl}/upload`;
+            console.log(`📤 Upload: ${url}${retryCount > 0 ? ` (intento ${retryCount + 1})` : ''}`);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s para uploads
 
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    // No establecer Content-Type manualmente, fetch lo hace con el boundary
-                },
                 body: formData,
+                signal: controller.signal,
             });
+
+            clearTimeout(timeoutId);
 
             const data = await response.json();
 
             if (!response.ok) {
+                // Reintentar en errores de servidor
+                if (response.status >= 500 && retryCount < RETRY_CONFIG.maxRetries) {
+                    const delay = calculateBackoff(retryCount);
+                    console.log(`⏳ Upload: reintentando en ${Math.round(delay / 1000)}s...`);
+                    await wait(delay);
+                    return this.uploadFile(fileUri, type, retryCount + 1);
+                }
                 return { error: data.error || 'Error al subir archivo' };
             }
 
-            return { data }; // data contiene { url, filename, type }
+            return { data };
         } catch (error: any) {
-            console.error('Upload Error:', error);
-            return { error: error.message || 'Error de subida' };
+            console.error('❌ Upload Error:', error);
+
+            // Reintentar en errores de red
+            const isRetryable =
+                error.name === 'AbortError' ||
+                error.message?.includes('Network request failed');
+
+            if (isRetryable && retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = calculateBackoff(retryCount);
+                console.log(`⏳ Upload: error de red, reintentando en ${Math.round(delay / 1000)}s...`);
+                await wait(delay);
+                return this.uploadFile(fileUri, type, retryCount + 1);
+            }
+
+            return {
+                error: error.name === 'AbortError'
+                    ? 'Tiempo de espera agotado al subir archivo'
+                    : 'Error de conexión al subir archivo',
+                isNetworkError: true,
+            };
         }
     }
 
     // ==================== OCR FISCAL ====================
 
-    async uploadFiscalDocument(fileUri: string, isPDF: boolean = false): Promise<ApiResponse<{ success: boolean; data: FiscalDataOCR }>> {
+    async uploadFiscalDocument(fileUri: string, isPDF: boolean = false, retryCount: number = 0): Promise<ApiResponse<{ success: boolean; data: FiscalDataOCR }>> {
         try {
             const formData = new FormData();
 
@@ -256,7 +355,6 @@ class ApiClient {
             const match = /\.(\w+)$/.exec(filename);
             const ext = match ? match[1].toLowerCase() : (isPDF ? 'pdf' : 'jpg');
 
-            // Determinar MIME type
             let mimeType = 'image/jpeg';
             if (ext === 'pdf') mimeType = 'application/pdf';
             else if (ext === 'png') mimeType = 'image/png';
@@ -269,9 +367,8 @@ class ApiClient {
             } as any);
 
             const url = `${this.baseUrl}/ocr/fiscal-document`;
-            console.log(`🔍 OCR Request: POST ${url} (${isPDF ? 'PDF' : 'Image'})`);
+            console.log(`🔍 OCR Request: POST ${url} (${isPDF ? 'PDF' : 'Image'})${retryCount > 0 ? ` (intento ${retryCount + 1})` : ''}`);
 
-            // Timeout mas largo para OCR (puede tardar 10+ segundos, PDFs pueden tardar mas)
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), isPDF ? 90000 : 60000);
 
@@ -287,6 +384,13 @@ class ApiClient {
             console.log(`✅ OCR Response:`, data.success ? 'Exito' : data.error);
 
             if (!response.ok) {
+                // Reintentar solo en errores de servidor
+                if (response.status >= 500 && retryCount < RETRY_CONFIG.maxRetries) {
+                    const delay = calculateBackoff(retryCount);
+                    console.log(`⏳ OCR: reintentando en ${Math.round(delay / 1000)}s...`);
+                    await wait(delay);
+                    return this.uploadFiscalDocument(fileUri, isPDF, retryCount + 1);
+                }
                 return { error: data.error || 'Error al procesar documento' };
             }
 
@@ -294,11 +398,21 @@ class ApiClient {
         } catch (error: any) {
             console.error('❌ OCR Error:', error);
 
-            if (error.name === 'AbortError') {
-                return { error: 'El procesamiento tardo demasiado. Por favor intente con una imagen mas clara o un PDF mas pequeno.' };
+            // Reintentar en errores de red (pero no en timeout de OCR que puede ser legítimo)
+            const isRetryable = error.message?.includes('Network request failed');
+
+            if (isRetryable && retryCount < RETRY_CONFIG.maxRetries) {
+                const delay = calculateBackoff(retryCount);
+                console.log(`⏳ OCR: error de red, reintentando en ${Math.round(delay / 1000)}s...`);
+                await wait(delay);
+                return this.uploadFiscalDocument(fileUri, isPDF, retryCount + 1);
             }
 
-            return { error: error.message || 'Error al procesar documento fiscal' };
+            if (error.name === 'AbortError') {
+                return { error: 'El procesamiento tardó demasiado. Por favor intente con una imagen más clara o un PDF más pequeño.' };
+            }
+
+            return { error: 'Error de conexión al procesar documento', isNetworkError: true };
         }
     }
 
@@ -415,6 +529,57 @@ class ApiClient {
             body: JSON.stringify({ name, color, icon }),
         });
     }
+
+    // ==================== CHECKID API ====================
+
+    async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {
+        const CHECKID_API_KEY = 'ewXxGI3XHrCJn41umWcaCGQLXTFn/sbk/EMeptuIuCI=';
+        const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
+
+        try {
+            console.log(`🔍 CheckId Request: POST ${CHECKID_URL}`);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            const response = await fetch(CHECKID_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    apiKey: CHECKID_API_KEY,
+                    terminoBusqueda: terminoBusqueda.toUpperCase().trim(),
+                    obtenerRFC: true,
+                    obtenerCURP: true,
+                    obtenerCodigoPostal: true,
+                    obtenerRegimenFiscal: true,
+                    obtenerNSS: false,
+                    obtenerEstado69o69B: false,
+                }),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            console.log(`✅ CheckId Response:`, data.exitoso ? 'Exitoso' : data.error);
+
+            if (!response.ok) {
+                return { error: data.error || 'Error al consultar RFC' };
+            }
+
+            return { data };
+        } catch (error: any) {
+            console.error('❌ CheckId Error:', error);
+
+            if (error.name === 'AbortError') {
+                return { error: 'Tiempo de espera agotado. Intente de nuevo.' };
+            }
+
+            return { error: 'Error de conexión al consultar RFC', isNetworkError: true };
+        }
+    }
 }
 
 // Tipos
@@ -499,6 +664,39 @@ export interface FiscalDataOCR {
     fechaInicioOperaciones: string | null;
     estatusRFC: string | null;
     confianza: number;
+}
+
+// Interfaz para respuesta de CheckId API
+export interface CheckIdResponse {
+    exitoso: boolean;
+    codigoError: string | null;
+    error: string | null;
+    resultado: {
+        rfc: {
+            rfc: string;
+            razonSocial: string;
+            valido: boolean;
+            curp: string;
+        } | null;
+        curp: {
+            curp: string;
+            nombres: string;
+            primerApellido: string;
+            segundoApellido: string;
+        } | null;
+        codigoPostal: {
+            codigoPostal: string;
+        } | null;
+        regimenFiscal: {
+            regimenesFiscales: string;
+        } | null;
+        nss: {
+            nss: string;
+        } | null;
+        estado69o69B: {
+            conProblema: boolean;
+        } | null;
+    };
 }
 
 // Exportar instancia única

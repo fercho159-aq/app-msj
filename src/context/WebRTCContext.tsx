@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 import { ICE_SERVERS, MEDIA_CONSTRAINTS, SDP_CONSTRAINTS } from '../config/webrtc';
-import { spreedService } from '../services/spreedService';
+import { socketService } from '../services/socketService';
 
 // Importación condicional de WebRTC para React Native
 // En web usamos las APIs nativas del navegador
@@ -100,18 +100,17 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const remoteUserIdRef = useRef<string | null>(null);
 
-  // Obtener configuración ICE combinada (servidores estáticos + dinámicos de Spreed)
+  // Obtener configuración ICE (solo servidores estáticos)
   const getIceConfiguration = useCallback((): RTCConfiguration => {
-    const dynamicServers = spreedService.iceServers;
     // Filtrar servidores con URLs vacías que causan error en PeerConnection
-    const allServers = [...(ICE_SERVERS.iceServers || []), ...dynamicServers].filter(server => {
+    const filteredServers = (ICE_SERVERS.iceServers || []).filter(server => {
       if (!server.urls) return false;
       if (Array.isArray(server.urls) && server.urls.length === 0) return false;
       return true;
     });
     return {
       ...ICE_SERVERS,
-      iceServers: allServers,
+      iceServers: filteredServers,
     };
   }, []);
 
@@ -131,8 +130,8 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // Manejar ICE candidates
       pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate && remoteUserIdRef.current) {
-          console.log('[WebRTC] Enviando ICE candidate');
-          spreedService.sendCandidate(remoteUserIdRef.current, event.candidate);
+          console.log('[WebRTC] Enviando ICE candidate via Socket.io');
+          socketService.sendIceCandidate(remoteUserIdRef.current, event.candidate.toJSON());
         }
       };
 
@@ -348,9 +347,9 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const endCall = useCallback(() => {
     console.log('[WebRTC] Terminando llamada');
 
-    // Enviar Bye si hay usuario remoto
+    // Enviar fin de llamada via Socket.io si hay usuario remoto
     if (remoteUserIdRef.current) {
-      spreedService.sendBye(remoteUserIdRef.current);
+      socketService.endCall(remoteUserIdRef.current);
     }
 
     cleanup();
@@ -442,43 +441,8 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, []);
 
-  // Escuchar eventos de Spreed para WebRTC
-  useEffect(() => {
-    const handleSpreedAnswer = async (data: { from: string; sdp: string; type: string }) => {
-      if (data.sdp) {
-        await handleAnswer({ type: data.type as RTCSdpType, sdp: data.sdp });
-      }
-    };
-
-    const handleSpreedCandidate = async (data: {
-      from: string;
-      candidate: string;
-      sdpMLineIndex: number;
-      sdpMid: string;
-    }) => {
-      if (data.candidate) {
-        await handleCandidate({
-          candidate: data.candidate,
-          sdpMLineIndex: data.sdpMLineIndex,
-          sdpMid: data.sdpMid,
-        });
-      }
-    };
-
-    const handleSpreedBye = () => {
-      cleanup();
-    };
-
-    spreedService.on('answer', handleSpreedAnswer);
-    spreedService.on('candidate', handleSpreedCandidate);
-    spreedService.on('bye', handleSpreedBye);
-
-    return () => {
-      spreedService.off('answer', handleSpreedAnswer);
-      spreedService.off('candidate', handleSpreedCandidate);
-      spreedService.off('bye', handleSpreedBye);
-    };
-  }, [handleAnswer, handleCandidate, cleanup]);
+  // Nota: Los eventos de señalización (answer, candidate, bye) son manejados
+  // por CallContext a través de Socket.io, no aquí en WebRTCContext
 
   // Cleanup al desmontar
   useEffect(() => {
