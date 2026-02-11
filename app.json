@@ -12,7 +12,7 @@
       "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.fernandotrejo.consultora",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -59,11 +59,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "f41b62dd-b165-4377-aaf5-0bd6585d793e"
+        "projectId": "efc8aa09-d475-421c-a86c-a5311777e3dc"
       },
       "EXPO_PUBLIC_API_URL": "https://appsoluciones.duckdns.org/api",
       "EXPO_PUBLIC_SPREED_WS_URL": "wss://calls.mawsoluciones.com/ws"
     },
-    "owner": "fernandotrejo"
+    "owner": "maestrosdelmediamdm"
   }
 }

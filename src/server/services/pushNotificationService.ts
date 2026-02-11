@@ -187,6 +187,7 @@ class PushNotificationService {
     // Método privado para enviar la notificación a Expo
     private async sendNotification(message: ExpoPushMessage): Promise<boolean> {
         try {
+            console.log(`📤 Enviando notificación push a token: ${message.to.substring(0, 30)}...`);
             const response = await fetch(this.EXPO_PUSH_URL, {
                 method: 'POST',
                 headers: {
@@ -198,6 +199,7 @@ class PushNotificationService {
             });
 
             const result = await response.json() as { data: ExpoPushTicket[] };
+            console.log(`📨 Respuesta de Expo Push:`, JSON.stringify(result));
 
             if (result.data && result.data.length > 0) {
                 const ticket = result.data[0];

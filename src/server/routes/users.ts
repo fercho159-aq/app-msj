@@ -49,18 +49,19 @@ router.post('/fiscal-data', async (req: Request, res: Response) => {
     }
 });
 
-// POST /api/users/push-token - Registrar push token para notificaciones
-router.post('/push-token', async (req: Request, res: Response) => {
+// POST /api/users/:id/push-token - Registrar push token para notificaciones
+router.post('/:id/push-token', async (req: Request, res: Response) => {
     try {
-        const { userId, pushToken } = req.body;
+        const { id } = req.params;
+        const { pushToken } = req.body;
 
-        if (!userId || !pushToken) {
+        if (!id || !pushToken) {
             return res.status(400).json({
                 error: 'userId y pushToken son requeridos'
             });
         }
 
-        const success = await pushNotificationService.savePushToken(userId, pushToken);
+        const success = await pushNotificationService.savePushToken(id, pushToken);
 
         if (success) {
             res.json({ success: true, message: 'Push token registrado' });

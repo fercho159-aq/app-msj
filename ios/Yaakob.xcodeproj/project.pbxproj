@@ -7,26 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		11AAD8D77844F1E5CE45B25D /* libPods-Yaakob.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 946785D29566741F57375E70 /* libPods-Yaakob.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		77AB239E5467D110C886FF4E /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E333C7C823FE20A420481B5 /* ExpoModulesProvider.swift */; };
+		7FB11D2011DE0A897F38755C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8B235F335A8A0D06B30CEE64 /* PrivacyInfo.xcprivacy */; };
+		91772D07F7139A8C596D58A6 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40AEAE44027E5862371B9F93 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		FCC2821592F30DD67E27B701 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 110FA97E1AF293CCC143FABE /* PrivacyInfo.xcprivacy */; };
+		FD9590B340771DDC707653D2 /* libPods-Yaakob.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0053572DCE405366075F5F09 /* libPods-Yaakob.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		110FA97E1AF293CCC143FABE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Yaakob/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		0053572DCE405366075F5F09 /* libPods-Yaakob.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Yaakob.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* Yaakob.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Yaakob.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Yaakob/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Yaakob/Info.plist; sourceTree = "<group>"; };
-		44542491C266E48E46673D98 /* Pods-Yaakob.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Yaakob.release.xcconfig"; path = "Target Support Files/Pods-Yaakob/Pods-Yaakob.release.xcconfig"; sourceTree = "<group>"; };
-		4E333C7C823FE20A420481B5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Yaakob/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		946785D29566741F57375E70 /* libPods-Yaakob.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Yaakob.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		40AEAE44027E5862371B9F93 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Yaakob/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		8B235F335A8A0D06B30CEE64 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = Yaakob/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A2BD4DFC83F99616C9A0A5BF /* Pods-Yaakob.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Yaakob.release.xcconfig"; path = "Target Support Files/Pods-Yaakob/Pods-Yaakob.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Yaakob/SplashScreen.storyboard; sourceTree = "<group>"; };
-		B9B99545D024D68E71B957F6 /* Pods-Yaakob.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Yaakob.debug.xcconfig"; path = "Target Support Files/Pods-Yaakob/Pods-Yaakob.debug.xcconfig"; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
+		D0577CC20D997339296D047F /* Pods-Yaakob.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Yaakob.debug.xcconfig"; path = "Target Support Files/Pods-Yaakob/Pods-Yaakob.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Yaakob/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Yaakob-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Yaakob-Bridging-Header.h"; path = "Yaakob/Yaakob-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,13 +37,21 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				11AAD8D77844F1E5CE45B25D /* libPods-Yaakob.a in Frameworks */,
+				FD9590B340771DDC707653D2 /* libPods-Yaakob.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		03F5BCF941B153640C55A7FC /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				BD12A6D71B78ED9C1AE977B7 /* Yaakob */,
+			);
+			name = ExpoModulesProviders;
+			sourceTree = "<group>";
+		};
 		13B07FAE1A68108700A75B9A /* Yaakob */ = {
 			isa = PBXGroup;
 			children = (
@@ -53,15 +61,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				110FA97E1AF293CCC143FABE /* PrivacyInfo.xcprivacy */,
-			);
-			name = Yaakob;
-			sourceTree = "<group>";
-		};
-		1B98E2D7216B06B2E7798192 /* Yaakob */ = {
-			isa = PBXGroup;
-			children = (
-				4E333C7C823FE20A420481B5 /* ExpoModulesProvider.swift */,
+				8B235F335A8A0D06B30CEE64 /* PrivacyInfo.xcprivacy */,
 			);
 			name = Yaakob;
 			sourceTree = "<group>";
@@ -70,9 +70,19 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				946785D29566741F57375E70 /* libPods-Yaakob.a */,
+				0053572DCE405366075F5F09 /* libPods-Yaakob.a */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		70C54C54BDA0BDED24A722C6 /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				D0577CC20D997339296D047F /* Pods-Yaakob.debug.xcconfig */,
+				A2BD4DFC83F99616C9A0A5BF /* Pods-Yaakob.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -89,8 +99,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				B5721E218BFB830DD946B1CD /* Pods */,
-				9C158E7D4A0DC342D77A8745 /* ExpoModulesProviders */,
+				70C54C54BDA0BDED24A722C6 /* Pods */,
+				03F5BCF941B153640C55A7FC /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -105,23 +115,6 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		9C158E7D4A0DC342D77A8745 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				1B98E2D7216B06B2E7798192 /* Yaakob */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
-		B5721E218BFB830DD946B1CD /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				B9B99545D024D68E71B957F6 /* Pods-Yaakob.debug.xcconfig */,
-				44542491C266E48E46673D98 /* Pods-Yaakob.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
@@ -129,6 +122,14 @@
 			);
 			name = Supporting;
 			path = Yaakob/Supporting;
+			sourceTree = "<group>";
+		};
+		BD12A6D71B78ED9C1AE977B7 /* Yaakob */ = {
+			isa = PBXGroup;
+			children = (
+				40AEAE44027E5862371B9F93 /* ExpoModulesProvider.swift */,
+			);
+			name = Yaakob;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -139,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Yaakob" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				9C63FC9D705F101D8931EFA8 /* [Expo] Configure project */,
+				EA96C4118AC25DE88BB09A13 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				E002D11DD3E075A3C89FC34D /* [CP] Embed Pods Frameworks */,
+				4F13C84BEA62A385E63797FA /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -195,7 +196,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				FCC2821592F30DD67E27B701 /* PrivacyInfo.xcprivacy in Resources */,
+				7FB11D2011DE0A897F38755C /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,6 +242,30 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
+		4F13C84BEA62A385E63797FA /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Yaakob/Pods-Yaakob-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/JitsiWebRTC/WebRTC.framework/WebRTC",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WebRTC.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Yaakob/Pods-Yaakob-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
 		800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -277,7 +302,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Yaakob/Pods-Yaakob-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		9C63FC9D705F101D8931EFA8 /* [Expo] Configure project */ = {
+		EA96C4118AC25DE88BB09A13 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -301,30 +326,6 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Yaakob/expo-configure-project.sh\"\n";
 		};
-		E002D11DD3E075A3C89FC34D /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Yaakob/Pods-Yaakob-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/JitsiWebRTC/WebRTC.framework/WebRTC",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/WebRTC.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Yaakob/Pods-Yaakob-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -333,7 +334,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				77AB239E5467D110C886FF4E /* ExpoModulesProvider.swift in Sources */,
+				91772D07F7139A8C596D58A6 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,13 +343,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = B9B99545D024D68E71B957F6 /* Pods-Yaakob.debug.xcconfig */;
+			baseConfigurationReference = D0577CC20D997339296D047F /* Pods-Yaakob.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Yaakob/Yaakob.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P89HV4VJ9C;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -372,20 +372,19 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Yaakob/Yaakob-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 44542491C266E48E46673D98 /* Pods-Yaakob.release.xcconfig */;
+			baseConfigurationReference = A2BD4DFC83F99616C9A0A5BF /* Pods-Yaakob.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Yaakob/Yaakob.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = P89HV4VJ9C;
 				INFOPLIST_FILE = Yaakob/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -403,7 +402,7 @@
 				PRODUCT_NAME = Yaakob;
 				SWIFT_OBJC_BRIDGING_HEADER = "Yaakob/Yaakob-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = "1";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
