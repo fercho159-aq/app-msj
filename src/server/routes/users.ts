@@ -61,7 +61,7 @@ router.post('/:id/push-token', async (req: Request, res: Response) => {
             });
         }
 
-        const success = await pushNotificationService.savePushToken(id, pushToken);
+        const success = await pushNotificationService.savePushToken(id as string, pushToken);
 
         if (success) {
             res.json({ success: true, message: 'Push token registrado' });
