@@ -67,7 +67,7 @@ const SettingItem: React.FC<SettingItemProps> = ({
 );
 
 export const SettingsScreen: React.FC = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, deleteAccount } = useAuth();
     const { colors, gradients, isDark } = useTheme();
     const navigation = useNavigation<SettingsNavigationProp>();
 
@@ -82,6 +82,39 @@ export const SettingsScreen: React.FC = () => {
                     style: 'destructive',
                     onPress: async () => {
                         await logout();
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleDeleteAccount = () => {
+        Alert.alert(
+            'Eliminar cuenta',
+            '¿Estás seguro de que deseas eliminar tu cuenta? Esta acción es permanente y se borrarán todos tus datos.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar cuenta',
+                    style: 'destructive',
+                    onPress: () => {
+                        Alert.alert(
+                            'Confirmar eliminación',
+                            'Esta acción no se puede deshacer. ¿Deseas continuar?',
+                            [
+                                { text: 'No, conservar mi cuenta', style: 'cancel' },
+                                {
+                                    text: 'Sí, eliminar',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        const result = await deleteAccount();
+                                        if (!result.success) {
+                                            Alert.alert('Error', result.error || 'No se pudo eliminar la cuenta. Intenta de nuevo.');
+                                        }
+                                    },
+                                },
+                            ]
+                        );
                     },
                 },
             ]
@@ -214,6 +247,21 @@ export const SettingsScreen: React.FC = () => {
                             icon="log-out-outline"
                             title="Cerrar sesión"
                             onPress={handleLogout}
+                            showArrow={false}
+                            danger
+                            colors={colors}
+                        />
+                    </View>
+                </View>
+
+                {/* Delete Account */}
+                <View style={styles.section}>
+                    <View style={[styles.sectionContent, { backgroundColor: colors.surface }]}>
+                        <SettingItem
+                            icon="trash-outline"
+                            title="Eliminar cuenta"
+                            subtitle="Elimina permanentemente tu cuenta y datos"
+                            onPress={handleDeleteAccount}
                             showArrow={false}
                             danger
                             colors={colors}

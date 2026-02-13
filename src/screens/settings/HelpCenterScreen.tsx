@@ -49,12 +49,11 @@ const FaqItem: React.FC<FaqItemProps> = ({ question, answer }) => {
 
 export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }) => {
     const handleEmailSupport = () => {
-        Linking.openURL('mailto:soporte@tuapp.com');
+        Linking.openURL('mailto:contacto@yaakob.com');
     };
 
-    const handleWhatsappSupport = () => {
-        // Asumiendo un número genérico para el ejemplo
-        Linking.openURL('https://wa.me/5215555555555');
+    const handleWebSupport = () => {
+        Linking.openURL('https://www.yaakob.com/soporte');
     };
 
     return (
@@ -84,11 +83,11 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({ navigation }
                             <Text style={styles.contactButtonText}>Email</Text>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.contactButton} onPress={handleWhatsappSupport}>
-                            <View style={[styles.iconContainer, { backgroundColor: '#E8F5E9' }]}>
-                                <Ionicons name="logo-whatsapp" size={24} color="#2E7D32" />
+                        <TouchableOpacity style={styles.contactButton} onPress={handleWebSupport}>
+                            <View style={[styles.iconContainer, { backgroundColor: '#FFF3E0' }]}>
+                                <Ionicons name="globe-outline" size={24} color="#E65100" />
                             </View>
-                            <Text style={styles.contactButtonText}>WhatsApp</Text>
+                            <Text style={styles.contactButtonText}>Soporte Web</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

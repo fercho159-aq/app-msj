@@ -32,6 +32,34 @@ import { api, Message, Chat, User } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
 
+/**
+ * Genera barras de waveform pseudo-aleatorias determinísticas a partir de un ID.
+ * Siempre retorna el mismo patrón para el mismo ID.
+ */
+const generateWaveformBars = (messageId: string, barCount: number = 35): number[] => {
+    const bars: number[] = [];
+    let hash = 0;
+    for (let i = 0; i < messageId.length; i++) {
+        const char = messageId.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash |= 0;
+    }
+    for (let i = 0; i < barCount; i++) {
+        hash = ((hash << 5) - hash) + i;
+        hash |= 0;
+        const normalized = (Math.abs(hash % 75) + 25) / 100; // Rango: 0.25 a 1.0
+        bars.push(normalized);
+    }
+    return bars;
+};
+
+const formatAudioDuration = (millis: number): string => {
+    const totalSeconds = Math.floor(millis / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 type ChatScreenRouteProp = RouteProp<RootStackParamList, 'Chat'>;
 type ChatScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
 
@@ -73,16 +101,48 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 
     const mediaUrl = getAbsoluteMediaUrl(message.mediaUrl);
 
+    // ===== Audio state =====
     const [sound, setSound] = useState<Audio.Sound | null>(null);
+    const soundRef = useRef<Audio.Sound | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+    const [playbackPosition, setPlaybackPosition] = useState(0);
+    const [playbackDuration, setPlaybackDuration] = useState(0);
+    const [waveformWidth, setWaveformWidth] = useState(200);
+    const waveformBars = useRef(
+        message.type === 'audio' ? generateWaveformBars(message.id) : []
+    ).current;
 
     useEffect(() => {
         return () => {
-            if (sound) {
-                sound.unloadAsync();
-            }
+            soundRef.current?.unloadAsync();
         };
-    }, [sound]);
+    }, []);
+
+    const setupPlaybackStatusUpdate = (soundInstance: Audio.Sound) => {
+        soundInstance.setOnPlaybackStatusUpdate((status) => {
+            if (status.isLoaded) {
+                setPlaybackPosition(status.positionMillis || 0);
+                if (status.durationMillis) {
+                    setPlaybackDuration(status.durationMillis);
+                }
+                if (status.didJustFinish) {
+                    setIsPlaying(false);
+                    setPlaybackPosition(0);
+                    soundInstance.setPositionAsync(0);
+                }
+            }
+        });
+    };
+
+    const ensurePlaybackMode = async () => {
+        await Audio.setAudioModeAsync({
+            allowsRecordingIOS: false,
+            playsInSilentModeIOS: true,
+            staysActiveInBackground: false,
+            shouldDuckAndroid: true,
+            playThroughEarpieceAndroid: false,
+        });
+    };
 
     const playSound = async () => {
         try {
@@ -91,32 +151,66 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
                     await sound.pauseAsync();
                     setIsPlaying(false);
                 } else {
+                    await ensurePlaybackMode();
                     await sound.playAsync();
                     setIsPlaying(true);
                 }
             } else {
                 if (!mediaUrl) return;
+                await ensurePlaybackMode();
                 const { sound: newSound } = await Audio.Sound.createAsync(
                     { uri: mediaUrl },
                     { shouldPlay: true }
                 );
+                soundRef.current = newSound;
                 setSound(newSound);
                 setIsPlaying(true);
 
-                newSound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded) {
-                        if (status.didJustFinish) {
-                            setIsPlaying(false);
-                            newSound.setPositionAsync(0);
-                        }
-                    }
-                });
+                const status = await newSound.getStatusAsync();
+                if (status.isLoaded && status.durationMillis) {
+                    setPlaybackDuration(status.durationMillis);
+                }
+
+                setupPlaybackStatusUpdate(newSound);
             }
         } catch (error) {
             console.error('Error playing sound', error);
             Alert.alert('Error', 'No se pudo reproducir el audio');
         }
     };
+
+    const handleSeek = async (ratio: number) => {
+        if (!sound || playbackDuration <= 0) {
+            // Si no hay sound todavía, cargarlo primero
+            if (!mediaUrl) return;
+            try {
+                await ensurePlaybackMode();
+                const { sound: newSound } = await Audio.Sound.createAsync(
+                    { uri: mediaUrl },
+                    { shouldPlay: false }
+                );
+                soundRef.current = newSound;
+                setSound(newSound);
+
+                const status = await newSound.getStatusAsync();
+                if (status.isLoaded && status.durationMillis) {
+                    setPlaybackDuration(status.durationMillis);
+                    const seekPosition = ratio * status.durationMillis;
+                    await newSound.setPositionAsync(seekPosition);
+                    setPlaybackPosition(seekPosition);
+                }
+                setupPlaybackStatusUpdate(newSound);
+            } catch (error) {
+                console.error('Error seeking audio', error);
+            }
+            return;
+        }
+        const seekPosition = ratio * playbackDuration;
+        await sound.setPositionAsync(seekPosition);
+        setPlaybackPosition(seekPosition);
+    };
+
+    const progress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
     return (
         <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
@@ -141,17 +235,63 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 
                 {message.type === 'audio' && (
                     <View style={styles.audioContainer}>
-                        <TouchableOpacity onPress={playSound} style={styles.playButton}>
+                        <TouchableOpacity
+                            onPress={playSound}
+                            style={[
+                                styles.playButton,
+                                {
+                                    backgroundColor: isOwn
+                                        ? 'rgba(255,255,255,0.2)'
+                                        : `${colors.primary}15`,
+                                },
+                            ]}
+                        >
                             <Ionicons
-                                name={isPlaying ? "pause" : "play"}
-                                size={24}
+                                name={isPlaying ? 'pause' : 'play'}
+                                size={22}
                                 color={isOwn ? '#ffffff' : colors.primary}
+                                style={!isPlaying ? { marginLeft: 3 } : undefined}
                             />
                         </TouchableOpacity>
-                        <View style={styles.audioWaveform}>
-                            <View style={[styles.audioLine, { backgroundColor: isOwn ? 'rgba(255,255,255,0.5)' : colors.border }]} />
-                            <Text style={[styles.audioText, { color: isOwn ? '#ffffff' : colors.textPrimary }]}>
-                                Mensaje de voz
+
+                        <View style={styles.audioWaveformArea}>
+                            <TouchableOpacity
+                                activeOpacity={0.8}
+                                onPress={(event) => {
+                                    const seekRatio = Math.max(0, Math.min(1, event.nativeEvent.locationX / waveformWidth));
+                                    handleSeek(seekRatio);
+                                }}
+                                onLayout={(e) => setWaveformWidth(e.nativeEvent.layout.width)}
+                                style={styles.waveformContainer}
+                            >
+                                {waveformBars.map((height, index) => {
+                                    const barProgress = index / waveformBars.length;
+                                    const isFilled = barProgress <= progress;
+                                    return (
+                                        <View
+                                            key={index}
+                                            style={{
+                                                width: 3,
+                                                height: height * 28,
+                                                minHeight: 3,
+                                                borderRadius: 1.5,
+                                                backgroundColor: isFilled
+                                                    ? (isOwn ? '#ffffff' : colors.primary)
+                                                    : (isOwn ? 'rgba(255,255,255,0.3)' : `${colors.primary}30`),
+                                            }}
+                                        />
+                                    );
+                                })}
+                            </TouchableOpacity>
+
+                            <Text style={[
+                                styles.audioDuration,
+                                { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textMuted },
+                            ]}>
+                                {isPlaying || playbackPosition > 0
+                                    ? formatAudioDuration(playbackPosition)
+                                    : (playbackDuration > 0 ? formatAudioDuration(playbackDuration) : '0:00')
+                                }
                             </Text>
                         </View>
                     </View>
@@ -535,10 +675,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const [recordingDuration, setRecordingDuration] = useState('00:00');
 
     const handleVoice = async () => {
-        if (recording) {
-            await stopRecording();
-        } else {
-            await startRecording();
+        try {
+            if (recording) {
+                await stopRecording();
+            } else {
+                await startRecording();
+            }
+        } catch (err) {
+            console.error('Error en handleVoice:', err);
+            setRecording(null);
+            setIsRecording(false);
+            setRecordingDuration('00:00');
         }
     };
 
@@ -553,29 +700,58 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             await Audio.setAudioModeAsync({
                 allowsRecordingIOS: true,
                 playsInSilentModeIOS: true,
+                staysActiveInBackground: false,
+                shouldDuckAndroid: true,
+                playThroughEarpieceAndroid: false,
             });
 
-            const { recording } = await Audio.Recording.createAsync(
-                Audio.RecordingOptionsPresets.HIGH_QUALITY,
-                (status) => {
-                    if (status.canRecord) {
-                        const durationMillis = status.durationMillis;
-                        const seconds = Math.floor(durationMillis / 1000);
-                        const minutes = Math.floor(seconds / 60);
-                        const remainingSeconds = seconds % 60;
-                        setRecordingDuration(
-                            `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-                        );
-                    }
-                },
-                200 // Update every 200ms
-            );
+            // Intentar con HIGH_QUALITY, si falla usar preset compatible
+            let newRecording: Audio.Recording;
+            try {
+                const result = await Audio.Recording.createAsync(
+                    Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                    (status) => {
+                        if (status.isRecording && status.durationMillis !== undefined) {
+                            const durationMillis = status.durationMillis;
+                            const seconds = Math.floor(durationMillis / 1000);
+                            const minutes = Math.floor(seconds / 60);
+                            const remainingSeconds = seconds % 60;
+                            setRecordingDuration(
+                                `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+                            );
+                        }
+                    },
+                    200
+                );
+                newRecording = result.recording;
+            } catch (highQualityError) {
+                console.warn('HIGH_QUALITY failed, falling back to LOW_QUALITY:', highQualityError);
+                const result = await Audio.Recording.createAsync(
+                    Audio.RecordingOptionsPresets.LOW_QUALITY,
+                    (status) => {
+                        if (status.isRecording && status.durationMillis !== undefined) {
+                            const durationMillis = status.durationMillis;
+                            const seconds = Math.floor(durationMillis / 1000);
+                            const minutes = Math.floor(seconds / 60);
+                            const remainingSeconds = seconds % 60;
+                            setRecordingDuration(
+                                `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+                            );
+                        }
+                    },
+                    200
+                );
+                newRecording = result.recording;
+            }
 
-            setRecording(recording);
+            setRecording(newRecording);
             setIsRecording(true);
         } catch (err) {
             console.error('Failed to start recording', err);
-            Alert.alert('Error', 'No se pudo iniciar la grabación');
+            setRecording(null);
+            setIsRecording(false);
+            setRecordingDuration('00:00');
+            Alert.alert('Error', 'No se pudo iniciar la grabación. Verifica que el micrófono no esté en uso por otra aplicación.');
         }
     };
 
@@ -585,17 +761,48 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         setIsRecording(false);
         try {
             await recording.stopAndUnloadAsync();
-            const uri = recording.getURI();
-            setRecording(null);
-            setRecordingDuration('00:00');
-
-            if (uri) {
-                // Upload audio
-                uploadAndSend(uri, 'audio');
-            }
-        } catch (error) {
-            console.error('Failed to stop recording', error);
+        } catch (err) {
+            console.warn('Error stopping recording:', err);
         }
+
+        try {
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: false,
+                playsInSilentModeIOS: true,
+            });
+        } catch (err) {
+            console.warn('Error resetting audio mode:', err);
+        }
+
+        const uri = recording.getURI();
+        setRecording(null);
+        setRecordingDuration('00:00');
+
+        if (uri) {
+            uploadAndSend(uri, 'audio');
+        }
+    };
+
+    const cancelRecording = async () => {
+        if (!recording) return;
+
+        setIsRecording(false);
+        try {
+            await recording.stopAndUnloadAsync();
+        } catch (err) {
+            console.warn('Error cancelling recording:', err);
+        }
+
+        try {
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: false,
+                playsInSilentModeIOS: true,
+            });
+        } catch (error) {
+            console.error('Failed to cancel recording', error);
+        }
+        setRecording(null);
+        setRecordingDuration('00:00');
     };
 
     return (
@@ -649,6 +856,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                     onSend={(text) => handleSendMessage(text)}
                     onAttachment={handleAttachment}
                     onVoice={handleVoice}
+                    onCancelRecording={cancelRecording}
                     isRecording={isRecording}
                     recordingDuration={recordingDuration}
                 />
@@ -835,30 +1043,30 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 4,
-        width: 200,
+        width: 260,
     },
     playButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: 'rgba(0,0,0,0.1)',
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: 10,
     },
-    audioWaveform: {
+    audioWaveformArea: {
         flex: 1,
         justifyContent: 'center',
     },
-    audioLine: {
-        height: 2,
-        width: '100%',
-        backgroundColor: 'rgba(0,0,0,0.1)',
-        marginBottom: 4,
-        borderRadius: 1,
+    waveformContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        height: 32,
+        gap: 1.5,
     },
-    audioText: {
+    audioDuration: {
         fontSize: 12,
+        marginTop: 2,
+        fontVariant: ['tabular-nums'] as any,
     },
     uploadingOverlay: {
         position: 'absolute',

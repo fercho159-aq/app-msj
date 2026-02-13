@@ -8,6 +8,7 @@ import {
     Text,
     Animated,
     Easing,
+    PanResponder,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +18,7 @@ interface MessageInputProps {
     onSend: (text: string) => void;
     onAttachment?: () => void;
     onVoice?: () => void;
+    onCancelRecording?: () => void;
     isRecording?: boolean;
     recordingDuration?: string;
 }
@@ -25,6 +27,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     onSend,
     onAttachment,
     onVoice,
+    onCancelRecording,
     isRecording = false,
     recordingDuration = '00:00',
 }) => {
@@ -32,11 +35,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const [message, setMessage] = useState('');
     const [isFocused, setIsFocused] = useState(false);
 
-    // Animación de pulso para grabación
+    // Animación de pulso para el punto rojo
     const pulseAnim = useRef(new Animated.Value(0.5)).current;
+    // Animación del slide-to-cancel
+    const slideAnim = useRef(new Animated.Value(0)).current;
+    // Animación del chevron
+    const arrowAnim = useRef(new Animated.Value(0)).current;
+
+    const cancelThreshold = -120;
+    const onCancelRef = useRef(onCancelRecording);
+    onCancelRef.current = onCancelRecording;
 
     useEffect(() => {
         if (isRecording) {
+            // Pulso del punto rojo
             Animated.loop(
                 Animated.sequence([
                     Animated.timing(pulseAnim, {
@@ -53,10 +65,55 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     }),
                 ])
             ).start();
+
+            // Chevron animado
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(arrowAnim, {
+                        toValue: -8,
+                        duration: 600,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(arrowAnim, {
+                        toValue: 0,
+                        duration: 600,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                ])
+            ).start();
         } else {
             pulseAnim.setValue(0.5);
+            arrowAnim.setValue(0);
+            slideAnim.setValue(0);
         }
     }, [isRecording]);
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => false,
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && gestureState.dx < 0;
+            },
+            onPanResponderMove: (_, gestureState) => {
+                if (gestureState.dx < 0) {
+                    slideAnim.setValue(Math.max(gestureState.dx, -160));
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                if (gestureState.dx < cancelThreshold) {
+                    onCancelRef.current?.();
+                }
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 40,
+                    friction: 8,
+                }).start();
+            },
+        })
+    ).current;
 
     const handleSend = () => {
         if (message.trim()) {
@@ -68,18 +125,57 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
     const hasMessage = message.trim().length > 0;
 
+    // Opacidad del texto "Desliza" basada en cuánto se ha deslizado
+    const slideCancelOpacity = slideAnim.interpolate({
+        inputRange: [-160, -60, 0],
+        outputRange: [0, 0.5, 1],
+        extrapolate: 'clamp',
+    });
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background, borderTopColor: colors.divider }]}>
             {isRecording ? (
-                <View style={[
-                    styles.inputWrapper,
-                    styles.recordingWrapper,
-                    { backgroundColor: colors.surface, borderColor: colors.error }
-                ]}>
-                    <Animated.View style={[styles.recordingIndicator, { opacity: pulseAnim, backgroundColor: colors.error }]} />
-                    <Text style={[styles.recordingText, { color: colors.error }]}>Grabando audio...</Text>
-                    <Text style={[styles.recordingTimer, { color: colors.textPrimary }]}>{recordingDuration}</Text>
-                </View>
+                <Animated.View
+                    style={[
+                        styles.inputWrapper,
+                        styles.recordingWrapper,
+                        { backgroundColor: colors.surface, borderColor: colors.error },
+                        { transform: [{ translateX: slideAnim }] },
+                    ]}
+                    {...panResponder.panHandlers}
+                >
+                    {/* Botón cancelar (trash) */}
+                    <TouchableOpacity
+                        onPress={onCancelRecording}
+                        style={styles.cancelButton}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                        <Ionicons name="trash-outline" size={20} color={colors.error} />
+                    </TouchableOpacity>
+
+                    {/* Punto rojo pulsante */}
+                    <Animated.View
+                        style={[
+                            styles.recordingDot,
+                            { opacity: pulseAnim, backgroundColor: '#FF3B30' },
+                        ]}
+                    />
+
+                    {/* Timer */}
+                    <Text style={[styles.recordingTimer, { color: colors.textPrimary }]}>
+                        {recordingDuration}
+                    </Text>
+
+                    {/* Desliza para cancelar */}
+                    <Animated.View style={[styles.slideToCancelContainer, { opacity: slideCancelOpacity }]}>
+                        <Animated.View style={{ transform: [{ translateX: arrowAnim }] }}>
+                            <Ionicons name="chevron-back" size={14} color={colors.textMuted} />
+                        </Animated.View>
+                        <Text style={[styles.slideToCancelText, { color: colors.textMuted }]}>
+                            Desliza para cancelar
+                        </Text>
+                    </Animated.View>
+                </Animated.View>
             ) : (
                 <View style={[
                     styles.inputWrapper,
@@ -121,13 +217,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                     activeOpacity={0.8}
                 >
                     <LinearGradient
-                        colors={isRecording ? [colors.error, '#d32f2f'] : (gradients.primary as [string, string, ...string[]])}
+                        colors={isRecording
+                            ? ['#FF3B30', '#d32f2f'] as [string, string]
+                            : (gradients.primary as [string, string, ...string[]])
+                        }
                         start={{ x: 0, y: 0 }}
                         end={{ x: 0, y: 1 }}
-                        style={[styles.sendButton, { shadowColor: isRecording ? colors.error : colors.primary }]}
+                        style={[styles.sendButton, {
+                            shadowColor: isRecording ? '#FF3B30' : colors.primary,
+                        }]}
                     >
                         {isRecording ? (
-                            <Ionicons name="stop" size={20} color="#FFFFFF" />
+                            <Ionicons name="send" size={20} color="#FFFFFF" style={{ marginLeft: 2 }} />
                         ) : (
                             <Ionicons
                                 name={hasMessage ? 'send' : 'mic'}
@@ -164,23 +265,35 @@ const styles = StyleSheet.create({
     },
     recordingWrapper: {
         alignItems: 'center',
-        paddingHorizontal: 16,
-        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        justifyContent: 'flex-start',
     },
-    recordingIndicator: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginRight: 10,
+    cancelButton: {
+        padding: 6,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    recordingText: {
-        fontSize: 16,
-        fontWeight: '500',
-        flex: 1,
+    recordingDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginHorizontal: 8,
     },
     recordingTimer: {
         fontSize: 16,
+        fontWeight: '600',
         fontVariant: ['tabular-nums'],
+        marginRight: 10,
+    },
+    slideToCancelContainer: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 2,
+    },
+    slideToCancelText: {
+        fontSize: 13,
     },
     iconButton: {
         padding: 6,

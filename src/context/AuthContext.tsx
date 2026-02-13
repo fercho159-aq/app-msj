@@ -9,6 +9,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     login: (rfc: string, extraData?: any) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
+    deleteAccount: () => Promise<{ success: boolean; error?: string }>;
     updateUser: (data: Partial<User>) => void;
 }
 
@@ -107,6 +108,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const deleteAccount = async (): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const result = await api.deleteAccount();
+
+            if (result.error) {
+                return { success: false, error: result.error };
+            }
+
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            await AsyncStorage.removeItem('pushToken');
+            notificationService.cleanup();
+            setUser(null);
+            return { success: true };
+        } catch (error: any) {
+            console.error('Error during account deletion:', error);
+            return { success: false, error: error.message || 'Error al eliminar la cuenta' };
+        }
+    };
+
     const updateUser = (data: Partial<User>) => {
         if (user) {
             const updatedUser = { ...user, ...data };
@@ -123,6 +143,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 isAuthenticated: !!user,
                 login,
                 logout,
+                deleteAccount,
                 updateUser,
             }}
         >

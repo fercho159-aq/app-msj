@@ -1234,14 +1234,14 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         <Ionicons name="lock-closed-outline" size={20} color="#5474BC" />
                     </View>
 
-                    {/* Logo Yaakob BE FREE */}
+                    {/* Logo Yaakob BE HEART */}
                     <View style={styles.welcomeLogoContainer}>
                         <Image
                             source={require('../../assets/logo.png')}
                             style={styles.welcomeLogoSmall}
                             resizeMode="contain"
                         />
-                        <Text style={styles.welcomeLogoText}>BE FREE</Text>
+                        <Text style={styles.welcomeLogoText}>BE HEART</Text>
                     </View>
 
                     {/* Texto de seguridad */}

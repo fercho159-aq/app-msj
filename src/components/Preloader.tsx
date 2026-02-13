@@ -36,7 +36,7 @@ const Preloader: React.FC<PreloaderProps> = ({ onFinish }) => {
                 {/* Brand Text */}
                 <View style={styles.textContainer}>
                     <Text style={styles.title}>YAAKOB</Text>
-                    <Text style={styles.subtitle}>B E  F R E E</Text>
+                    <Text style={styles.subtitle}>B E  H E A R T</Text>
                 </View>
             </View>
         </Animated.View>
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 12,
         color: '#666666',
-        letterSpacing: 5, // Wide spacing for "BE FREE"
+        letterSpacing: 5, // Wide spacing for "BE HEART"
         textTransform: 'uppercase',
         ...Platform.select({
             ios: { fontFamily: 'Times New Roman' },

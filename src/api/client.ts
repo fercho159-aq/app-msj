@@ -194,6 +194,24 @@ class ApiClient {
         return result;
     }
 
+    // ==================== DELETE ACCOUNT ====================
+
+    async deleteAccount() {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        const result = await this.request<{ success: boolean; message: string }>('/auth/delete-account', {
+            method: 'DELETE',
+            body: JSON.stringify({ userId: this.userId }),
+        });
+
+        if (result.data) {
+            this.userId = null;
+            this.userRole = 'usuario';
+        }
+
+        return result;
+    }
+
     // ==================== USERS ====================
 
     async getUsers(search?: string) {

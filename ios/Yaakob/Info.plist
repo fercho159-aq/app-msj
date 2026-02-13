@@ -45,13 +45,13 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Este app necesita acceso a la cámara para realizar videollamadas</string>
+    <string>Yaakob necesita acceso a la cámara para que puedas realizar videollamadas con tus consultores.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Este app necesita acceso al micrófono para realizar llamadas de voz</string>
+    <string>Yaakob necesita acceso al micrófono para que puedas realizar llamadas de voz y grabar mensajes de audio en tus conversaciones con consultores.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to save photos</string>
+    <string>Yaakob necesita guardar fotos en tu galería para que puedas descargar imágenes y documentos compartidos en tus conversaciones. Por ejemplo, puedes guardar un archivo que tu consultor te envíe.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your photos</string>
+    <string>Yaakob necesita acceso a tu galería de fotos para que puedas subir una imagen de perfil o adjuntar fotos y documentos en tus conversaciones. Por ejemplo, puedes enviar una foto de un documento a tu consultor.</string>
     <key>RCTNewArchEnabled</key>
     <true/>
     <key>UIBackgroundModes</key>

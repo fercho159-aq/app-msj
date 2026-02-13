@@ -76,9 +76,9 @@ export const TermsScreen: React.FC<TermsScreenProps> = ({ navigation }) => {
 
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>
-                        © 2026 Tu Empresa de Consultoría S.A. de C.V.
+                        © 2026 Yaakob. Todos los derechos reservados.
                     </Text>
-                    <Text style={styles.footerText}>Todos los derechos reservados.</Text>
+                    <Text style={styles.footerText}>contacto@yaakob.com</Text>
                 </View>
             </ScrollView>
         </View>
