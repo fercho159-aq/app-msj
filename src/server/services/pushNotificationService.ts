@@ -200,7 +200,7 @@ class PushNotificationService {
                 body: JSON.stringify(message),
             });
 
-            const result = await response.json();
+            const result: any = await response.json();
             console.log(`📨 Respuesta de Expo Push:`, JSON.stringify(result));
 
             // Expo returns data as array or single object depending on request
