@@ -139,3 +139,58 @@ CREATE TABLE IF NOT EXISTS call_requests (
 
 CREATE INDEX idx_call_requests_status ON call_requests(status);
 CREATE INDEX idx_call_requests_created ON call_requests(created_at DESC);
+
+-- =============================================
+-- MODERACIÓN DE CONTENIDO (UGC)
+-- =============================================
+
+-- Tabla de usuarios bloqueados
+CREATE TABLE IF NOT EXISTS blocked_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    blocker_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    blocked_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(blocker_id, blocked_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_blocked_users_blocker ON blocked_users(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_blocked_users_blocked ON blocked_users(blocked_id);
+
+-- Tabla de reportes de contenido
+CREATE TABLE IF NOT EXISTS content_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    reported_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+    chat_id UUID REFERENCES chats(id) ON DELETE SET NULL,
+    reason VARCHAR(50) NOT NULL CHECK (reason IN ('spam', 'harassment', 'inappropriate', 'violence', 'other')),
+    description TEXT,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'resolved', 'dismissed')),
+    admin_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    resolved_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_status ON content_reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_reported ON content_reports(reported_user_id);
+CREATE INDEX IF NOT EXISTS idx_reports_created ON content_reports(created_at DESC);
+
+-- =============================================
+-- HISTORIAL DE LLAMADAS
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS call_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    caller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    callee_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    call_type VARCHAR(10) NOT NULL, -- audio, video
+    status VARCHAR(20) NOT NULL, -- completed, missed, rejected, cancelled
+    duration_seconds INTEGER DEFAULT 0,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    ended_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_call_history_caller ON call_history(caller_id);
+CREATE INDEX IF NOT EXISTS idx_call_history_callee ON call_history(callee_id);
+CREATE INDEX IF NOT EXISTS idx_call_history_started ON call_history(started_at DESC);

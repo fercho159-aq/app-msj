@@ -82,6 +82,37 @@ router.put('/requests/:id/complete', async (req: Request, res: Response) => {
     }
 });
 
+// GET /api/calls/history - Obtener historial de llamadas de un usuario
+router.get('/history', async (req: Request, res: Response) => {
+    try {
+        const { userId, limit = '50', offset = '0' } = req.query;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId es requerido' });
+        }
+
+        const history = await query(`
+            SELECT
+                ch.*,
+                caller.name as caller_name,
+                caller.avatar_url as caller_avatar,
+                callee.name as callee_name,
+                callee.avatar_url as callee_avatar
+            FROM call_history ch
+            LEFT JOIN users caller ON ch.caller_id = caller.id
+            LEFT JOIN users callee ON ch.callee_id = callee.id
+            WHERE ch.caller_id = $1 OR ch.callee_id = $1
+            ORDER BY ch.started_at DESC
+            LIMIT $2 OFFSET $3
+        `, [userId, parseInt(limit as string), parseInt(offset as string)]);
+
+        res.json({ callHistory: history });
+    } catch (error: any) {
+        console.error('Error al obtener historial de llamadas:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // DELETE /api/calls/requests/:id - Cancelar/eliminar solicitud
 router.delete('/requests/:id', async (req: Request, res: Response) => {
     try {

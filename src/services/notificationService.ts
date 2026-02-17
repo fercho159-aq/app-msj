@@ -19,6 +19,9 @@ export interface NotificationData {
     senderName?: string;
     message?: string;
     callType?: 'audio' | 'video';
+    callerId?: string;
+    callerName?: string;
+    pendingCall?: boolean;
 }
 
 class NotificationService {

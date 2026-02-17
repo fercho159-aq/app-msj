@@ -109,14 +109,16 @@ class PushNotificationService {
         const message: ExpoPushMessage = {
             to: pushToken,
             sound: 'default',
-            title: `📞 Llamada entrante`,
+            title: `Llamada entrante`,
             body: `${callerName} te está haciendo una ${callTypeText}`,
             data: {
                 type: 'call',
                 callerId,
                 callerName,
                 callType,
+                pendingCall: true,
             },
+            categoryId: 'call',
             channelId: 'calls',
             priority: 'high',
         };

@@ -185,6 +185,13 @@ export const SettingsScreen: React.FC = () => {
                             colors={colors}
                         />
                         <SettingItem
+                            icon="ban-outline"
+                            title="Usuarios bloqueados"
+                            subtitle="Gestiona usuarios bloqueados"
+                            onPress={() => navigation.navigate('BlockedUsers')}
+                            colors={colors}
+                        />
+                        <SettingItem
                             icon="notifications-outline"
                             title="Notificaciones"
                             subtitle="Sonidos, alertas"

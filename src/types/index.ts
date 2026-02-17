@@ -56,6 +56,7 @@ export type RootStackParamList = {
     HelpCenter: undefined;
     Terms: undefined;
     CreateGroup: undefined;
+    BlockedUsers: undefined;
 };
 
 export type BottomTabParamList = {

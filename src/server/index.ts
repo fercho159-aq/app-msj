@@ -14,6 +14,7 @@ import { labelRoutes } from './routes/labels';
 // import { streamRoutes } from './routes/stream'; // Deprecated
 // Agora routes removed - now using Spreed-WebRTC
 import { ocrRoutes } from './routes/ocr';
+import { moderationRoutes } from './routes/moderation';
 import { initializeWebSocket } from './websocket/signaling';
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/api/labels', labelRoutes);
 // app.use('/api/stream', streamRoutes);
 // Agora routes removed - now using Spreed-WebRTC
 app.use('/api/ocr', ocrRoutes);
+app.use('/api/moderation', moderationRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {

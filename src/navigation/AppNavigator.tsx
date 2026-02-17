@@ -16,6 +16,7 @@ import {
     HelpCenterScreen,
     TermsScreen,
 } from '../screens';
+import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import colors from '../theme/colors';
@@ -73,6 +74,7 @@ export const AppNavigator: React.FC = () => {
                                 animation: 'slide_from_bottom',
                             }}
                         />
+                        <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
                     </>
                 ) : (
                     <Stack.Screen

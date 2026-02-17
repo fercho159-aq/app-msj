@@ -611,55 +611,46 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         });
     };
 
-    const handleMore = () => {
+    const handleBlockFromChat = () => {
         Alert.alert(
-            'Opciones',
-            'Selecciona una acción',
+            'Bloquear usuario',
+            `¿Bloquear a ${userName}? No recibirás mensajes de este usuario y no podrá contactarte.`,
             [
+                { text: 'Cancelar', style: 'cancel' },
                 {
-                    text: 'Borrar conversación',
+                    text: 'Bloquear',
                     style: 'destructive',
-                    onPress: () => {
-                        Alert.alert(
-                            'Confirmar eliminación',
-                            '¿Estás seguro de que quieres eliminar toda esta conversación? Esta acción no se puede deshacer.',
-                            [
-                                {
-                                    text: 'Cancelar',
-                                    style: 'cancel',
-                                },
-                                {
-                                    text: 'Eliminar',
-                                    style: 'destructive',
-                                    onPress: async () => {
-                                        try {
-                                            const result = await api.deleteChat(chatId);
-                                            if (result.error) {
-                                                Alert.alert('Error', result.error);
-                                            } else {
-                                                Alert.alert(
-                                                    'Conversación eliminada',
-                                                    'La conversación ha sido eliminada correctamente.',
-                                                    [
-                                                        {
-                                                            text: 'OK',
-                                                            onPress: () => navigation.goBack(),
-                                                        },
-                                                    ]
-                                                );
-                                            }
-                                        } catch (error) {
-                                            Alert.alert('Error', 'No se pudo eliminar la conversación');
-                                        }
-                                    },
-                                },
-                            ]
-                        );
+                    onPress: async () => {
+                        try {
+                            await api.blockUser(routeParticipantId);
+                            Alert.alert('Usuario bloqueado', `${userName} ha sido bloqueado.`, [
+                                { text: 'OK', onPress: () => navigation.goBack() }
+                            ]);
+                        } catch (error) {
+                            Alert.alert('Error', 'No se pudo bloquear al usuario');
+                        }
                     },
                 },
+            ]
+        );
+    };
+
+    const handleReportFromChat = () => {
+        Alert.alert(
+            'Reportar usuario',
+            'Selecciona el motivo del reporte',
+            [
                 {
-                    text: 'Ver perfil',
-                    onPress: handleUserPress,
+                    text: 'Spam',
+                    onPress: () => submitQuickReport('spam'),
+                },
+                {
+                    text: 'Acoso',
+                    onPress: () => submitQuickReport('harassment'),
+                },
+                {
+                    text: 'Contenido inapropiado',
+                    onPress: () => submitQuickReport('inappropriate'),
                 },
                 {
                     text: 'Cancelar',
@@ -667,6 +658,93 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 },
             ]
         );
+    };
+
+    const submitQuickReport = async (reason: string) => {
+        try {
+            const result = await api.reportUser(routeParticipantId, reason, undefined, undefined, chatId);
+            if (result.error) {
+                Alert.alert('Error', result.error);
+            } else {
+                Alert.alert('Reporte enviado', 'Nuestro equipo revisará el caso en las próximas 24 horas.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo enviar el reporte');
+        }
+    };
+
+    const handleMore = () => {
+        const options: any[] = [
+            {
+                text: 'Ver perfil',
+                onPress: handleUserPress,
+            },
+        ];
+
+        // Solo mostrar opciones de moderación en chats individuales
+        if (routeParticipantId && routeParticipantId !== user?.id) {
+            options.push(
+                {
+                    text: 'Reportar usuario',
+                    onPress: handleReportFromChat,
+                },
+                {
+                    text: 'Bloquear usuario',
+                    style: 'destructive',
+                    onPress: handleBlockFromChat,
+                }
+            );
+        }
+
+        options.push(
+            {
+                text: 'Borrar conversación',
+                style: 'destructive',
+                onPress: () => {
+                    Alert.alert(
+                        'Confirmar eliminación',
+                        '¿Estás seguro de que quieres eliminar toda esta conversación? Esta acción no se puede deshacer.',
+                        [
+                            {
+                                text: 'Cancelar',
+                                style: 'cancel',
+                            },
+                            {
+                                text: 'Eliminar',
+                                style: 'destructive',
+                                onPress: async () => {
+                                    try {
+                                        const result = await api.deleteChat(chatId);
+                                        if (result.error) {
+                                            Alert.alert('Error', result.error);
+                                        } else {
+                                            Alert.alert(
+                                                'Conversación eliminada',
+                                                'La conversación ha sido eliminada correctamente.',
+                                                [
+                                                    {
+                                                        text: 'OK',
+                                                        onPress: () => navigation.goBack(),
+                                                    },
+                                                ]
+                                            );
+                                        }
+                                    } catch (error) {
+                                        Alert.alert('Error', 'No se pudo eliminar la conversación');
+                                    }
+                                },
+                            },
+                        ]
+                    );
+                },
+            },
+            {
+                text: 'Cancelar',
+                style: 'cancel',
+            }
+        );
+
+        Alert.alert('Opciones', 'Selecciona una acción', options);
     };
 
     // Audio recording logic
@@ -697,6 +775,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 return;
             }
 
+            // Limpiar cualquier grabación previa antes de iniciar
+            if (recording) {
+                try {
+                    await recording.stopAndUnloadAsync();
+                } catch (e) {
+                    // Ignorar - la grabación ya pudo haber sido detenida
+                }
+                setRecording(null);
+            }
+
             await Audio.setAudioModeAsync({
                 allowsRecordingIOS: true,
                 playsInSilentModeIOS: true,
@@ -705,40 +793,59 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 playThroughEarpieceAndroid: false,
             });
 
-            // Intentar con HIGH_QUALITY, si falla usar preset compatible
+            // Opciones de grabación compatibles con iPhone y iPad (.m4a AAC)
+            const recordingOptions: Audio.RecordingOptions = {
+                isMeteringEnabled: true,
+                android: {
+                    extension: '.m4a',
+                    outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+                    audioEncoder: Audio.AndroidAudioEncoder.AAC,
+                    sampleRate: 44100,
+                    numberOfChannels: 2,
+                    bitRate: 128000,
+                },
+                ios: {
+                    extension: '.m4a',
+                    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
+                    audioQuality: Audio.IOSAudioQuality.HIGH,
+                    sampleRate: 44100,
+                    numberOfChannels: 2,
+                    bitRate: 128000,
+                    linearPCMBitDepth: 16,
+                    linearPCMIsBigEndian: false,
+                    linearPCMIsFloat: false,
+                },
+                web: {
+                    mimeType: 'audio/webm',
+                    bitsPerSecond: 128000,
+                },
+            };
+
+            const statusCallback = (status: Audio.RecordingStatus) => {
+                if (status.isRecording && status.durationMillis !== undefined) {
+                    const durationMillis = status.durationMillis;
+                    const seconds = Math.floor(durationMillis / 1000);
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds % 60;
+                    setRecordingDuration(
+                        `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+                    );
+                }
+            };
+
             let newRecording: Audio.Recording;
             try {
                 const result = await Audio.Recording.createAsync(
-                    Audio.RecordingOptionsPresets.HIGH_QUALITY,
-                    (status) => {
-                        if (status.isRecording && status.durationMillis !== undefined) {
-                            const durationMillis = status.durationMillis;
-                            const seconds = Math.floor(durationMillis / 1000);
-                            const minutes = Math.floor(seconds / 60);
-                            const remainingSeconds = seconds % 60;
-                            setRecordingDuration(
-                                `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-                            );
-                        }
-                    },
+                    recordingOptions,
+                    statusCallback,
                     200
                 );
                 newRecording = result.recording;
-            } catch (highQualityError) {
-                console.warn('HIGH_QUALITY failed, falling back to LOW_QUALITY:', highQualityError);
+            } catch (primaryError) {
+                console.warn('Primary recording options failed, trying LOW_QUALITY fallback:', primaryError);
                 const result = await Audio.Recording.createAsync(
                     Audio.RecordingOptionsPresets.LOW_QUALITY,
-                    (status) => {
-                        if (status.isRecording && status.durationMillis !== undefined) {
-                            const durationMillis = status.durationMillis;
-                            const seconds = Math.floor(durationMillis / 1000);
-                            const minutes = Math.floor(seconds / 60);
-                            const remainingSeconds = seconds % 60;
-                            setRecordingDuration(
-                                `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
-                            );
-                        }
-                    },
+                    statusCallback,
                     200
                 );
                 newRecording = result.recording;

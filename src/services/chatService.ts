@@ -116,10 +116,10 @@ export async function createGroupChat(
   });
 }
 
-// Obtener chats de un usuario con detalles
+// Obtener chats de un usuario con detalles (filtrando usuarios bloqueados)
 export async function getUserChats(userId: string): Promise<ChatWithDetails[]> {
   const chats = await query<any>(`
-    SELECT 
+    SELECT
       c.*,
       (
         SELECT json_agg(json_build_object(
@@ -155,6 +155,11 @@ export async function getUserChats(userId: string): Promise<ChatWithDetails[]> {
       ) as unread_count
     FROM chats c
     JOIN chat_participants cp ON c.id = cp.chat_id AND cp.user_id = $1
+    WHERE NOT EXISTS (
+      SELECT 1 FROM chat_participants cp_other
+      JOIN blocked_users bu ON bu.blocked_id = cp_other.user_id AND bu.blocker_id = $1
+      WHERE cp_other.chat_id = c.id AND cp_other.user_id != $1 AND c.is_group = false
+    )
     ORDER BY c.updated_at DESC
   `, [userId]);
 

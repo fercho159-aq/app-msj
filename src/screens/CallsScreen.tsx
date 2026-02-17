@@ -14,12 +14,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useCall } from '../context/CallContext';
 import { useTheme } from '../context/ThemeContext';
-import { api, CallRequest } from '../api';
+import { api, CallRequest, CallHistoryEntry } from '../api';
 
 interface CallRequestItemProps {
     request: CallRequest;
@@ -80,51 +80,122 @@ const CallRequestItem: React.FC<CallRequestItemProps> = ({ request, onCall, onCo
     );
 };
 
-// Componente para usuarios en línea
-interface OnlineUserItemProps {
-    user: { id: string; name: string };
-    onCallAudio: () => void;
-    onCallVideo: () => void;
+// Componente para un item del historial de llamadas
+interface CallHistoryItemProps {
+    entry: CallHistoryEntry;
+    currentUserId: string;
+    onCallBack: (userId: string, userName: string, callType: 'audio' | 'video') => void;
     colors: any;
 }
 
-const OnlineUserItem: React.FC<OnlineUserItemProps> = ({ user, onCallAudio, onCallVideo, colors }) => {
-    const getInitials = (name: string) => {
+const CallHistoryItem: React.FC<CallHistoryItemProps> = ({ entry, currentUserId, onCallBack, colors }) => {
+    const isOutgoing = entry.caller_id === currentUserId;
+    const otherName = isOutgoing ? entry.callee_name : entry.caller_name;
+    const otherUserId = isOutgoing ? entry.callee_id : entry.caller_id;
+
+    const getStatusIcon = (): { name: string; color: string } => {
+        if (entry.status === 'completed') {
+            return { name: isOutgoing ? 'arrow-up' : 'arrow-down', color: colors.success };
+        }
+        if (entry.status === 'missed') {
+            return { name: 'arrow-down', color: '#E53935' };
+        }
+        if (entry.status === 'rejected') {
+            return { name: 'close-circle', color: '#E53935' };
+        }
+        // cancelled
+        return { name: 'arrow-up', color: colors.textMuted };
+    };
+
+    const getStatusText = (): string => {
+        if (entry.status === 'completed') {
+            const mins = Math.floor(entry.duration_seconds / 60);
+            const secs = entry.duration_seconds % 60;
+            return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        }
+        if (entry.status === 'missed') {
+            return isOutgoing ? 'Sin respuesta' : 'Perdida';
+        }
+        if (entry.status === 'rejected') {
+            return 'Rechazada';
+        }
+        return 'Cancelada';
+    };
+
+    const formatCallDate = (dateString: string) => {
+        try {
+            const date = parseISO(dateString);
+            if (isToday(date)) {
+                return format(date, "HH:mm", { locale: es });
+            }
+            if (isYesterday(date)) {
+                return `Ayer, ${format(date, "HH:mm", { locale: es })}`;
+            }
+            return format(date, "dd MMM, HH:mm", { locale: es });
+        } catch {
+            return dateString;
+        }
+    };
+
+    const statusIcon = getStatusIcon();
+
+    const getInitials = (name: string | null) => {
+        if (!name) return '?';
         return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     };
 
     return (
-        <View style={[styles.onlineUserItem, { backgroundColor: colors.surface }]}>
-            <View style={styles.onlineUserInfo}>
+        <TouchableOpacity
+            style={[styles.historyItem, { backgroundColor: colors.surface }]}
+            onPress={() => onCallBack(otherUserId, otherName || 'Usuario', entry.call_type)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.historyItemLeft}>
                 <LinearGradient
-                    colors={['#667eea', '#764ba2'] as [string, string]}
-                    style={styles.onlineUserAvatar}
+                    colors={entry.status === 'missed' && !isOutgoing
+                        ? ['#E53935', '#C62828'] as [string, string]
+                        : ['#667eea', '#764ba2'] as [string, string]
+                    }
+                    style={styles.historyAvatar}
                 >
-                    <Text style={styles.onlineUserInitials}>{getInitials(user.name)}</Text>
+                    <Text style={styles.historyInitials}>{getInitials(otherName)}</Text>
                 </LinearGradient>
-                <View>
-                    <Text style={[styles.onlineUserName, { color: colors.textPrimary }]}>{user.name}</Text>
-                    <View style={styles.onlineStatus}>
-                        <View style={[styles.onlineDot, { backgroundColor: colors.success }]} />
-                        <Text style={[styles.onlineStatusText, { color: colors.success }]}>En línea</Text>
+                <View style={styles.historyInfo}>
+                    <Text style={[
+                        styles.historyName,
+                        { color: entry.status === 'missed' && !isOutgoing ? '#E53935' : colors.textPrimary }
+                    ]}>
+                        {otherName || 'Usuario'}
+                    </Text>
+                    <View style={styles.historyMeta}>
+                        <Ionicons
+                            name={statusIcon.name as any}
+                            size={14}
+                            color={statusIcon.color}
+                        />
+                        <Ionicons
+                            name={entry.call_type === 'video' ? 'videocam' : 'call'}
+                            size={13}
+                            color={colors.textMuted}
+                            style={{ marginLeft: 4 }}
+                        />
+                        <Text style={[styles.historyStatus, { color: colors.textMuted }]}>
+                            {' '}{getStatusText()}
+                        </Text>
                     </View>
                 </View>
             </View>
-            <View style={styles.callButtons}>
-                <TouchableOpacity
-                    style={[styles.callIconButton, { backgroundColor: colors.success }]}
-                    onPress={onCallAudio}
-                >
-                    <Ionicons name="call" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.callIconButton, styles.videoCallButton]}
-                    onPress={onCallVideo}
-                >
-                    <Ionicons name="videocam" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
+            <View style={styles.historyItemRight}>
+                <Text style={[styles.historyDate, { color: colors.textMuted }]}>
+                    {formatCallDate(entry.started_at)}
+                </Text>
+                <Ionicons
+                    name={entry.call_type === 'video' ? 'videocam-outline' : 'call-outline'}
+                    size={20}
+                    color={colors.primary}
+                />
             </View>
-        </View>
+        </TouchableOpacity>
     );
 };
 
@@ -133,12 +204,25 @@ export const CallsScreen: React.FC = () => {
     const { colors, isDark } = useTheme();
     const { isConnected, onlineUsers, startCall, connect } = useCall();
     const [callRequests, setCallRequests] = useState<CallRequest[]>([]);
+    const [callHistory, setCallHistory] = useState<CallHistoryEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+    const [activeTab, setActiveTab] = useState<'history' | 'pending' | 'completed'>('history');
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
+
+    const loadCallHistory = async () => {
+        if (!user) return;
+        try {
+            const result = await api.getCallHistory();
+            if (result.data?.callHistory) {
+                setCallHistory(result.data.callHistory);
+            }
+        } catch (error) {
+            console.error('Error loading call history:', error);
+        }
+    };
 
     const loadCallRequests = async (showLoading = true) => {
         if (!isAdmin) return;
@@ -160,9 +244,17 @@ export const CallsScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
-            loadCallRequests();
+            setIsLoading(true);
 
-            if (isAdmin) {
+            if (activeTab === 'history') {
+                loadCallHistory().finally(() => setIsLoading(false));
+            } else if (isAdmin) {
+                loadCallRequests();
+            } else {
+                setIsLoading(false);
+            }
+
+            if (isAdmin && activeTab !== 'history') {
                 pollingRef.current = setInterval(() => {
                     loadCallRequests(false);
                 }, 10000);
@@ -202,14 +294,124 @@ export const CallsScreen: React.FC = () => {
 
     const handleRefresh = () => {
         setIsRefreshing(true);
-        loadCallRequests(false);
+        if (activeTab === 'history') {
+            loadCallHistory().finally(() => setIsRefreshing(false));
+        } else {
+            loadCallRequests(false);
+        }
     };
 
     const handleVoIPCall = (userId: string, userName: string, type: 'audio' | 'video') => {
         startCall(userId, userName, type);
     };
 
-    // Vista para admin con tabs
+    const renderTabs = () => {
+        if (isAdmin) {
+            return (
+                <View style={[styles.tabContainer, { backgroundColor: colors.surface }]}>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'history' && [styles.tabActive, { backgroundColor: colors.primary }]]}
+                        onPress={() => setActiveTab('history')}
+                    >
+                        <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color={activeTab === 'history' ? colors.background : colors.textMuted}
+                        />
+                        <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'history' && { color: colors.background }]}>
+                            Recientes
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'pending' && [styles.tabActive, { backgroundColor: colors.primary }]]}
+                        onPress={() => setActiveTab('pending')}
+                    >
+                        <Ionicons
+                            name="alert-circle-outline"
+                            size={16}
+                            color={activeTab === 'pending' ? colors.background : colors.textMuted}
+                        />
+                        <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'pending' && { color: colors.background }]}>
+                            Pendientes
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'completed' && [styles.tabActive, { backgroundColor: colors.primary }]]}
+                        onPress={() => setActiveTab('completed')}
+                    >
+                        <Ionicons
+                            name="checkmark-circle-outline"
+                            size={16}
+                            color={activeTab === 'completed' ? colors.background : colors.textMuted}
+                        />
+                        <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'completed' && { color: colors.background }]}>
+                            Completadas
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        // Non-admin: just show history tab (default, no tabs needed)
+        return null;
+    };
+
+    const renderContent = () => {
+        if (activeTab === 'history') {
+            if (callHistory.length === 0) {
+                return (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="call-outline" size={64} color={colors.textMuted} />
+                        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                            No hay llamadas recientes
+                        </Text>
+                        <Text style={[styles.emptySubtext, { color: colors.textMuted }]}>
+                            Las llamadas realizadas y recibidas aparecerán aquí
+                        </Text>
+                    </View>
+                );
+            }
+
+            return callHistory.map((entry) => (
+                <CallHistoryItem
+                    key={entry.id}
+                    entry={entry}
+                    currentUserId={user?.id || ''}
+                    onCallBack={handleVoIPCall}
+                    colors={colors}
+                />
+            ));
+        }
+
+        // Admin tabs: pending/completed requests
+        if (callRequests.length === 0) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Ionicons
+                        name={activeTab === 'pending' ? 'call-outline' : 'checkmark-circle-outline'}
+                        size={64}
+                        color={colors.textMuted}
+                    />
+                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                        {activeTab === 'pending'
+                            ? 'No hay solicitudes pendientes'
+                            : 'No hay solicitudes completadas'}
+                    </Text>
+                </View>
+            );
+        }
+
+        return callRequests.map((request) => (
+            <CallRequestItem
+                key={request.id}
+                request={request}
+                onCall={handleCall}
+                onComplete={handleComplete}
+                colors={colors}
+            />
+        ));
+    };
+
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
@@ -228,42 +430,13 @@ export const CallsScreen: React.FC = () => {
                     </View>
                 </View>
 
-                {isAdmin && (
-                    <View style={[styles.tabContainer, { backgroundColor: colors.surface }]}>
-                        <TouchableOpacity
-                            style={[styles.tab, activeTab === 'pending' && [styles.tabActive, { backgroundColor: colors.primary }]]}
-                            onPress={() => setActiveTab('pending')}
-                        >
-                            <Ionicons
-                                name="time-outline"
-                                size={16}
-                                color={activeTab === 'pending' ? colors.background : colors.textMuted}
-                            />
-                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'pending' && { color: colors.background }]}>
-                                Pendientes
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.tab, activeTab === 'completed' && [styles.tabActive, { backgroundColor: colors.primary }]]}
-                            onPress={() => setActiveTab('completed')}
-                        >
-                            <Ionicons
-                                name="checkmark-circle-outline"
-                                size={16}
-                                color={activeTab === 'completed' ? colors.background : colors.textMuted}
-                            />
-                            <Text style={[styles.tabText, { color: colors.textMuted }, activeTab === 'completed' && { color: colors.background }]}>
-                                Completadas
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                {renderTabs()}
             </LinearGradient>
 
             {isLoading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
-                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>Cargando solicitudes...</Text>
+                    <Text style={[styles.loadingText, { color: colors.textMuted }]}>Cargando...</Text>
                 </View>
             ) : (
                 <ScrollView
@@ -278,30 +451,7 @@ export const CallsScreen: React.FC = () => {
                         />
                     }
                 >
-                    {callRequests.length === 0 ? (
-                        <View style={styles.emptyContainer}>
-                            <Ionicons
-                                name={activeTab === 'pending' ? 'call-outline' : 'checkmark-circle-outline'}
-                                size={64}
-                                color={colors.textMuted}
-                            />
-                            <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                                {activeTab === 'pending'
-                                    ? 'No hay solicitudes pendientes'
-                                    : 'No hay solicitudes completadas'}
-                            </Text>
-                        </View>
-                    ) : (
-                        callRequests.map((request) => (
-                            <CallRequestItem
-                                key={request.id}
-                                request={request}
-                                onCall={handleCall}
-                                onComplete={handleComplete}
-                                colors={colors}
-                            />
-                        ))
-                    )}
+                    {renderContent()}
                 </ScrollView>
             )}
         </View>
@@ -359,7 +509,7 @@ const styles = StyleSheet.create({
     },
     tabActive: {},
     tabText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '500',
     },
     content: {
@@ -392,6 +542,55 @@ const styles = StyleSheet.create({
         fontSize: 14,
         marginTop: 8,
         textAlign: 'center',
+    },
+    // History Item
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 8,
+    },
+    historyItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    historyAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    historyInitials: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    historyInfo: {
+        flex: 1,
+    },
+    historyName: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    historyMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    historyStatus: {
+        fontSize: 13,
+    },
+    historyItemRight: {
+        alignItems: 'flex-end',
+        gap: 8,
+    },
+    historyDate: {
+        fontSize: 12,
     },
     // Info Card
     infoCard: {

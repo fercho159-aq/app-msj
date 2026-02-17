@@ -505,6 +505,14 @@ class ApiClient {
         });
     }
 
+    async getCallHistory(limit = 50, offset = 0) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ callHistory: CallHistoryEntry[] }>(
+            `/calls/history?userId=${this.userId}&limit=${limit}&offset=${offset}`
+        );
+    }
+
     // ==================== DELETE CHAT ====================
 
     async deleteChat(chatId: string) {
@@ -545,6 +553,71 @@ class ApiClient {
         return this.request<{ label: ChatLabel }>('/labels', {
             method: 'POST',
             body: JSON.stringify({ name, color, icon }),
+        });
+    }
+
+    // ==================== MODERATION ====================
+
+    async blockUser(blockedUserId: string, reason?: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ success: boolean; block: any }>('/moderation/block', {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.userId, blockedUserId, reason }),
+        });
+    }
+
+    async unblockUser(blockedUserId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ success: boolean }>('/moderation/unblock', {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.userId, blockedUserId }),
+        });
+    }
+
+    async getBlockedUsers() {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ blockedUsers: BlockedUserInfo[] }>(
+            `/moderation/blocked?userId=${this.userId}`
+        );
+    }
+
+    async isUserBlocked(targetId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ blocked: boolean }>(
+            `/moderation/is-blocked?userId=${this.userId}&targetId=${targetId}`
+        );
+    }
+
+    async reportUser(reportedUserId: string, reason: string, description?: string, messageId?: string, chatId?: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ success: boolean; report: any }>('/moderation/report', {
+            method: 'POST',
+            body: JSON.stringify({
+                userId: this.userId,
+                reportedUserId,
+                reason,
+                description,
+                messageId,
+                chatId,
+            }),
+        });
+    }
+
+    async getReports(status?: string) {
+        return this.request<{ reports: any[] }>(
+            `/moderation/reports${status ? `?status=${status}` : ''}`
+        );
+    }
+
+    async resolveReport(reportId: string, status: 'resolved' | 'dismissed', adminNotes?: string) {
+        return this.request<{ success: boolean; report: any }>(`/moderation/reports/${reportId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ status, adminNotes }),
         });
     }
 
@@ -651,6 +724,14 @@ export interface Message {
     timestamp: string;
 }
 
+export interface BlockedUserInfo {
+    id: string;
+    name: string | null;
+    rfc: string;
+    avatar_url: string | null;
+    blocked_at: string;
+}
+
 export interface CallRequest {
     id: string;
     user_id: string;
@@ -661,6 +742,21 @@ export interface CallRequest {
     status: 'pending' | 'completed' | 'cancelled';
     created_at: string;
     completed_at: string | null;
+}
+
+export interface CallHistoryEntry {
+    id: string;
+    caller_id: string;
+    callee_id: string;
+    call_type: 'audio' | 'video';
+    status: 'completed' | 'missed' | 'rejected' | 'cancelled';
+    duration_seconds: number;
+    started_at: string;
+    ended_at: string | null;
+    caller_name: string | null;
+    caller_avatar: string | null;
+    callee_name: string | null;
+    callee_avatar: string | null;
 }
 
 export interface FiscalDataOCR {

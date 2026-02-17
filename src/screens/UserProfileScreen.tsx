@@ -9,6 +9,9 @@ import {
     ActivityIndicator,
     Dimensions,
     ScrollView,
+    Alert,
+    Modal,
+    TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -130,10 +133,25 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
     const [fullUserData, setFullUserData] = useState<User | null>(null);
     const [isLoadingFiscal, setIsLoadingFiscal] = useState(false);
 
+    // Moderation state
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [isCheckingBlock, setIsCheckingBlock] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState<string>('');
+    const [reportDescription, setReportDescription] = useState('');
+    const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
     const isAdmin = user?.rfc === 'ADMIN000CONS';
 
     // Filtrar participantes excluyendo al usuario actual
     const groupParticipants = participants?.filter((p: User) => p.id !== user?.id) || [];
+
+    // Verificar si el usuario está bloqueado
+    useEffect(() => {
+        if (userId && !isGroup) {
+            checkBlockStatus();
+        }
+    }, [userId]);
 
     // Cargar archivos compartidos del chat
     useEffect(() => {
@@ -146,6 +164,89 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
             loadUserFiscalData();
         }
     }, [userId]);
+
+    const checkBlockStatus = async () => {
+        setIsCheckingBlock(true);
+        try {
+            const result = await api.isUserBlocked(userId);
+            if (result.data) {
+                setIsBlocked(result.data.blocked);
+            }
+        } catch (error) {
+            console.error('Error checking block status:', error);
+        } finally {
+            setIsCheckingBlock(false);
+        }
+    };
+
+    const handleBlockUser = () => {
+        Alert.alert(
+            isBlocked ? 'Desbloquear usuario' : 'Bloquear usuario',
+            isBlocked
+                ? `¿Desbloquear a ${userName}? Podrás recibir mensajes de este usuario nuevamente.`
+                : `¿Bloquear a ${userName}? No recibirás mensajes de este usuario y no podrá contactarte.`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: isBlocked ? 'Desbloquear' : 'Bloquear',
+                    style: isBlocked ? 'default' : 'destructive',
+                    onPress: async () => {
+                        try {
+                            if (isBlocked) {
+                                await api.unblockUser(userId);
+                                setIsBlocked(false);
+                                Alert.alert('Usuario desbloqueado', `${userName} ha sido desbloqueado.`);
+                            } else {
+                                await api.blockUser(userId);
+                                setIsBlocked(true);
+                                Alert.alert('Usuario bloqueado', `${userName} ha sido bloqueado. No recibirás mensajes de este usuario.`);
+                            }
+                        } catch (error) {
+                            Alert.alert('Error', 'No se pudo completar la acción');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleReportUser = () => {
+        setReportReason('');
+        setReportDescription('');
+        setShowReportModal(true);
+    };
+
+    const submitReport = async () => {
+        if (!reportReason) {
+            Alert.alert('Error', 'Selecciona un motivo para el reporte');
+            return;
+        }
+
+        setIsSubmittingReport(true);
+        try {
+            const result = await api.reportUser(
+                userId,
+                reportReason,
+                reportDescription || undefined,
+                undefined,
+                chatId
+            );
+
+            if (result.error) {
+                Alert.alert('Error', result.error);
+            } else {
+                setShowReportModal(false);
+                Alert.alert(
+                    'Reporte enviado',
+                    'Gracias por tu reporte. Nuestro equipo lo revisará en las próximas 24 horas.'
+                );
+            }
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo enviar el reporte');
+        } finally {
+            setIsSubmittingReport(false);
+        }
+    };
 
     const loadUserFiscalData = async () => {
         try {
@@ -301,6 +402,44 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                             <Ionicons name="call" size={22} color="#FFFFFF" />
                             <Text style={styles.callButtonText}>Llamar</Text>
                         </TouchableOpacity>
+                    )}
+
+                    {/* Botones de moderación - solo para chats individuales */}
+                    {!isGroup && userId !== user?.id && (
+                        <View style={styles.moderationButtons}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.moderationButton,
+                                    { borderColor: colors.border },
+                                    isBlocked && { borderColor: '#EF4444', backgroundColor: '#EF444410' }
+                                ]}
+                                onPress={handleBlockUser}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons
+                                    name={isBlocked ? 'lock-open-outline' : 'ban-outline'}
+                                    size={18}
+                                    color={isBlocked ? '#EF4444' : colors.textSecondary}
+                                />
+                                <Text style={[
+                                    styles.moderationButtonText,
+                                    { color: isBlocked ? '#EF4444' : colors.textSecondary }
+                                ]}>
+                                    {isBlocked ? 'Desbloquear' : 'Bloquear'}
+                                </Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.moderationButton, { borderColor: colors.border }]}
+                                onPress={handleReportUser}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="flag-outline" size={18} color={colors.textSecondary} />
+                                <Text style={[styles.moderationButtonText, { color: colors.textSecondary }]}>
+                                    Reportar
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
                 </View>
 
@@ -616,6 +755,102 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                     )}
                 </View>
             </ScrollView>
+
+            {/* Modal de Reporte */}
+            <Modal
+                visible={showReportModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowReportModal(false)}
+            >
+                <View style={styles.reportModalOverlay}>
+                    <TouchableOpacity
+                        style={styles.reportModalDismiss}
+                        activeOpacity={1}
+                        onPress={() => setShowReportModal(false)}
+                    />
+                    <View style={[styles.reportModalContent, { backgroundColor: colors.background }]}>
+                        <View style={styles.reportModalHeader}>
+                            <Text style={[styles.reportModalTitle, { color: colors.textPrimary }]}>
+                                Reportar usuario
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.textPrimary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.reportModalSubtitle, { color: colors.textMuted }]}>
+                            Selecciona el motivo del reporte. Nuestro equipo revisará el caso en las próximas 24 horas.
+                        </Text>
+
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {[
+                                { key: 'spam', label: 'Spam', icon: 'mail-outline' },
+                                { key: 'harassment', label: 'Acoso', icon: 'warning-outline' },
+                                { key: 'inappropriate', label: 'Contenido inapropiado', icon: 'eye-off-outline' },
+                                { key: 'violence', label: 'Violencia o amenazas', icon: 'alert-circle-outline' },
+                                { key: 'other', label: 'Otro motivo', icon: 'help-circle-outline' },
+                            ].map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[
+                                        styles.reportOption,
+                                        { borderColor: colors.border },
+                                        reportReason === option.key && { borderColor: colors.primary, backgroundColor: `${colors.primary}10` }
+                                    ]}
+                                    onPress={() => setReportReason(option.key)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Ionicons
+                                        name={option.icon as any}
+                                        size={20}
+                                        color={reportReason === option.key ? colors.primary : colors.textMuted}
+                                    />
+                                    <Text style={[
+                                        styles.reportOptionText,
+                                        { color: reportReason === option.key ? colors.primary : colors.textPrimary }
+                                    ]}>
+                                        {option.label}
+                                    </Text>
+                                    {reportReason === option.key && (
+                                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                                    )}
+                                </TouchableOpacity>
+                            ))}
+
+                            <TextInput
+                                style={[
+                                    styles.reportDescriptionInput,
+                                    { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }
+                                ]}
+                                placeholder="Descripción adicional (opcional)"
+                                placeholderTextColor={colors.textMuted}
+                                value={reportDescription}
+                                onChangeText={setReportDescription}
+                                multiline
+                                numberOfLines={3}
+                            />
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.reportSubmitButton,
+                                    { backgroundColor: colors.primary },
+                                    (!reportReason || isSubmittingReport) && { opacity: 0.5 }
+                                ]}
+                                onPress={submitReport}
+                                disabled={!reportReason || isSubmittingReport}
+                                activeOpacity={0.8}
+                            >
+                                {isSubmittingReport ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.reportSubmitText}>Enviar reporte</Text>
+                                )}
+                            </TouchableOpacity>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -812,6 +1047,91 @@ const styles = StyleSheet.create({
     participantRole: {
         fontSize: 13,
         marginTop: 2,
+    },
+    // Estilos de moderación
+    moderationButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 16,
+    },
+    moderationButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+        gap: 6,
+    },
+    moderationButtonText: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    // Estilos del modal de reporte
+    reportModalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    reportModalDismiss: {
+        flex: 1,
+    },
+    reportModalContent: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingBottom: 40,
+        maxHeight: '80%',
+    },
+    reportModalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    reportModalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    reportModalSubtitle: {
+        fontSize: 14,
+        marginBottom: 20,
+        lineHeight: 20,
+    },
+    reportOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 14,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 8,
+        gap: 12,
+    },
+    reportOptionText: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    reportDescriptionInput: {
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 15,
+        borderWidth: 1,
+        marginTop: 8,
+        marginBottom: 16,
+        height: 80,
+        textAlignVertical: 'top',
+    },
+    reportSubmitButton: {
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    reportSubmitText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: 'bold',
     },
     // Estilos para informacion fiscal
     fiscalContainer: {

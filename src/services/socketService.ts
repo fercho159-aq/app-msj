@@ -112,6 +112,24 @@ class SocketService extends EventEmitter {
                 this.emit('call-error', data);
             });
 
+            // Llamada pendiente (callee recibe esto al reconectarse)
+            this.socket.on('pending-call', (data: IncomingCallData) => {
+                console.log('📞 Llamada pendiente de:', data.fromName);
+                this.emit('pending-call', data);
+            });
+
+            // Timeout de llamada (caller recibe esto cuando el callee no contesta)
+            this.socket.on('call-timeout', (data: { userId: string; message: string }) => {
+                console.log('⏰ Llamada expiró:', data.message);
+                this.emit('call-timeout', data);
+            });
+
+            // Llamada sonando (caller recibe esto cuando callee está offline pero se creó pending call)
+            this.socket.on('call-ringing', (data: { userId: string; message: string }) => {
+                console.log('🔔 Llamada sonando (pendiente)');
+                this.emit('call-ringing', data);
+            });
+
             // Timeout de conexión
             setTimeout(() => {
                 if (!this.socket?.connected) {
@@ -212,13 +230,26 @@ class SocketService extends EventEmitter {
     }
 
     // Terminar llamada
-    endCall(targetUserId: string): void {
+    endCall(targetUserId: string, duration?: number): void {
         if (!this.socket || !this.currentUser) return;
 
         this.socket.emit('end-call', {
             to: targetUserId,
             from: this.currentUser.id,
+            duration,
         });
+    }
+
+    // Verificar llamadas pendientes (callee emite esto al conectarse)
+    checkPendingCalls(): void {
+        if (!this.socket || !this.currentUser) return;
+        this.socket.emit('check-pending-calls', { userId: this.currentUser.id });
+    }
+
+    // Heartbeat para indicar al servidor que el caller sigue esperando
+    sendCallStillWaiting(targetUserId: string): void {
+        if (!this.socket || !this.currentUser) return;
+        this.socket.emit('call-still-waiting', { to: targetUserId });
     }
 
     // Enviar ICE candidate
