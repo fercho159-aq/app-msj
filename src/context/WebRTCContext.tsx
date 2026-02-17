@@ -10,7 +10,6 @@ import React, {
 import { Platform } from 'react-native';
 import { ICE_SERVERS, MEDIA_CONSTRAINTS, SDP_CONSTRAINTS } from '../config/webrtc';
 import { socketService } from '../services/socketService';
-import { spreedService } from '../services/spreedService';
 
 // Importación condicional de WebRTC para React Native
 // En web usamos las APIs nativas del navegador
@@ -100,18 +99,39 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const remoteUserIdRef = useRef<string | null>(null);
+  const turnServersRef = useRef<RTCIceServer[]>([]);
 
-  // Obtener configuración ICE (STUN estáticos + TURN de Spreed)
+  // Obtener credenciales TURN del servidor
+  const fetchTurnCredentials = useCallback(async (): Promise<void> => {
+    try {
+      const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
+      const response = await fetch(`${API_URL}/calls/turn-credentials`);
+      if (!response.ok) {
+        console.warn('[WebRTC] Error obteniendo TURN credentials:', response.status);
+        return;
+      }
+      const data = await response.json();
+      if (data.iceServers && data.iceServers.length > 0) {
+        turnServersRef.current = data.iceServers;
+        console.log('[WebRTC] TURN credentials obtenidas del servidor:', data.iceServers.length, 'servers');
+      } else {
+        console.warn('[WebRTC] Servidor no devolvió TURN servers');
+      }
+    } catch (error) {
+      console.warn('[WebRTC] No se pudieron obtener TURN credentials:', error);
+    }
+  }, []);
+
+  // Obtener configuración ICE (STUN estáticos + TURN del servidor)
   const getIceConfiguration = useCallback((): RTCConfiguration => {
     const servers: RTCIceServer[] = [...(ICE_SERVERS.iceServers || [])];
 
-    // Agregar servidores TURN de Spreed si están disponibles
-    const spreedServers = spreedService.iceServers;
-    if (spreedServers.length > 0) {
-      servers.push(...spreedServers);
-      console.log('[WebRTC] TURN servers de Spreed agregados:', spreedServers.length);
+    // Agregar servidores TURN obtenidos del servidor
+    if (turnServersRef.current.length > 0) {
+      servers.push(...turnServersRef.current);
+      console.log('[WebRTC] TURN servers agregados:', turnServersRef.current.length);
     } else {
-      console.warn('[WebRTC] No hay TURN servers disponibles de Spreed, solo STUN');
+      console.warn('[WebRTC] No hay TURN servers disponibles, solo STUN');
     }
 
     // Filtrar servidores con URLs vacías que causan error en PeerConnection
@@ -246,6 +266,9 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       try {
         remoteUserIdRef.current = targetUserId;
 
+        // Obtener credenciales TURN antes de crear la conexión
+        await fetchTurnCredentials();
+
         // Crear peer connection si no existe
         let pc = peerConnection.current;
         if (!pc) {
@@ -274,7 +297,7 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return null;
       }
     },
-    [createPeerConnection]
+    [createPeerConnection, fetchTurnCredentials]
   );
 
   // Manejar oferta recibida (quien recibe la llamada)
@@ -285,6 +308,9 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     ): Promise<RTCSessionDescriptionInit | null> => {
       try {
         remoteUserIdRef.current = fromUserId;
+
+        // Obtener credenciales TURN antes de crear la conexión
+        await fetchTurnCredentials();
 
         // Crear peer connection si no existe
         let pc = peerConnection.current;
@@ -323,7 +349,7 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return null;
       }
     },
-    [createPeerConnection]
+    [createPeerConnection, fetchTurnCredentials]
   );
 
   // Manejar respuesta recibida

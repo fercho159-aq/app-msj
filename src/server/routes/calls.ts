@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { query, queryOne } from '../../database/config';
+import { getTurnCredentials } from '../services/turnService';
 
 const router = Router();
 
@@ -125,6 +126,17 @@ router.delete('/requests/:id', async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('Error al eliminar solicitud:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/calls/turn-credentials - Obtener credenciales TURN para WebRTC
+router.get('/turn-credentials', (req: Request, res: Response) => {
+    try {
+        const credentials = getTurnCredentials();
+        res.json(credentials);
+    } catch (error: any) {
+        console.error('Error obteniendo credenciales TURN:', error);
+        res.status(500).json({ error: 'Error obteniendo credenciales TURN', iceServers: [] });
     }
 });
 
