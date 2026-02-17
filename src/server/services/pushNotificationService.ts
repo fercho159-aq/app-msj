@@ -200,11 +200,14 @@ class PushNotificationService {
                 body: JSON.stringify(message),
             });
 
-            const result = await response.json() as { data: ExpoPushTicket[] };
+            const result = await response.json();
             console.log(`📨 Respuesta de Expo Push:`, JSON.stringify(result));
 
-            if (result.data && result.data.length > 0) {
-                const ticket = result.data[0];
+            // Expo returns data as array or single object depending on request
+            const tickets: ExpoPushTicket[] = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
+
+            if (tickets.length > 0) {
+                const ticket = tickets[0];
 
                 if (ticket.status === 'ok') {
                     console.log(`✅ Notificación enviada: ${ticket.id}`);

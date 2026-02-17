@@ -10,6 +10,7 @@ import React, {
 import { Platform } from 'react-native';
 import { ICE_SERVERS, MEDIA_CONSTRAINTS, SDP_CONSTRAINTS } from '../config/webrtc';
 import { socketService } from '../services/socketService';
+import { spreedService } from '../services/spreedService';
 
 // Importación condicional de WebRTC para React Native
 // En web usamos las APIs nativas del navegador
@@ -100,14 +101,27 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
   const remoteUserIdRef = useRef<string | null>(null);
 
-  // Obtener configuración ICE (solo servidores estáticos)
+  // Obtener configuración ICE (STUN estáticos + TURN de Spreed)
   const getIceConfiguration = useCallback((): RTCConfiguration => {
+    const servers: RTCIceServer[] = [...(ICE_SERVERS.iceServers || [])];
+
+    // Agregar servidores TURN de Spreed si están disponibles
+    const spreedServers = spreedService.iceServers;
+    if (spreedServers.length > 0) {
+      servers.push(...spreedServers);
+      console.log('[WebRTC] TURN servers de Spreed agregados:', spreedServers.length);
+    } else {
+      console.warn('[WebRTC] No hay TURN servers disponibles de Spreed, solo STUN');
+    }
+
     // Filtrar servidores con URLs vacías que causan error en PeerConnection
-    const filteredServers = (ICE_SERVERS.iceServers || []).filter(server => {
+    const filteredServers = servers.filter(server => {
       if (!server.urls) return false;
       if (Array.isArray(server.urls) && server.urls.length === 0) return false;
       return true;
     });
+
+    console.log('[WebRTC] ICE servers configurados:', filteredServers.length);
     return {
       ...ICE_SERVERS,
       iceServers: filteredServers,
@@ -140,11 +154,14 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         console.log('[WebRTC] Connection state:', pc.connectionState);
 
         if (pc.connectionState === 'connected') {
+          console.log('[WebRTC] P2P conectado exitosamente!');
           setState(prev => ({ ...prev, isConnected: true, isInCall: true }));
           startCallTimer();
+        } else if (pc.connectionState === 'failed') {
+          console.error('[WebRTC] Conexión P2P falló - posible problema de NAT/TURN');
+          setState(prev => ({ ...prev, isConnected: false }));
         } else if (
           pc.connectionState === 'disconnected' ||
-          pc.connectionState === 'failed' ||
           pc.connectionState === 'closed'
         ) {
           setState(prev => ({ ...prev, isConnected: false }));
@@ -154,6 +171,14 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // Manejar estado de ICE
       pc.oniceconnectionstatechange = () => {
         console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+        if (pc.iceConnectionState === 'failed') {
+          console.error('[WebRTC] ICE falló - verificar servidores TURN');
+        }
+      };
+
+      // Manejar estado de gathering de ICE
+      pc.onicegatheringstatechange = () => {
+        console.log('[WebRTC] ICE gathering state:', pc.iceGatheringState);
       };
 
       // Manejar streams remotos

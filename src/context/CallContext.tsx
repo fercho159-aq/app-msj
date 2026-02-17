@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react';
 import { Alert, Vibration, Platform } from 'react-native';
 import { socketService, IncomingCallData } from '../services/socketService';
+import { spreedService } from '../services/spreedService';
 import { useWebRTC } from './WebRTCContext';
 import { useAuth } from './AuthContext';
 
@@ -98,6 +99,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsConnected(true);
             console.log('[CallContext] Conectado a Socket.io');
 
+            // Conectar a Spreed para obtener credenciales TURN
+            try {
+                if (!spreedService.isConnected) {
+                    console.log('[CallContext] Conectando a Spreed para obtener TURN servers...');
+                    await spreedService.connect(user.name || user.rfc);
+                    console.log('[CallContext] Spreed conectado, TURN servers:', spreedService.iceServers.length);
+                }
+            } catch (spreedError) {
+                console.warn('[CallContext] No se pudieron obtener credenciales TURN de Spreed:', spreedError);
+            }
+
             // Verificar llamadas pendientes al conectarse
             socketService.checkPendingCalls();
         } catch (error) {
@@ -109,6 +121,7 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // Desconectar
     const disconnect = useCallback(() => {
         socketService.disconnect();
+        spreedService.disconnect();
         webrtc.cleanup();
         setIsConnected(false);
         setOnlineUsers([]);
@@ -159,6 +172,17 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
 
         try {
+            // Asegurar que tengamos credenciales TURN antes de la llamada
+            if (!spreedService.isConnected) {
+                try {
+                    console.log('[CallContext] Obteniendo credenciales TURN de Spreed...');
+                    await spreedService.connect(user?.name || user?.rfc || 'user');
+                    console.log('[CallContext] TURN servers obtenidos:', spreedService.iceServers.length);
+                } catch (e) {
+                    console.warn('[CallContext] No se pudieron obtener TURN servers:', e);
+                }
+            }
+
             console.log('[CallContext] Paso 1: Inicializando media...');
             // Inicializar media local
             const stream = await webrtc.initializeMedia(callType === 'video');
@@ -238,6 +262,16 @@ export const CallProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const { from, fromName, callType, offer } = pendingCall;
 
         try {
+            // Asegurar credenciales TURN antes de aceptar
+            if (!spreedService.isConnected) {
+                try {
+                    await spreedService.connect(user?.name || user?.rfc || 'user');
+                    console.log('[CallContext] TURN servers obtenidos para acceptCall:', spreedService.iceServers.length);
+                } catch (e) {
+                    console.warn('[CallContext] TURN no disponible, continuando con STUN:', e);
+                }
+            }
+
             // Inicializar media local
             const stream = await webrtc.initializeMedia(callType === 'video');
             if (!stream) {
