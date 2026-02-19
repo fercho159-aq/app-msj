@@ -12,6 +12,7 @@
     "db:migrate:notifications": "npx ts-node --project tsconfig.server.json src/database/migrate-notifications.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",

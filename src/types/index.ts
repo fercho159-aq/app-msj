@@ -116,3 +116,9 @@ export interface UserMediaDetail {
     chat_id: string;
     created_at: string;
 }
+
+// AI Chat
+export interface AiChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}

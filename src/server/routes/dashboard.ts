@@ -6,6 +6,7 @@ import {
     getUsersMedia,
     getUserMediaDetail,
 } from '../../services/dashboardService';
+import { sendAiChatMessage } from '../../services/aiChatService';
 
 const router = Router();
 
@@ -78,6 +79,36 @@ router.get('/user-media/:targetUserId', requireConsultor, async (req: Request, r
         res.json({ media });
     } catch (error: any) {
         console.error('Error al obtener detalle de media:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/dashboard/ai-chat
+router.post('/ai-chat', async (req: Request, res: Response) => {
+    try {
+        const { userId, messages } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId es requerido' });
+        }
+
+        const user = await queryOne<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (!user || user.role !== 'consultor') {
+            return res.status(403).json({ error: 'Acceso denegado. Solo consultores.' });
+        }
+
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ error: 'messages es requerido' });
+        }
+
+        const reply = await sendAiChatMessage(messages);
+        res.json({ reply });
+    } catch (error: any) {
+        console.error('Error en AI chat:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -657,6 +657,17 @@ class ApiClient {
         );
     }
 
+    async sendAiChat(messages: import('../types').AiChatMessage[]) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ reply: string }>(
+            `/dashboard/ai-chat`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ userId: this.userId, messages }),
+            }
+        );
+    }
+
     // ==================== CHECKID API ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {

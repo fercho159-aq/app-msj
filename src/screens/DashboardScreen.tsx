@@ -19,6 +19,7 @@ import { StatCard } from '../components/dashboard/StatCard';
 import { ChartContainer } from '../components/dashboard/ChartContainer';
 import { PeriodSelector } from '../components/dashboard/PeriodSelector';
 import { UserMediaTable } from '../components/dashboard/UserMediaTable';
+import { AiChatPanel } from '../components/dashboard/AiChatPanel';
 import type { DashboardSummary, DashboardActivity } from '../types';
 
 // Conditionally import recharts only on web
@@ -480,6 +481,9 @@ export const DashboardScreen: React.FC = () => {
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             )}
+
+            {/* AI Chat Floating Panel */}
+            <AiChatPanel />
         </View>
     );
 };
