@@ -230,6 +230,11 @@ export const DashboardScreen: React.FC = () => {
                         />
                     </View>
 
+                    {/* ═══════ USERS MEDIA TABLE (PRINCIPAL) ═══════ */}
+                    <View style={styles.mainSection}>
+                        <UserMediaTable />
+                    </View>
+
                     {/* ═══════ CHARTS ROW 1: Activity ═══════ */}
                     <ChartContainer
                         title="Actividad de Mensajes"
@@ -473,9 +478,6 @@ export const DashboardScreen: React.FC = () => {
                         </View>
                     </ChartContainer>
 
-                    {/* ═══════ USERS MEDIA TABLE ═══════ */}
-                    <UserMediaTable />
-
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
             )}
@@ -571,6 +573,11 @@ const styles = StyleSheet.create({
         gap: 14,
         marginTop: 20,
         marginBottom: 20,
+    },
+
+    // Main section (user table)
+    mainSection: {
+        marginBottom: 24,
     },
 
     // Charts
