@@ -50,13 +50,13 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
             SELECT status, COUNT(*)::text as count
             FROM call_history GROUP BY status
         `),
-        queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM reports'),
+        queryOne<{ count: string }>('SELECT COUNT(*)::text as count FROM content_reports'),
         query<{ status: string; count: string }>(`
             SELECT status, COUNT(*)::text as count
-            FROM reports GROUP BY status
+            FROM content_reports GROUP BY status
         `),
         queryOne<{ count: string }>(`
-            SELECT COUNT(DISTINCT blocked_user_id)::text as count FROM blocked_users
+            SELECT COUNT(DISTINCT blocked_id)::text as count FROM blocked_users
         `),
     ]);
 
@@ -134,7 +134,7 @@ export async function getDashboardActivity(period: '7d' | '30d' | '90d'): Promis
         `),
         query<{ date: string; count: string }>(`
             SELECT DATE(created_at)::text as date, COUNT(*)::text as count
-            FROM reports
+            FROM content_reports
             WHERE created_at >= NOW() - INTERVAL '${days} days'
             GROUP BY DATE(created_at)
             ORDER BY date
