@@ -60,7 +60,59 @@ export type RootStackParamList = {
 };
 
 export type BottomTabParamList = {
+    Dashboard: undefined;
     Chats: undefined;
     Calls: undefined;
     Settings: undefined;
 };
+
+// ==================== DASHBOARD TYPES ====================
+
+export interface DashboardSummary {
+    users: { total: number; byRole: { role: string; count: number }[] };
+    chats: { total: number; groups: number; individual: number };
+    messages: { total: number; byType: { type: string; count: number }[] };
+    callRequests: { total: number; byStatus: { status: string; count: number }[] };
+    callHistory: { total: number; byStatus: { status: string; count: number }[] };
+    reports: { total: number; byStatus: { status: string; count: number }[] };
+    blockedUsers: number;
+}
+
+export interface ActivityPoint {
+    date: string;
+    count: number;
+}
+
+export interface DashboardActivity {
+    messages: ActivityPoint[];
+    newUsers: ActivityPoint[];
+    callRequests: ActivityPoint[];
+    reports: ActivityPoint[];
+}
+
+export interface UserMediaRow {
+    id: string;
+    name: string | null;
+    rfc: string;
+    avatar_url: string | null;
+    images: number;
+    videos: number;
+    files: number;
+    total: number;
+}
+
+export interface UsersMediaResult {
+    users: UserMediaRow[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface UserMediaDetail {
+    id: string;
+    message_type: string;
+    media_url: string;
+    text: string | null;
+    chat_id: string;
+    created_at: string;
+}

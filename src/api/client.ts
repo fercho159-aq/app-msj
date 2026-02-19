@@ -621,6 +621,42 @@ class ApiClient {
         });
     }
 
+    // ==================== DASHBOARD ====================
+
+    async getDashboardSummary() {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ summary: import('../types').DashboardSummary }>(
+            `/dashboard/summary?userId=${this.userId}`
+        );
+    }
+
+    async getDashboardActivity(period: '7d' | '30d' | '90d' = '30d') {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ activity: import('../types').DashboardActivity }>(
+            `/dashboard/activity?userId=${this.userId}&period=${period}`
+        );
+    }
+
+    async getDashboardUsersMedia(page: number = 1, limit: number = 20, search?: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        const params = new URLSearchParams({
+            userId: this.userId,
+            page: page.toString(),
+            limit: limit.toString(),
+        });
+        if (search) params.append('search', search);
+        return this.request<import('../types').UsersMediaResult>(
+            `/dashboard/users-media?${params}`
+        );
+    }
+
+    async getDashboardUserMedia(targetUserId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ media: import('../types').UserMediaDetail[] }>(
+            `/dashboard/user-media/${targetUserId}?userId=${this.userId}`
+        );
+    }
+
     // ==================== CHECKID API ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {

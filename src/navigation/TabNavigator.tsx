@@ -1,10 +1,11 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet } from 'react-native';
-import { ChatsScreen, SettingsScreen, CallsScreen } from '../screens';
+import { View, StyleSheet, Platform } from 'react-native';
+import { ChatsScreen, SettingsScreen, CallsScreen, DashboardScreen } from '../screens';
 import { BottomTabParamList } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 
@@ -29,9 +30,13 @@ const TabIcon: React.FC<TabIconProps> = ({ name, focused, color, primaryColor })
 
 export const TabNavigator: React.FC = () => {
     const { colors } = useTheme();
+    const { user } = useAuth();
+
+    const isWebConsultor = Platform.OS === 'web' && user?.role === 'consultor';
 
     return (
         <Tab.Navigator
+            initialRouteName={isWebConsultor ? 'Dashboard' : 'Chats'}
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
@@ -52,6 +57,23 @@ export const TabNavigator: React.FC = () => {
                 tabBarLabelStyle: styles.tabLabel,
             }}
         >
+            {isWebConsultor && (
+                <Tab.Screen
+                    name="Dashboard"
+                    component={DashboardScreen}
+                    options={{
+                        tabBarLabel: 'Dashboard',
+                        tabBarIcon: ({ focused, color }) => (
+                            <TabIcon
+                                name={focused ? 'grid' : 'grid-outline'}
+                                focused={focused}
+                                color={color}
+                                primaryColor={colors.primary}
+                            />
+                        ),
+                    }}
+                />
+            )}
             <Tab.Screen
                 name="Chats"
                 component={ChatsScreen}

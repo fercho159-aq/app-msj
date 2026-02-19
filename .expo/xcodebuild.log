@@ -846,7 +846,7 @@ note: Target dependency graph (107 targets)
         ➜ Explicit dependency on target 'React-utils' in project 'Pods'
         ➜ Explicit dependency on target 'ReactNativeDependencies' in project 'Pods'
     Target 'React-rendererdebug' in project 'Pods'
-        ��� Explicit dependency on target 'React-Core-prebuilt' in project 'Pods'
+        ➜ Explicit dependency on target 'React-Core-prebuilt' in project 'Pods'
         ➜ Explicit dependency on target 'React-debug' in project 'Pods'
         ➜ Explicit dependency on target 'ReactNativeDependencies' in project 'Pods'
     Target 'React-rendererconsistency' in project 'Pods' (no dependencies)
@@ -990,16 +990,16 @@ ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --
 
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
 
-ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Images.xcassets
-
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/libtool -V
+
+ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml1 /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Images.xcassets
 
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/usr/bin/actool --version --output-format xml1
 
 ExecuteExternalTool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
 
-Build description signature: 62b43053ffa92cb1a6bd1856ac5497d5
-Build description path: /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/XCBuildData/62b43053ffa92cb1a6bd1856ac5497d5.xcbuilddata
+Build description signature: 7fab850d2169029b9e168092b293ba65
+Build description path: /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/XCBuildData/7fab850d2169029b9e168092b293ba65.xcbuilddata
 ClangStatCache /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.2-23C53-7d00a8b37fbd7999ea79df8ebc024bf0.sdkstatcache
     cd /Users/fernandotrejo/Developer/app-msj/ios
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/SDKStatCaches.noindex/iphonesimulator26.2-23C53-7d00a8b37fbd7999ea79df8ebc024bf0.sdkstatcache
@@ -2559,13 +2559,13 @@ PhaseScriptExecution [CP-User]\ [RNDeps]\ Replace\ React\ Native\ Core\ for\ the
 Node found at: /Users/fernandotrejo/.nvm/versions/node/v24.13.0/bin/node
 No previous build detected, but Debug Configuration. No need to replace React-Core-prebuilt
 
-ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-cxxreact/React-cxxreact_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-cxxreact/ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist (in target 'React-cxxreact-React-cxxreact_privacy' from project 'Pods')
-    cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
-    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-cxxreact/ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-cxxreact/React-cxxreact_privacy.bundle/Info.plist
-
 ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-Core/React-Core_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-Core/ResourceBundle-React-Core_privacy-React-Core-Info.plist (in target 'React-Core-React-Core_privacy' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
     builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-Core/ResourceBundle-React-Core_privacy-React-Core-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-Core/React-Core_privacy.bundle/Info.plist
+
+ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-cxxreact/React-cxxreact_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-cxxreact/ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist (in target 'React-cxxreact-React-cxxreact_privacy' from project 'Pods')
+    cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
+    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/React-cxxreact/ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/React-cxxreact/React-cxxreact_privacy.bundle/Info.plist
 
 note: Run script build phase '[CP-User] [RN]Check FBReactNativeSpec' will be run during every build because the option to run the script phase "Based on dependency analysis" is unchecked. (in target 'React-RCTFBReactNativeSpec' from project 'Pods')
 PhaseScriptExecution [CP-User]\ [RN]Check\ FBReactNativeSpec /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/React-RCTFBReactNativeSpec.build/Script-46EB2E0001BF40.sh (in target 'React-RCTFBReactNativeSpec' from project 'Pods')
@@ -3084,6 +3084,10 @@ PhaseScriptExecution [CP-User]\ [RN]Check\ FBReactNativeSpec /Users/fernandotrej
     /bin/sh -c /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Pods.build/Debug-iphonesimulator/React-RCTFBReactNativeSpec.build/Script-46EB2E0001BF40.sh
 Checking whether Codegen has run...
 
+ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoFileSystem/ExpoFileSystem_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoFileSystem/ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist (in target 'ExpoFileSystem-ExpoFileSystem_privacy' from project 'Pods')
+    cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
+    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoFileSystem/ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoFileSystem/ExpoFileSystem_privacy.bundle/Info.plist
+
 ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/RNCAsyncStorage/RNCAsyncStorage_resources.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/RNCAsyncStorage/ResourceBundle-RNCAsyncStorage_resources-RNCAsyncStorage-Info.plist (in target 'RNCAsyncStorage-RNCAsyncStorage_resources' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
     builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/RNCAsyncStorage/ResourceBundle-RNCAsyncStorage_resources-RNCAsyncStorage-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/RNCAsyncStorage/RNCAsyncStorage_resources.bundle/Info.plist
@@ -3092,21 +3096,17 @@ ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Ya
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
     builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoMediaLibrary/ResourceBundle-ExpoMediaLibrary_privacy-ExpoMediaLibrary-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoMediaLibrary/ExpoMediaLibrary_privacy.bundle/Info.plist
 
-ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoDevice/ExpoDevice_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoDevice/ResourceBundle-ExpoDevice_privacy-ExpoDevice-Info.plist (in target 'ExpoDevice-ExpoDevice_privacy' from project 'Pods')
+ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXNotifications/ExpoNotifications_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXNotifications/ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist (in target 'EXNotifications-ExpoNotifications_privacy' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
-    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoDevice/ResourceBundle-ExpoDevice_privacy-ExpoDevice-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoDevice/ExpoDevice_privacy.bundle/Info.plist
+    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXNotifications/ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXNotifications/ExpoNotifications_privacy.bundle/Info.plist
 
 ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXApplication/ExpoApplication_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXApplication/ResourceBundle-ExpoApplication_privacy-EXApplication-Info.plist (in target 'EXApplication-ExpoApplication_privacy' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
     builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXApplication/ResourceBundle-ExpoApplication_privacy-EXApplication-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXApplication/ExpoApplication_privacy.bundle/Info.plist
 
-ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoFileSystem/ExpoFileSystem_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoFileSystem/ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist (in target 'ExpoFileSystem-ExpoFileSystem_privacy' from project 'Pods')
+ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoDevice/ExpoDevice_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoDevice/ResourceBundle-ExpoDevice_privacy-ExpoDevice-Info.plist (in target 'ExpoDevice-ExpoDevice_privacy' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
-    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoFileSystem/ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoFileSystem/ExpoFileSystem_privacy.bundle/Info.plist
-
-ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXNotifications/ExpoNotifications_privacy.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXNotifications/ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist (in target 'EXNotifications-ExpoNotifications_privacy' from project 'Pods')
-    cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
-    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXNotifications/ResourceBundle-ExpoNotifications_privacy-EXNotifications-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXNotifications/ExpoNotifications_privacy.bundle/Info.plist
+    builtin-infoPlistUtility /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/ExpoDevice/ResourceBundle-ExpoDevice_privacy-ExpoDevice-Info.plist -producttype com.apple.product-type.bundle -expandbuildsettings -format binary -platform iphonesimulator -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/ExpoDevice/ExpoDevice_privacy.bundle/Info.plist
 
 ProcessInfoPlistFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/EXConstants/EXConstants.bundle/Info.plist /Users/fernandotrejo/Developer/app-msj/ios/Pods/Target\ Support\ Files/EXConstants/ResourceBundle-EXConstants-EXConstants-Info.plist (in target 'EXConstants-EXConstants' from project 'Pods')
     cd /Users/fernandotrejo/Developer/app-msj/ios/Pods
@@ -3669,6 +3669,10 @@ ProcessProductPackaging /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Yaakob
     
     builtin-productPackagingUtility /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Yaakob.entitlements -entitlements -format xml -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent
 
+ProcessProductPackagingDER /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent.der (in target 'Yaakob' from project 'Yaakob')
+    cd /Users/fernandotrejo/Developer/app-msj/ios
+    /usr/bin/derq query -f xml -i /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent.der --raw
+
 ProcessProductPackaging /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Yaakob.entitlements /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app.xcent (in target 'Yaakob' from project 'Yaakob')
     cd /Users/fernandotrejo/Developer/app-msj/ios
     
@@ -3678,10 +3682,6 @@ ProcessProductPackaging /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Yaakob
 }
     
     builtin-productPackagingUtility /Users/fernandotrejo/Developer/app-msj/ios/Yaakob/Yaakob.entitlements -entitlements -format xml -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app.xcent
-
-ProcessProductPackagingDER /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent.der (in target 'Yaakob' from project 'Yaakob')
-    cd /Users/fernandotrejo/Developer/app-msj/ios
-    /usr/bin/derq query -f xml -i /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent -o /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app-Simulated.xcent.der --raw
 
 ProcessProductPackagingDER /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app.xcent /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.app.xcent.der (in target 'Yaakob' from project 'Yaakob')
     cd /Users/fernandotrejo/Developer/app-msj/ios
@@ -4983,8 +4983,8 @@ CopySwiftLibs /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bn
 ExtractAppIntentsMetadata (in target 'Yaakob' from project 'Yaakob')
     cd /Users/fernandotrejo/Developer/app-msj/ios
     /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --module-name Yaakob --sdk-root /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.2.sdk --xcode-version 17C52 --platform-family iOS --deployment-target 15.1 --bundle-identifier com.fernandotrejo.consultora --output /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/Yaakob.app --target-triple arm64-apple-ios15.1-simulator --binary-file /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/Yaakob.app/Yaakob --dependency-file /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Objects-normal/arm64/Yaakob_dependency_info.dat --stringsdata-file /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Objects-normal/arm64/Yaakob.SwiftFileList --metadata-file-list /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.DependencyMetadataFileList --static-metadata-file-list /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Yaakob.DependencyStaticMetadataFileList --swift-const-vals-list /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Intermediates.noindex/Yaakob.build/Debug-iphonesimulator/Yaakob.build/Objects-normal/arm64/Yaakob.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
-2026-02-17 15:45:04.550 appintentsmetadataprocessor[10516:99055] Starting appintentsmetadataprocessor export
-2026-02-17 15:45:04.557 appintentsmetadataprocessor[10516:99055] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-02-17 22:11:24.502 appintentsmetadataprocessor[17773:223754] Starting appintentsmetadataprocessor export
+2026-02-17 22:11:24.509 appintentsmetadataprocessor[17773:223754] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
 
 GenerateDSYMFile /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/Yaakob.app.dSYM /Users/fernandotrejo/Library/Developer/Xcode/DerivedData/Yaakob-bnrzegagweotyudmeoggdxwjearw/Build/Products/Debug-iphonesimulator/Yaakob.app/Yaakob (in target 'Yaakob' from project 'Yaakob')
     cd /Users/fernandotrejo/Developer/app-msj/ios

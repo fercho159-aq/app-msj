@@ -1,3 +1,4 @@
+export { DashboardScreen } from './DashboardScreen';
 export { ChatsScreen } from './ChatsScreen';
 export { ChatScreen } from './ChatScreen';
 export { UserProfileScreen } from './UserProfileScreen';
