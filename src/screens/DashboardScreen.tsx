@@ -230,253 +230,252 @@ export const DashboardScreen: React.FC = () => {
                         />
                     </View>
 
-                    {/* ═══════ USERS MEDIA TABLE (PRINCIPAL) ═══════ */}
-                    <View style={styles.mainSection}>
-                        <UserMediaTable />
-                    </View>
+                    {/* ═══════ TWO-COLUMN SPLIT: TABLE + CHARTS ═══════ */}
+                    <View style={styles.splitLayout}>
+                        {/* LEFT: Users Media Table */}
+                        <View style={styles.splitLeft}>
+                            <UserMediaTable />
+                        </View>
 
-                    {/* ═══════ CHARTS ROW 1: Activity ═══════ */}
-                    <ChartContainer
-                        title="Actividad de Mensajes"
-                        subtitle={`Periodo: ${period === '7d' ? 'ultima semana' : period === '30d' ? 'ultimo mes' : 'ultimos 3 meses'}`}
-                        rightContent={<PeriodSelector selected={period} onChange={handlePeriodChange} />}
-                        fullWidth
-                    >
-                        {activity && activity.messages.length > 0 ? (
-                            <ResponsiveContainer width="100%" height={280}>
-                                <AreaChart data={activity.messages.map(d => ({ ...d, label: formatDateLabel(d.date) }))}>
-                                    <defs>
-                                        <linearGradient id="msgGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stopColor={CHART_COLORS.blue} stopOpacity={0.25} />
-                                            <stop offset="100%" stopColor={CHART_COLORS.blue} stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                                    <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} />
-                                    <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={40} />
-                                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: colors.textPrimary, fontWeight: 600 }} />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="count"
-                                        stroke={CHART_COLORS.blue}
-                                        strokeWidth={2.5}
-                                        fill="url(#msgGradient)"
-                                        dot={false}
-                                        activeDot={{ r: 5, fill: CHART_COLORS.blue, strokeWidth: 2, stroke: '#fff' }}
-                                        name="Mensajes"
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        ) : (
-                            <View style={styles.noDataContainer}>
-                                <Ionicons name="analytics-outline" size={32} color={colors.textMuted} />
-                                <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos para este periodo</Text>
-                            </View>
-                        )}
-                    </ChartContainer>
-
-                    {/* ═══════ CHARTS ROW 2: Two columns ═══════ */}
-                    <View style={styles.chartRow}>
-                        {/* New users bar chart */}
-                        <View style={styles.chartHalf}>
-                            <ChartContainer title="Nuevos Usuarios" subtitle="Registros por dia">
-                                {activity && activity.newUsers.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <BarChart data={activity.newUsers.map(d => ({ ...d, label: formatDateLabel(d.date) }))}>
+                        {/* RIGHT: All Charts Stacked */}
+                        <View style={styles.splitRight}>
+                            {/* Activity */}
+                            <ChartContainer
+                                title="Actividad de Mensajes"
+                                subtitle={`Periodo: ${period === '7d' ? 'ultima semana' : period === '30d' ? 'ultimo mes' : 'ultimos 3 meses'}`}
+                                rightContent={<PeriodSelector selected={period} onChange={handlePeriodChange} />}
+                            >
+                                {activity && activity.messages.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <AreaChart data={activity.messages.map(d => ({ ...d, label: formatDateLabel(d.date) }))}>
                                             <defs>
-                                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="0%" stopColor={CHART_COLORS.emerald} stopOpacity={0.9} />
-                                                    <stop offset="100%" stopColor={CHART_COLORS.emerald} stopOpacity={0.5} />
+                                                <linearGradient id="msgGradient" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="0%" stopColor={CHART_COLORS.blue} stopOpacity={0.25} />
+                                                    <stop offset="100%" stopColor={CHART_COLORS.blue} stopOpacity={0.02} />
                                                 </linearGradient>
                                             </defs>
                                             <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                                             <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} />
-                                            <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} />
+                                            <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={35} />
                                             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: colors.textPrimary, fontWeight: 600 }} />
-                                            <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} name="Usuarios" maxBarSize={32} />
-                                        </BarChart>
+                                            <Area
+                                                type="monotone"
+                                                dataKey="count"
+                                                stroke={CHART_COLORS.blue}
+                                                strokeWidth={2.5}
+                                                fill="url(#msgGradient)"
+                                                dot={false}
+                                                activeDot={{ r: 5, fill: CHART_COLORS.blue, strokeWidth: 2, stroke: '#fff' }}
+                                                name="Mensajes"
+                                            />
+                                        </AreaChart>
                                     </ResponsiveContainer>
                                 ) : (
                                     <View style={styles.noDataContainer}>
-                                        <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
+                                        <Ionicons name="analytics-outline" size={32} color={colors.textMuted} />
+                                        <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos para este periodo</Text>
                                     </View>
                                 )}
                             </ChartContainer>
-                        </View>
 
-                        {/* Message types donut */}
-                        <View style={styles.chartHalf}>
-                            <ChartContainer title="Tipos de Mensaje" subtitle="Distribucion por formato">
-                                {summary && summary.messages.byType.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <PieChart>
-                                            <Pie
-                                                data={summary.messages.byType.map(t => ({ name: t.type, value: t.count }))}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={55}
-                                                outerRadius={90}
-                                                dataKey="value"
-                                                paddingAngle={3}
-                                                cornerRadius={4}
+                            {/* New users + Message types side by side */}
+                            <View style={styles.chartRow}>
+                                <View style={styles.chartHalf}>
+                                    <ChartContainer title="Nuevos Usuarios" subtitle="Registros por dia">
+                                        {activity && activity.newUsers.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <BarChart data={activity.newUsers.map(d => ({ ...d, label: formatDateLabel(d.date) }))}>
+                                                    <defs>
+                                                        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor={CHART_COLORS.emerald} stopOpacity={0.9} />
+                                                            <stop offset="100%" stopColor={CHART_COLORS.emerald} stopOpacity={0.5} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                                                    <XAxis dataKey="label" tick={axisStyle} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={25} />
+                                                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: colors.textPrimary, fontWeight: 600 }} />
+                                                    <Bar dataKey="count" fill="url(#barGradient)" radius={[6, 6, 0, 0]} name="Usuarios" maxBarSize={24} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <View style={styles.noDataContainer}>
+                                                <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
+                                            </View>
+                                        )}
+                                    </ChartContainer>
+                                </View>
+                                <View style={styles.chartHalf}>
+                                    <ChartContainer title="Tipos de Mensaje" subtitle="Distribucion por formato">
+                                        {summary && summary.messages.byType.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={summary.messages.byType.map(t => ({ name: t.type, value: t.count }))}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={70}
+                                                        dataKey="value"
+                                                        paddingAngle={3}
+                                                        cornerRadius={4}
+                                                    >
+                                                        {summary.messages.byType.map((_, index) => (
+                                                            <Cell key={`cell-${index}`} fill={PIE_PALETTE[index % PIE_PALETTE.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip contentStyle={tooltipStyle} />
+                                                    <Legend
+                                                        verticalAlign="bottom"
+                                                        height={36}
+                                                        iconType="circle"
+                                                        iconSize={8}
+                                                        formatter={(value: string) => (
+                                                            <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
+                                                        )}
+                                                    />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <View style={styles.noDataContainer}>
+                                                <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
+                                            </View>
+                                        )}
+                                    </ChartContainer>
+                                </View>
+                            </View>
+
+                            {/* Roles + Calls side by side */}
+                            <View style={styles.chartRow}>
+                                <View style={styles.chartHalf}>
+                                    <ChartContainer title="Roles de Usuario" subtitle="Distribucion por tipo">
+                                        {summary && summary.users.byRole.length > 0 ? (
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <PieChart>
+                                                    <Pie
+                                                        data={summary.users.byRole.map(r => ({ name: r.role, value: r.count }))}
+                                                        cx="50%"
+                                                        cy="50%"
+                                                        innerRadius={40}
+                                                        outerRadius={70}
+                                                        dataKey="value"
+                                                        paddingAngle={3}
+                                                        cornerRadius={4}
+                                                    >
+                                                        {summary.users.byRole.map((_, index) => (
+                                                            <Cell key={`cell-${index}`} fill={PIE_PALETTE[index % PIE_PALETTE.length]} />
+                                                        ))}
+                                                    </Pie>
+                                                    <Tooltip contentStyle={tooltipStyle} />
+                                                    <Legend
+                                                        verticalAlign="bottom"
+                                                        height={36}
+                                                        iconType="circle"
+                                                        iconSize={8}
+                                                        formatter={(value: string) => (
+                                                            <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
+                                                        )}
+                                                    />
+                                                </PieChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <View style={styles.noDataContainer}>
+                                                <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
+                                            </View>
+                                        )}
+                                    </ChartContainer>
+                                </View>
+                                <View style={styles.chartHalf}>
+                                    <ChartContainer title="Resumen de Llamadas" subtitle="Solicitudes e historial">
+                                        {summary && (summary.callRequests.byStatus.length > 0 || summary.callHistory.byStatus.length > 0) ? (
+                                            <ResponsiveContainer width="100%" height={200}>
+                                                <BarChart
+                                                    data={[
+                                                        ...summary.callRequests.byStatus.map(s => ({
+                                                            name: s.status,
+                                                            Solicitudes: s.count,
+                                                            Historial: 0,
+                                                        })),
+                                                        ...summary.callHistory.byStatus.map(s => ({
+                                                            name: s.status,
+                                                            Solicitudes: 0,
+                                                            Historial: s.count,
+                                                        })),
+                                                    ]}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                                                    <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 9 }} axisLine={false} tickLine={false} />
+                                                    <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={25} />
+                                                    <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: colors.textPrimary, fontWeight: 600 }} />
+                                                    <Bar dataKey="Solicitudes" fill={CHART_COLORS.amber} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                                                    <Bar dataKey="Historial" fill={CHART_COLORS.violet} radius={[4, 4, 0, 0]} maxBarSize={20} />
+                                                    <Legend
+                                                        iconType="circle"
+                                                        iconSize={8}
+                                                        formatter={(value: string) => (
+                                                            <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
+                                                        )}
+                                                    />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        ) : (
+                                            <View style={styles.noDataContainer}>
+                                                <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
+                                            </View>
+                                        )}
+                                    </ChartContainer>
+                                </View>
+                            </View>
+
+                            {/* Moderation */}
+                            <ChartContainer title="Moderacion" subtitle="Estado de reportes y bloqueos">
+                                <View style={styles.moderationGrid}>
+                                    {summary?.reports.byStatus.map(s => {
+                                        const statusConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
+                                            pending: { icon: 'time-outline', color: CHART_COLORS.amber },
+                                            reviewed: { icon: 'eye-outline', color: CHART_COLORS.blue },
+                                            resolved: { icon: 'checkmark-circle-outline', color: CHART_COLORS.emerald },
+                                            dismissed: { icon: 'close-circle-outline', color: CHART_COLORS.slate },
+                                        };
+                                        const config = statusConfig[s.status] || { icon: 'help-circle-outline' as any, color: CHART_COLORS.slate };
+                                        return (
+                                            <View
+                                                key={s.status}
+                                                style={[
+                                                    styles.modCard,
+                                                    {
+                                                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                                                        borderColor: `${config.color}25`,
+                                                    },
+                                                ]}
                                             >
-                                                {summary.messages.byType.map((_, index) => (
-                                                    <Cell key={`cell-${index}`} fill={PIE_PALETTE[index % PIE_PALETTE.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={tooltipStyle} />
-                                            <Legend
-                                                verticalAlign="bottom"
-                                                height={36}
-                                                iconType="circle"
-                                                iconSize={8}
-                                                formatter={(value: string) => (
-                                                    <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
-                                                )}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <View style={styles.noDataContainer}>
-                                        <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
-                                    </View>
-                                )}
-                            </ChartContainer>
-                        </View>
-                    </View>
-
-                    {/* ═══════ CHARTS ROW 3: Two columns ═══════ */}
-                    <View style={styles.chartRow}>
-                        {/* User roles donut */}
-                        <View style={styles.chartHalf}>
-                            <ChartContainer title="Roles de Usuario" subtitle="Distribucion por tipo">
-                                {summary && summary.users.byRole.length > 0 ? (
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <PieChart>
-                                            <Pie
-                                                data={summary.users.byRole.map(r => ({ name: r.role, value: r.count }))}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={55}
-                                                outerRadius={90}
-                                                dataKey="value"
-                                                paddingAngle={3}
-                                                cornerRadius={4}
-                                            >
-                                                {summary.users.byRole.map((_, index) => (
-                                                    <Cell key={`cell-${index}`} fill={PIE_PALETTE[index % PIE_PALETTE.length]} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={tooltipStyle} />
-                                            <Legend
-                                                verticalAlign="bottom"
-                                                height={36}
-                                                iconType="circle"
-                                                iconSize={8}
-                                                formatter={(value: string) => (
-                                                    <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
-                                                )}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <View style={styles.noDataContainer}>
-                                        <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
-                                    </View>
-                                )}
-                            </ChartContainer>
-                        </View>
-
-                        {/* Call summary */}
-                        <View style={styles.chartHalf}>
-                            <ChartContainer title="Resumen de Llamadas" subtitle="Solicitudes e historial">
-                                {summary && (summary.callRequests.byStatus.length > 0 || summary.callHistory.byStatus.length > 0) ? (
-                                    <ResponsiveContainer width="100%" height={240}>
-                                        <BarChart
-                                            data={[
-                                                ...summary.callRequests.byStatus.map(s => ({
-                                                    name: s.status,
-                                                    Solicitudes: s.count,
-                                                    Historial: 0,
-                                                })),
-                                                ...summary.callHistory.byStatus.map(s => ({
-                                                    name: s.status,
-                                                    Solicitudes: 0,
-                                                    Historial: s.count,
-                                                })),
-                                            ]}
-                                        >
-                                            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
-                                            <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 9 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={30} />
-                                            <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: colors.textPrimary, fontWeight: 600 }} />
-                                            <Bar dataKey="Solicitudes" fill={CHART_COLORS.amber} radius={[4, 4, 0, 0]} maxBarSize={24} />
-                                            <Bar dataKey="Historial" fill={CHART_COLORS.violet} radius={[4, 4, 0, 0]} maxBarSize={24} />
-                                            <Legend
-                                                iconType="circle"
-                                                iconSize={8}
-                                                formatter={(value: string) => (
-                                                    <span style={{ color: colors.textSecondary, fontSize: 11, fontWeight: 500 }}>{value}</span>
-                                                )}
-                                            />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                ) : (
-                                    <View style={styles.noDataContainer}>
-                                        <Text style={[styles.noData, { color: colors.textMuted }]}>Sin datos</Text>
-                                    </View>
-                                )}
-                            </ChartContainer>
-                        </View>
-                    </View>
-
-                    {/* ═══════ MODERATION ═══════ */}
-                    <ChartContainer title="Moderacion" subtitle="Estado de reportes y bloqueos" fullWidth>
-                        <View style={styles.moderationGrid}>
-                            {summary?.reports.byStatus.map(s => {
-                                const statusConfig: Record<string, { icon: keyof typeof Ionicons.glyphMap; color: string }> = {
-                                    pending: { icon: 'time-outline', color: CHART_COLORS.amber },
-                                    reviewed: { icon: 'eye-outline', color: CHART_COLORS.blue },
-                                    resolved: { icon: 'checkmark-circle-outline', color: CHART_COLORS.emerald },
-                                    dismissed: { icon: 'close-circle-outline', color: CHART_COLORS.slate },
-                                };
-                                const config = statusConfig[s.status] || { icon: 'help-circle-outline' as any, color: CHART_COLORS.slate };
-                                return (
+                                                <View style={[styles.modIconBg, { backgroundColor: `${config.color}15` }]}>
+                                                    <Ionicons name={config.icon} size={20} color={config.color} />
+                                                </View>
+                                                <Text style={[styles.modValue, { color: colors.textPrimary }]}>{s.count}</Text>
+                                                <Text style={[styles.modLabel, { color: colors.textMuted }]}>{s.status}</Text>
+                                            </View>
+                                        );
+                                    })}
                                     <View
-                                        key={s.status}
                                         style={[
                                             styles.modCard,
                                             {
                                                 backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                                                borderColor: `${config.color}25`,
+                                                borderColor: `${CHART_COLORS.rose}25`,
                                             },
                                         ]}
                                     >
-                                        <View style={[styles.modIconBg, { backgroundColor: `${config.color}15` }]}>
-                                            <Ionicons name={config.icon} size={20} color={config.color} />
+                                        <View style={[styles.modIconBg, { backgroundColor: `${CHART_COLORS.rose}15` }]}>
+                                            <Ionicons name="ban-outline" size={20} color={CHART_COLORS.rose} />
                                         </View>
-                                        <Text style={[styles.modValue, { color: colors.textPrimary }]}>{s.count}</Text>
-                                        <Text style={[styles.modLabel, { color: colors.textMuted }]}>{s.status}</Text>
+                                        <Text style={[styles.modValue, { color: colors.textPrimary }]}>{summary?.blockedUsers || 0}</Text>
+                                        <Text style={[styles.modLabel, { color: colors.textMuted }]}>bloqueados</Text>
                                     </View>
-                                );
-                            })}
-                            <View
-                                style={[
-                                    styles.modCard,
-                                    {
-                                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                                        borderColor: `${CHART_COLORS.rose}25`,
-                                    },
-                                ]}
-                            >
-                                <View style={[styles.modIconBg, { backgroundColor: `${CHART_COLORS.rose}15` }]}>
-                                    <Ionicons name="ban-outline" size={20} color={CHART_COLORS.rose} />
                                 </View>
-                                <Text style={[styles.modValue, { color: colors.textPrimary }]}>{summary?.blockedUsers || 0}</Text>
-                                <Text style={[styles.modLabel, { color: colors.textMuted }]}>bloqueados</Text>
-                            </View>
+                            </ChartContainer>
                         </View>
-                    </ChartContainer>
+                    </View>
 
                     <View style={styles.bottomSpacer} />
                 </ScrollView>
@@ -575,16 +574,24 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
 
-    // Main section (user table)
-    mainSection: {
-        marginBottom: 24,
+    // Split layout
+    splitLayout: {
+        flexDirection: 'row',
+        gap: 20,
+        alignItems: 'flex-start',
+    },
+    splitLeft: {
+        flex: 1,
+    },
+    splitRight: {
+        flex: 1,
+        gap: 14,
     },
 
     // Charts
     chartRow: {
         flexDirection: 'row',
         gap: 14,
-        marginBottom: 14,
     },
     chartHalf: {
         flex: 1,
