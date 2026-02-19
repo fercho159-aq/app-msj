@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
+import { UserDetailModal } from './UserDetailModal';
 import type { UserMediaRow } from '../../types';
 
 const getInitials = (name: string | null, rfc: string) => {
@@ -19,6 +20,7 @@ export const UserMediaTable: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
     const limit = 15;
 
@@ -53,7 +55,9 @@ export const UserMediaTable: React.FC = () => {
     const maxTotal = Math.max(...users.map(u => u.total), 1);
 
     const renderRow = ({ item, index }: { item: UserMediaRow; index: number }) => (
-        <View
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => setSelectedUserId(item.id)}
             style={[
                 styles.row,
                 { borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' },
@@ -117,7 +121,12 @@ export const UserMediaTable: React.FC = () => {
                     />
                 </View>
             </View>
-        </View>
+
+            {/* Chevron */}
+            <View style={styles.chevronCell}>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </View>
+        </TouchableOpacity>
     );
 
     return (
@@ -201,6 +210,13 @@ export const UserMediaTable: React.FC = () => {
                     scrollEnabled={false}
                 />
             )}
+
+            {/* User Detail Modal */}
+            <UserDetailModal
+                visible={!!selectedUserId}
+                userId={selectedUserId}
+                onClose={() => setSelectedUserId(null)}
+            />
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -391,6 +407,11 @@ const styles = StyleSheet.create({
     miniBarFill: {
         height: '100%',
         borderRadius: 2,
+    },
+    chevronCell: {
+        width: 24,
+        alignItems: 'center',
+        marginLeft: 8,
     },
     loaderContainer: {
         paddingVertical: 40,
