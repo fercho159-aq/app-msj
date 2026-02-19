@@ -31,7 +31,7 @@ async function gatherContext(): Promise<string> {
             u.rfc as sender_rfc,
             m.message_type,
             LEFT(m.text, 200) as text,
-            c.name as chat_name,
+            c.group_name as chat_name,
             m.created_at::text
         FROM messages m
         JOIN users u ON u.id = m.sender_id
@@ -72,9 +72,9 @@ async function gatherContext(): Promise<string> {
         last_activity: string;
     }>(`
         SELECT
-            c.name,
+            c.group_name as name,
             c.is_group,
-            (SELECT COUNT(*)::text FROM chat_members cm WHERE cm.chat_id = c.id) as member_count,
+            (SELECT COUNT(*)::text FROM chat_participants cp WHERE cp.chat_id = c.id) as member_count,
             (SELECT COUNT(*)::text FROM messages m WHERE m.chat_id = c.id) as message_count,
             (SELECT MAX(m.created_at)::text FROM messages m WHERE m.chat_id = c.id) as last_activity
         FROM chats c
