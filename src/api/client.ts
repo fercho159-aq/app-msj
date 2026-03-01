@@ -668,6 +668,203 @@ class ApiClient {
         );
     }
 
+    // ==================== PROJECT MANAGEMENT ====================
+
+    async getProjectsSummary() {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ summary: import('../types').ProjectsSummary }>(
+            `/projects/summary?userId=${this.userId}`
+        );
+    }
+
+    async getProjectClients(page: number = 1, limit: number = 20, search?: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        const params = new URLSearchParams({
+            userId: this.userId,
+            page: page.toString(),
+            limit: limit.toString(),
+        });
+        if (search) params.append('search', search);
+        return this.request<import('../types').ClientsResult>(
+            `/projects/clients?${params}`
+        );
+    }
+
+    async getClientFiscalProfile(clientId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ profile: import('../types').ClientFiscalProfile }>(
+            `/projects/clients/${clientId}?userId=${this.userId}`
+        );
+    }
+
+    async updateClientFiscalFields(clientId: string, data: { capital?: number; efirma_expiry?: string; csd_expiry?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ profile: import('../types').ClientFiscalProfile }>(
+            `/projects/clients/${clientId}/fiscal?userId=${this.userId}`,
+            { method: 'PUT', body: JSON.stringify(data) }
+        );
+    }
+
+    async getClientCloudFiles(clientId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ files: import('../types').CloudFile[] }>(
+            `/projects/clients/${clientId}/cloud-files?userId=${this.userId}`
+        );
+    }
+
+    async getProjectsList(filters?: { clientId?: string; status?: string; page?: number; limit?: number }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        const params = new URLSearchParams({ userId: this.userId });
+        if (filters?.clientId) params.append('clientId', filters.clientId);
+        if (filters?.status) params.append('status', filters.status);
+        if (filters?.page) params.append('page', filters.page.toString());
+        if (filters?.limit) params.append('limit', filters.limit.toString());
+        return this.request<{ projects: import('../types').ProjectRow[]; total: number }>(
+            `/projects?${params}`
+        );
+    }
+
+    async createProject(data: { clientId: string; name: string; serviceType: string; description?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ project: import('../types').ProjectDetail }>(
+            `/projects?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async getProject(projectId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ project: import('../types').ProjectDetail }>(
+            `/projects/${projectId}?userId=${this.userId}`
+        );
+    }
+
+    async updateProjectData(projectId: string, data: { name?: string; serviceType?: string; description?: string; status?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ project: import('../types').ProjectDetail }>(
+            `/projects/${projectId}?userId=${this.userId}`,
+            { method: 'PUT', body: JSON.stringify(data) }
+        );
+    }
+
+    async createPhase(projectId: string, data: { name: string; description?: string; executorId?: string; deadline?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ phase: import('../types').PhaseRow }>(
+            `/projects/${projectId}/phases?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async updatePhase(projectId: string, phaseId: string, data: { name?: string; description?: string; status?: string; executorId?: string; deadline?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ phase: import('../types').PhaseRow }>(
+            `/projects/${projectId}/phases/${phaseId}?userId=${this.userId}`,
+            { method: 'PUT', body: JSON.stringify(data) }
+        );
+    }
+
+    async deletePhase(projectId: string, phaseId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/${projectId}/phases/${phaseId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async reorderPhases(projectId: string, phaseIds: string[]) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/${projectId}/phases/reorder?userId=${this.userId}`,
+            { method: 'PUT', body: JSON.stringify({ phaseIds }) }
+        );
+    }
+
+    async getPhaseDetail(phaseId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<import('../types').PhaseDetail>(
+            `/projects/phases/${phaseId}?userId=${this.userId}`
+        );
+    }
+
+    async addPhaseDocument(phaseId: string, data: { fileUrl: string; fileName: string; fileType?: string; fileSize?: number }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ document: import('../types').PhaseDocument }>(
+            `/projects/phases/${phaseId}/documents?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async linkPhaseDocument(phaseId: string, data: { messageId?: string; fileUrl: string; fileName: string; fileType?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ document: import('../types').PhaseDocument }>(
+            `/projects/phases/${phaseId}/documents/link?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async removePhaseDocument(phaseId: string, docId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/phases/${phaseId}/documents/${docId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async addPhaseObservation(phaseId: string, content: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ observation: import('../types').PhaseObservation }>(
+            `/projects/phases/${phaseId}/observations?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify({ content }) }
+        );
+    }
+
+    async updatePhaseObservation(phaseId: string, obsId: string, content: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ observation: import('../types').PhaseObservation }>(
+            `/projects/phases/${phaseId}/observations/${obsId}?userId=${this.userId}`,
+            { method: 'PUT', body: JSON.stringify({ content }) }
+        );
+    }
+
+    async deletePhaseObservation(phaseId: string, obsId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/phases/${phaseId}/observations/${obsId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async addChecklistItem(phaseId: string, label: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ item: import('../types').ChecklistItem }>(
+            `/projects/phases/${phaseId}/checklist?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify({ label }) }
+        );
+    }
+
+    async toggleChecklistItem(phaseId: string, itemId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ item: import('../types').ChecklistItem }>(
+            `/projects/phases/${phaseId}/checklist/${itemId}?userId=${this.userId}`,
+            { method: 'PUT' }
+        );
+    }
+
+    async deleteChecklistItem(phaseId: string, itemId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/phases/${phaseId}/checklist/${itemId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async getConsultors() {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ consultors: import('../types').ConsultorRow[] }>(
+            `/projects/consultors?userId=${this.userId}`
+        );
+    }
+
     // ==================== CHECKID API ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {

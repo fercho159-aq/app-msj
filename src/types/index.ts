@@ -122,3 +122,175 @@ export interface AiChatMessage {
     role: 'user' | 'assistant';
     content: string;
 }
+
+// ==================== PROJECT MANAGEMENT TYPES ====================
+
+export type ProjectStatus = 'activo' | 'pausado' | 'completado' | 'cancelado';
+export type PhaseStatus = 'pendiente' | 'en_curso' | 'bloqueado' | 'completado';
+export type DeadlineSeverity = 'red' | 'yellow' | 'green';
+
+export interface ClientRow {
+    id: string;
+    rfc: string;
+    name: string | null;
+    avatar_url: string | null;
+    phone: string | null;
+    razon_social: string | null;
+    regimen_fiscal: string | null;
+    efirma_expiry: string | null;
+    csd_expiry: string | null;
+    projects_count: number;
+}
+
+export interface ClientsResult {
+    clients: ClientRow[];
+    total: number;
+    page: number;
+    limit: number;
+}
+
+export interface ClientFiscalProfile {
+    id: string;
+    rfc: string;
+    name: string | null;
+    avatar_url: string | null;
+    phone: string | null;
+    razon_social: string | null;
+    tipo_persona: string | null;
+    curp: string | null;
+    regimen_fiscal: string | null;
+    codigo_postal: string | null;
+    estado: string | null;
+    domicilio: string | null;
+    capital: string | null;
+    efirma_expiry: string | null;
+    csd_expiry: string | null;
+    created_at: string;
+}
+
+export interface ProjectRow {
+    id: string;
+    client_id: string;
+    client_name: string | null;
+    client_rfc: string;
+    name: string;
+    service_type: string;
+    description: string | null;
+    status: ProjectStatus;
+    created_by: string;
+    total_phases: number;
+    completed_phases: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PhaseRow {
+    id: string;
+    project_id: string;
+    name: string;
+    description: string | null;
+    status: PhaseStatus;
+    executor_id: string | null;
+    executor_name: string | null;
+    sort_order: number;
+    deadline: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    created_at: string;
+    updated_at: string;
+    docs_count: number;
+    checklist_total: number;
+    checklist_done: number;
+}
+
+export interface ProjectDetail {
+    id: string;
+    client_id: string;
+    name: string;
+    service_type: string;
+    description: string | null;
+    status: ProjectStatus;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    phases: PhaseRow[];
+}
+
+export interface PhaseDocument {
+    id: string;
+    phase_id: string;
+    file_url: string;
+    file_name: string;
+    file_type: string | null;
+    file_size: number | null;
+    source: string;
+    message_id: string | null;
+    uploaded_by: string;
+    uploader_name: string | null;
+    created_at: string;
+}
+
+export interface PhaseObservation {
+    id: string;
+    phase_id: string;
+    author_id: string;
+    author_name: string | null;
+    content: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ChecklistItem {
+    id: string;
+    phase_id: string;
+    label: string;
+    is_completed: boolean;
+    completed_by: string | null;
+    completer_name: string | null;
+    completed_at: string | null;
+    sort_order: number;
+    created_at: string;
+}
+
+export interface PhaseDetail {
+    phase: PhaseRow;
+    documents: PhaseDocument[];
+    observations: PhaseObservation[];
+    checklist: ChecklistItem[];
+}
+
+export interface CloudFile {
+    id: string;
+    message_type: string;
+    media_url: string;
+    text: string | null;
+    file_name: string | null;
+    chat_id: string;
+    created_at: string;
+}
+
+export interface DeadlineAlert {
+    phase_id: string;
+    phase_name: string;
+    project_id: string;
+    project_name: string;
+    client_name: string | null;
+    deadline: string;
+    status: string;
+    severity: DeadlineSeverity;
+    days_remaining: number;
+}
+
+export interface ProjectsSummary {
+    totalClients: number;
+    activeProjects: number;
+    overduePhases: number;
+    completionRate: number;
+    alerts: DeadlineAlert[];
+}
+
+export interface ConsultorRow {
+    id: string;
+    name: string | null;
+    rfc: string;
+}

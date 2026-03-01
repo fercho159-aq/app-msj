@@ -20,6 +20,9 @@ import { ChartContainer } from '../components/dashboard/ChartContainer';
 import { PeriodSelector } from '../components/dashboard/PeriodSelector';
 import { UserMediaTable } from '../components/dashboard/UserMediaTable';
 import { AiChatPanel } from '../components/dashboard/AiChatPanel';
+import { DashboardLayout } from '../components/dashboard/DashboardLayout';
+import { GestionView } from '../components/dashboard/GestionView';
+import type { DashboardView } from '../components/dashboard/DashboardSidebar';
 import type { DashboardSummary, DashboardActivity } from '../types';
 
 // Conditionally import recharts only on web
@@ -71,6 +74,7 @@ const PIE_PALETTE = [CHART_COLORS.blue, CHART_COLORS.emerald, CHART_COLORS.amber
 export const DashboardScreen: React.FC = () => {
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
+    const [activeView, setActiveView] = useState<DashboardView>('dashboard');
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [activity, setActivity] = useState<DashboardActivity | null>(null);
     const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
@@ -144,10 +148,13 @@ export const DashboardScreen: React.FC = () => {
     const dateStr = now.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
+        <DashboardLayout activeView={activeView} onChangeView={setActiveView}>
         <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
             <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-            {isLoading ? (
+            {activeView === 'gestion' ? (
+                <GestionView />
+            ) : isLoading ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={[styles.loadingText, { color: colors.textMuted }]}>Cargando dashboard...</Text>
@@ -485,6 +492,7 @@ export const DashboardScreen: React.FC = () => {
             {/* AI Chat Floating Panel */}
             <AiChatPanel />
         </View>
+        </DashboardLayout>
     );
 };
 
