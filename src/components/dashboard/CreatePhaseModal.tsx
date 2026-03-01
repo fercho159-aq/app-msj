@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, Modal,
-    StyleSheet, ActivityIndicator, ScrollView,
+    StyleSheet, ActivityIndicator, ScrollView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -94,13 +94,34 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
                         />
 
                         <Text style={[styles.label, { color: colors.textMuted }]}>Fecha limite</Text>
-                        <TextInput
-                            style={[styles.input, { color: colors.textPrimary, backgroundColor: inputBg, borderColor: inputBorder }]}
-                            value={deadline}
-                            onChangeText={setDeadline}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={colors.textMuted}
-                        />
+                        {Platform.OS === 'web' ? (
+                            <View style={[styles.input, { backgroundColor: inputBg, borderColor: inputBorder, flexDirection: 'row', alignItems: 'center' }]}>
+                                <input
+                                    type="date"
+                                    value={deadline}
+                                    onChange={(e: any) => setDeadline(e.target.value)}
+                                    style={{
+                                        flex: 1,
+                                        background: 'transparent',
+                                        border: 'none',
+                                        outline: 'none',
+                                        color: isDark ? '#e5e5e5' : '#1a1a1a',
+                                        fontSize: 13,
+                                        fontWeight: 500,
+                                        fontFamily: 'inherit',
+                                        colorScheme: isDark ? 'dark' : 'light',
+                                    }}
+                                />
+                            </View>
+                        ) : (
+                            <TextInput
+                                style={[styles.input, { color: colors.textPrimary, backgroundColor: inputBg, borderColor: inputBorder }]}
+                                value={deadline}
+                                onChangeText={setDeadline}
+                                placeholder="YYYY-MM-DD"
+                                placeholderTextColor={colors.textMuted}
+                            />
+                        )}
 
                         <Text style={[styles.label, { color: colors.textMuted }]}>Responsable</Text>
                         <View style={styles.consultorGrid}>

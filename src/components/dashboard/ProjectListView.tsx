@@ -105,15 +105,15 @@ const styles = StyleSheet.create({
         marginBottom: 14,
     },
     title: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
     },
     addBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        paddingVertical: 7,
-        paddingHorizontal: 14,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
         borderRadius: 8,
     },
     addBtnText: {

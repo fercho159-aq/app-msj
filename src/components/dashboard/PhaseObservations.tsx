@@ -66,7 +66,7 @@ export const PhaseObservations: React.FC<PhaseObservationsProps> = ({
             {/* Add new observation */}
             <View style={[styles.addRow, {
                 backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
             }]}>
                 <TextInput
                     style={[styles.addInput, { color: colors.textPrimary }]}
@@ -94,7 +94,7 @@ export const PhaseObservations: React.FC<PhaseObservationsProps> = ({
                 <View
                     key={obs.id}
                     style={[styles.obsCard, {
-                        borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                     }]}
                 >
                     <View style={styles.obsHeader}>
@@ -163,16 +163,16 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 13,
         fontWeight: '700',
-        marginBottom: 10,
+        marginBottom: 12,
     },
     addRow: {
         flexDirection: 'row',
         alignItems: 'flex-end',
         gap: 8,
-        padding: 10,
+        padding: 12,
         borderRadius: 10,
         borderWidth: 1,
-        marginBottom: 10,
+        marginBottom: 12,
     },
     addInput: {
         flex: 1,

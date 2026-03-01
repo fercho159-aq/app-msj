@@ -19,8 +19,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onPress }) =>
     return (
         <TouchableOpacity
             style={[styles.card, {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
             }]}
             onPress={() => onPress(project)}
             activeOpacity={0.7}
@@ -54,7 +54,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onPress }) =>
                     </Text>
                 </View>
                 <View style={[styles.progressTrack, {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                 }]}>
                     <View style={[
                         styles.progressFill,

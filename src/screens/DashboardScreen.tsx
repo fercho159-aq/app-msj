@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { api } from '../api/client';
@@ -74,6 +74,7 @@ const PIE_PALETTE = [CHART_COLORS.blue, CHART_COLORS.emerald, CHART_COLORS.amber
 export const DashboardScreen: React.FC = () => {
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
+    const navigation = useNavigation<any>();
     const [activeView, setActiveView] = useState<DashboardView>('dashboard');
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [activity, setActivity] = useState<DashboardActivity | null>(null);
@@ -148,7 +149,11 @@ export const DashboardScreen: React.FC = () => {
     const dateStr = now.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     return (
-        <DashboardLayout activeView={activeView} onChangeView={setActiveView}>
+        <DashboardLayout
+            activeView={activeView}
+            onChangeView={setActiveView}
+            onNavigateTab={(tab) => navigation.navigate(tab)}
+        >
         <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
             <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 

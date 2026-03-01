@@ -23,10 +23,10 @@ export const PhaseCard: React.FC<PhaseCardProps> = ({ phase, isSelected, onPress
                 {
                     backgroundColor: isSelected
                         ? `${colors.primary}10`
-                        : (isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.9)'),
+                        : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)'),
                     borderColor: isSelected
                         ? `${colors.primary}40`
-                        : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'),
+                        : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'),
                 },
             ]}
             onPress={() => onPress(phase)}
@@ -90,10 +90,10 @@ export const PhaseCard: React.FC<PhaseCardProps> = ({ phase, isSelected, onPress
 
 const styles = StyleSheet.create({
     card: {
-        borderRadius: 12,
+        borderRadius: 14,
         borderWidth: 1,
-        padding: 14,
-        marginBottom: 8,
+        padding: 16,
+        marginBottom: 10,
     },
     header: {
         flexDirection: 'row',

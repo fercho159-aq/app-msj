@@ -170,8 +170,8 @@ export const GestionView: React.FC = () => {
             <View style={styles.content}>
                 {level === 'clients' && (
                     <View style={[styles.contentCard, {
-                        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.9)',
-                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                        backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
+                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
                     }]}>
                         <ClientListView onSelectClient={handleSelectClient} />
                     </View>
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     splitLayout: {
         flex: 1,
         flexDirection: 'row',
-        gap: 20,
+        gap: 24,
     },
     splitLeft: {
         width: 380,
@@ -290,6 +290,6 @@ const styles = StyleSheet.create({
     },
     phaseBoardArea: {
         flex: 1,
-        paddingRight: 16,
+        paddingRight: 0,
     },
 });

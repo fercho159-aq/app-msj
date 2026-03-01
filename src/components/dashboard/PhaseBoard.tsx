@@ -57,8 +57,8 @@ export const PhaseBoard: React.FC<PhaseBoardProps> = ({
         <View style={styles.container}>
             {/* Project Header */}
             <View style={[styles.projectHeader, {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.9)',
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
             }]}>
                 <View style={styles.projectInfo}>
                     <View style={styles.projectTitleRow}>
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     projectHeader: {
         borderRadius: 14,
         borderWidth: 1,
-        padding: 16,
-        marginBottom: 16,
+        padding: 18,
+        marginBottom: 18,
     },
     projectInfo: {},
     projectTitleRow: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 14,
     },
     phasesTitle: {
         fontSize: 14,
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     },
     addBtnText: {
         color: '#fff',
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '700',
     },
     phasesList: {

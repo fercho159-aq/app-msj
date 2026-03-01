@@ -63,6 +63,7 @@ export const TabNavigator: React.FC = () => {
                     component={DashboardScreen}
                     options={{
                         tabBarLabel: 'Dashboard',
+                        tabBarStyle: { display: 'none' },
                         tabBarIcon: ({ focused, color }) => (
                             <TabIcon
                                 name={focused ? 'grid' : 'grid-outline'}

@@ -24,7 +24,7 @@ export const ClientRow: React.FC<ClientRowProps> = ({ client, index, onPress }) 
                     backgroundColor: index % 2 === 0
                         ? (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)')
                         : 'transparent',
-                    borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                    borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                 },
             ]}
             onPress={() => onPress(client)}

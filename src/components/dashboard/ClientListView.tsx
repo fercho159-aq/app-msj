@@ -55,7 +55,7 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
         <View style={styles.container}>
             {/* Search Bar */}
             <View style={[styles.searchBar, {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
                 borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
             }]}>
                 <Ionicons name="search-outline" size={18} color={colors.textMuted} />

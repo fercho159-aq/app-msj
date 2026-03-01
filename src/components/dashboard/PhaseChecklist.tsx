@@ -79,7 +79,7 @@ export const PhaseChecklist: React.FC<PhaseChecklistProps> = ({
 
             {/* Add new item */}
             <View style={[styles.addRow, {
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
             }]}>
                 <TextInput
                     style={[styles.addInput, { color: colors.textPrimary }]}
@@ -105,7 +105,7 @@ export const PhaseChecklist: React.FC<PhaseChecklistProps> = ({
             {/* Checklist items */}
             {checklist.map(item => (
                 <View key={item.id} style={[styles.itemRow, {
-                    borderBottomColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                    borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                 }]}>
                     <TouchableOpacity
                         onPress={() => handleToggle(item.id)}
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 12,
         gap: 12,
     },
     title: {

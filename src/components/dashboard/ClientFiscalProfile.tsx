@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
-    ActivityIndicator, StyleSheet,
+    ActivityIndicator, StyleSheet, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -72,8 +72,8 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
 
     if (!profile) return null;
 
-    const cardBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)';
-    const cardBorder = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)';
+    const cardBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)';
+    const cardBorder = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const efirmaSev = getDeadlineSeverity(profile.efirma_expiry);
     const csdSev = getDeadlineSeverity(profile.csd_expiry);
 
@@ -186,17 +186,36 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                         {efirmaSev && <DeadlineTrafficLight severity={efirmaSev} size={8} />}
                     </View>
                     {isEditing ? (
-                        <TextInput
-                            style={[styles.fieldInput, {
-                                color: colors.textPrimary,
+                        Platform.OS === 'web' ? (
+                            <View style={[styles.fieldInput, {
                                 backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
                                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                            }]}
-                            value={editEfirma}
-                            onChangeText={setEditEfirma}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={colors.textMuted}
-                        />
+                                flexDirection: 'row', alignItems: 'center',
+                            }]}>
+                                <input
+                                    type="date"
+                                    value={editEfirma}
+                                    onChange={(e: any) => setEditEfirma(e.target.value)}
+                                    style={{
+                                        flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                                        color: isDark ? '#e5e5e5' : '#1a1a1a', fontSize: 13, fontWeight: 500,
+                                        fontFamily: 'inherit', colorScheme: isDark ? 'dark' : 'light',
+                                    }}
+                                />
+                            </View>
+                        ) : (
+                            <TextInput
+                                style={[styles.fieldInput, {
+                                    color: colors.textPrimary,
+                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                }]}
+                                value={editEfirma}
+                                onChangeText={setEditEfirma}
+                                placeholder="YYYY-MM-DD"
+                                placeholderTextColor={colors.textMuted}
+                            />
+                        )
                     ) : (
                         <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>
                             {profile.efirma_expiry || '-'}
@@ -211,17 +230,36 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                         {csdSev && <DeadlineTrafficLight severity={csdSev} size={8} />}
                     </View>
                     {isEditing ? (
-                        <TextInput
-                            style={[styles.fieldInput, {
-                                color: colors.textPrimary,
+                        Platform.OS === 'web' ? (
+                            <View style={[styles.fieldInput, {
                                 backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
                                 borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                            }]}
-                            value={editCsd}
-                            onChangeText={setEditCsd}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={colors.textMuted}
-                        />
+                                flexDirection: 'row', alignItems: 'center',
+                            }]}>
+                                <input
+                                    type="date"
+                                    value={editCsd}
+                                    onChange={(e: any) => setEditCsd(e.target.value)}
+                                    style={{
+                                        flex: 1, background: 'transparent', border: 'none', outline: 'none',
+                                        color: isDark ? '#e5e5e5' : '#1a1a1a', fontSize: 13, fontWeight: 500,
+                                        fontFamily: 'inherit', colorScheme: isDark ? 'dark' : 'light',
+                                    }}
+                                />
+                            </View>
+                        ) : (
+                            <TextInput
+                                style={[styles.fieldInput, {
+                                    color: colors.textPrimary,
+                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                }]}
+                                value={editCsd}
+                                onChangeText={setEditCsd}
+                                placeholder="YYYY-MM-DD"
+                                placeholderTextColor={colors.textMuted}
+                            />
+                        )
                     ) : (
                         <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>
                             {profile.csd_expiry || '-'}
@@ -285,7 +323,7 @@ const styles = StyleSheet.create({
         textTransform: 'capitalize',
     },
     sectionTitle: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
         marginBottom: 14,
     },
@@ -364,7 +402,7 @@ const styles = StyleSheet.create({
     },
     fieldLabel: {
         fontSize: 11,
-        fontWeight: '600',
+        fontWeight: '700',
         marginBottom: 4,
     },
     fieldValue: {

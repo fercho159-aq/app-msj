@@ -8,6 +8,7 @@ export type DashboardView = 'dashboard' | 'gestion';
 interface SidebarProps {
     activeView: DashboardView;
     onChangeView: (view: DashboardView) => void;
+    onNavigateTab?: (tab: string) => void;
 }
 
 const NAV_ITEMS: { key: DashboardView; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -15,12 +16,17 @@ const NAV_ITEMS: { key: DashboardView; label: string; icon: keyof typeof Ionicon
     { key: 'gestion', label: 'Gestion de Clientes', icon: 'briefcase-outline' },
 ];
 
-export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeView }) => {
+const SECONDARY_NAV: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'Chats', label: 'Chats', icon: 'chatbubbles-outline' },
+    { key: 'Settings', label: 'Ajustes', icon: 'settings-outline' },
+];
+
+export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, onNavigateTab }) => {
     const { colors, isDark } = useTheme();
 
     return (
         <View style={[styles.container, {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)',
+            backgroundColor: isDark ? '#0a0a0a' : 'rgba(255,255,255,0.95)',
             borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
         }]}>
             <View style={styles.logoSection}>
@@ -64,6 +70,26 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeV
                         </TouchableOpacity>
                     );
                 })}
+            </View>
+
+            {/* Secondary nav at bottom */}
+            <View style={styles.spacer} />
+            <View style={[styles.secondaryNav, {
+                borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+            }]}>
+                {SECONDARY_NAV.map(item => (
+                    <TouchableOpacity
+                        key={item.key}
+                        style={styles.secondaryItem}
+                        onPress={() => onNavigateTab?.(item.key)}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name={item.icon} size={18} color={colors.textMuted} />
+                        <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>
+                            {item.label}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
             </View>
         </View>
     );
@@ -126,5 +152,26 @@ const styles = StyleSheet.create({
         bottom: 8,
         width: 3,
         borderRadius: 2,
+    },
+    spacer: {
+        flex: 1,
+    },
+    secondaryNav: {
+        borderTopWidth: 1,
+        paddingTop: 12,
+        paddingBottom: 20,
+        gap: 2,
+    },
+    secondaryItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 10,
+    },
+    secondaryLabel: {
+        fontSize: 12,
+        fontWeight: '500',
     },
 });

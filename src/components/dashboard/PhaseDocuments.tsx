@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
@@ -34,6 +34,44 @@ export const PhaseDocuments: React.FC<PhaseDocumentsProps> = ({
     const { colors, isDark } = useTheme();
     const [showCloudModal, setShowCloudModal] = useState(false);
     const [isRemoving, setIsRemoving] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleFileUpload = async (event: any) => {
+        const file = event.target?.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            // Upload the file first via the upload endpoint
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://appsoluciones.duckdns.org/api';
+            const uploadResponse = await fetch(`${API_URL}/upload`, {
+                method: 'POST',
+                body: formData,
+            });
+            const uploadData = await uploadResponse.json();
+
+            if (uploadData.url) {
+                // Link the uploaded file to the phase
+                await api.addPhaseDocument(phaseId, {
+                    fileUrl: uploadData.url,
+                    fileName: file.name,
+                    fileType: file.type,
+                    fileSize: file.size,
+                });
+                onRefresh();
+            }
+        } catch (error) {
+            console.error('Error uploading document:', error);
+        } finally {
+            setIsUploading(false);
+            // Reset file input
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     const handleRemove = async (docId: string) => {
         setIsRemoving(docId);
@@ -68,13 +106,40 @@ export const PhaseDocuments: React.FC<PhaseDocumentsProps> = ({
                 <Text style={[styles.title, { color: colors.textPrimary }]}>
                     Documentos ({documents.length})
                 </Text>
-                <TouchableOpacity
-                    style={[styles.linkBtn, { borderColor: colors.primary }]}
-                    onPress={() => setShowCloudModal(true)}
-                >
-                    <Ionicons name="cloud-outline" size={14} color={colors.primary} />
-                    <Text style={[styles.linkBtnText, { color: colors.primary }]}>Vincular</Text>
-                </TouchableOpacity>
+                <View style={styles.headerButtons}>
+                    {Platform.OS === 'web' && (
+                        <>
+                            <input
+                                ref={fileInputRef as any}
+                                type="file"
+                                onChange={handleFileUpload}
+                                style={{ display: 'none' }}
+                                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.xml,.zip"
+                            />
+                            <TouchableOpacity
+                                style={[styles.uploadBtn, { backgroundColor: colors.primary }]}
+                                onPress={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                            >
+                                {isUploading ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
+                                        <Text style={styles.uploadBtnText}>Subir</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    )}
+                    <TouchableOpacity
+                        style={[styles.linkBtn, { borderColor: colors.primary }]}
+                        onPress={() => setShowCloudModal(true)}
+                    >
+                        <Ionicons name="cloud-outline" size={14} color={colors.primary} />
+                        <Text style={[styles.linkBtnText, { color: colors.primary }]}>Vincular</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {documents.length === 0 ? (
@@ -89,18 +154,44 @@ export const PhaseDocuments: React.FC<PhaseDocumentsProps> = ({
                         key={doc.id}
                         style={[styles.docRow, {
                             backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                            borderColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
                         }]}
                     >
                         <Ionicons name={getFileIcon(doc.file_type)} size={18} color={colors.textMuted} />
-                        <View style={styles.docInfo}>
+                        <TouchableOpacity
+                            style={styles.docInfo}
+                            onPress={() => {
+                                if (Platform.OS === 'web') {
+                                    const a = document.createElement('a');
+                                    a.href = doc.file_url;
+                                    a.download = doc.file_name;
+                                    a.target = '_blank';
+                                    a.click();
+                                }
+                            }}
+                            activeOpacity={0.7}
+                        >
                             <Text style={[styles.docName, { color: colors.textPrimary }]} numberOfLines={1}>
                                 {doc.file_name}
                             </Text>
                             <Text style={[styles.docMeta, { color: colors.textMuted }]}>
                                 {doc.source === 'message' ? 'Desde mensajes' : 'Subido'} - {doc.uploader_name || 'Desconocido'}
                             </Text>
-                        </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.downloadBtn}
+                            onPress={() => {
+                                if (Platform.OS === 'web') {
+                                    const a = document.createElement('a');
+                                    a.href = doc.file_url;
+                                    a.download = doc.file_name;
+                                    a.target = '_blank';
+                                    a.click();
+                                }
+                            }}
+                        >
+                            <Ionicons name="download-outline" size={16} color={colors.primary} />
+                        </TouchableOpacity>
                         <TouchableOpacity
                             onPress={() => handleRemove(doc.id)}
                             disabled={isRemoving === doc.id}
@@ -133,24 +224,41 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 12,
     },
     title: {
         fontSize: 13,
+        fontWeight: '700',
+    },
+    headerButtons: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    uploadBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+    },
+    uploadBtnText: {
+        color: '#fff',
+        fontSize: 11,
         fontWeight: '700',
     },
     linkBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        paddingVertical: 5,
-        paddingHorizontal: 10,
-        borderRadius: 6,
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 8,
         borderWidth: 1,
     },
     linkBtnText: {
         fontSize: 11,
-        fontWeight: '600',
+        fontWeight: '700',
     },
     empty: {
         paddingVertical: 20,
@@ -164,13 +272,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        padding: 10,
-        borderRadius: 8,
+        padding: 12,
+        borderRadius: 10,
         borderWidth: 1,
-        marginBottom: 6,
+        marginBottom: 8,
     },
     docInfo: {
         flex: 1,
+    },
+    downloadBtn: {
+        padding: 4,
     },
     docName: {
         fontSize: 12,

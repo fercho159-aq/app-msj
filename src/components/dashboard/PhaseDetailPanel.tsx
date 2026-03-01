@@ -79,7 +79,7 @@ export const PhaseDetailPanel: React.FC<PhaseDetailPanelProps> = ({
 
     return (
         <View style={[styles.container, {
-            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.95)',
+            backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
             borderLeftColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
         }]}>
             {/* Header */}
@@ -127,7 +127,7 @@ export const PhaseDetailPanel: React.FC<PhaseDetailPanelProps> = ({
                                         },
                                         detail.phase.status !== opt.value && {
                                             backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                                            borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
                                         },
                                     ]}
                                 >
@@ -230,11 +230,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 18,
+        padding: 20,
         borderBottomWidth: 1,
     },
     headerTitle: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '700',
     },
     loadingContainer: {
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     },
     body: {
         flex: 1,
-        padding: 18,
+        padding: 20,
     },
     phaseName: {
         fontSize: 18,
@@ -258,10 +258,10 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     section: {
-        marginBottom: 14,
+        marginBottom: 16,
     },
     sectionLabel: {
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: '700',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        marginVertical: 8,
+        marginVertical: 16,
     },
     deleteBtn: {
         flexDirection: 'row',
