@@ -288,6 +288,25 @@ class ApiClient {
         });
     }
 
+    // ==================== GROUP MEMBERS ====================
+
+    async addGroupMembers(chatId: string, memberIds: string[]) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ chat: Chat }>(`/chats/${chatId}/members`, {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.userId, memberIds }),
+        });
+    }
+
+    async removeGroupMember(chatId: string, memberId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request<{ chat: Chat }>(`/chats/${chatId}/members/${memberId}`, {
+            method: 'DELETE',
+        });
+    }
+
     // ==================== UPLOAD ====================
 
     async uploadFile(fileUri: string, type: 'image' | 'video' | 'audio' | 'file', retryCount: number = 0): Promise<ApiResponse<{ url: string; filename: string; type: string }>> {

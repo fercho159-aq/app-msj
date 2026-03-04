@@ -5,7 +5,9 @@ import {
     getUserChats,
     getChatById,
     markChatAsRead,
-    deleteChat
+    deleteChat,
+    addGroupMembers,
+    removeGroupMember
 } from '../../services/chatService';
 import { getChatMessages } from '../../services/messageService';
 import { getChatLabels } from '../../services/labelService';
@@ -193,6 +195,63 @@ router.post('/:id/read', async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error('Error al marcar como leído:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/chats/:id/members - Agregar miembros a un grupo
+router.post('/:id/members', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { userId, memberIds } = req.body;
+
+        if (!userId || !memberIds || memberIds.length === 0) {
+            return res.status(400).json({ error: 'userId y memberIds son requeridos' });
+        }
+
+        const chat = await getChatById(id as string);
+        if (!chat) {
+            return res.status(404).json({ error: 'Chat no encontrado' });
+        }
+
+        if (!chat.is_group) {
+            return res.status(400).json({ error: 'Solo se pueden agregar miembros a grupos' });
+        }
+
+        await addGroupMembers(id as string, memberIds);
+
+        // Retornar chat actualizado
+        const updatedChat = await getChatById(id as string);
+        res.json({ chat: updatedChat });
+
+    } catch (error: any) {
+        console.error('Error al agregar miembros:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/chats/:id/members/:memberId - Eliminar miembro de un grupo
+router.delete('/:id/members/:memberId', async (req: Request, res: Response) => {
+    try {
+        const { id, memberId } = req.params;
+
+        const chat = await getChatById(id as string);
+        if (!chat) {
+            return res.status(404).json({ error: 'Chat no encontrado' });
+        }
+
+        if (!chat.is_group) {
+            return res.status(400).json({ error: 'Solo se pueden eliminar miembros de grupos' });
+        }
+
+        await removeGroupMember(id as string, memberId as string);
+
+        // Retornar chat actualizado
+        const updatedChat = await getChatById(id as string);
+        res.json({ chat: updatedChat });
+
+    } catch (error: any) {
+        console.error('Error al eliminar miembro:', error);
         res.status(500).json({ error: error.message });
     }
 });

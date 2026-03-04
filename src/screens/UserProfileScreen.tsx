@@ -142,9 +142,17 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
     const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
     const isAdmin = user?.rfc === 'ADMIN000CONS';
+    const isConsultor = (user as any)?.role === 'consultor';
+
+    // State para gestión de miembros del grupo
+    const [localParticipants, setLocalParticipants] = useState<User[]>(participants || []);
+    const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
+    const [memberSearchQuery, setMemberSearchQuery] = useState('');
+    const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
     // Filtrar participantes excluyendo al usuario actual
-    const groupParticipants = participants?.filter((p: User) => p.id !== user?.id) || [];
+    const groupParticipants = localParticipants?.filter((p: User) => p.id !== user?.id) || [];
 
     // Verificar si el usuario está bloqueado
     useEffect(() => {
@@ -294,6 +302,80 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
         }
     };
 
+    // === Gestión de miembros del grupo ===
+
+    const loadAvailableUsers = async () => {
+        setIsLoadingUsers(true);
+        try {
+            const result = await api.getUsers();
+            if (result.data?.users) {
+                // Excluir usuarios que ya son participantes
+                const participantIds = new Set(localParticipants.map((p: User) => p.id));
+                const available = result.data.users.filter(
+                    (u: User) => !participantIds.has(u.id)
+                );
+                setAllUsers(available);
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
+    const handleOpenAddMember = () => {
+        setMemberSearchQuery('');
+        setShowAddMemberModal(true);
+        loadAvailableUsers();
+    };
+
+    const handleAddMember = async (selectedUser: User) => {
+        try {
+            const result = await api.addGroupMembers(chatId, [selectedUser.id]);
+            if (result.error) {
+                Alert.alert('Error', result.error);
+                return;
+            }
+            setLocalParticipants(prev => [...prev, selectedUser]);
+            // Remover de la lista de disponibles
+            setAllUsers(prev => prev.filter(u => u.id !== selectedUser.id));
+            Alert.alert('Listo', `${selectedUser.name || 'Usuario'} fue agregado al grupo.`);
+        } catch (error) {
+            Alert.alert('Error', 'No se pudo agregar al participante');
+        }
+    };
+
+    const handleRemoveMember = (member: User) => {
+        Alert.alert(
+            'Eliminar participante',
+            `¿Eliminar a ${member.name || 'este usuario'} del grupo?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const result = await api.removeGroupMember(chatId, member.id);
+                            if (result.error) {
+                                Alert.alert('Error', result.error);
+                                return;
+                            }
+                            setLocalParticipants(prev => prev.filter(p => p.id !== member.id));
+                        } catch (error) {
+                            Alert.alert('Error', 'No se pudo eliminar al participante');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const filteredAvailableUsers = allUsers.filter(u =>
+        u.name?.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+        u.rfc?.toLowerCase().includes(memberSearchQuery.toLowerCase())
+    );
+
     const handleFilePress = (file: SharedFile) => {
         // Navegar de vuelta al chat para ver el archivo
         // O abrir un preview modal
@@ -384,7 +466,7 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                     {/* Info del grupo o RFC */}
                     {isGroup ? (
                         <Text style={[styles.userRfc, { color: colors.textSecondary }]}>
-                            {groupParticipants.length} participantes
+                            {localParticipants.length} participantes
                         </Text>
                     ) : userRfc && (
                         <Text style={[styles.userRfc, { color: colors.textSecondary }]}>
@@ -469,8 +551,31 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                                          participant.role === 'asesor' ? 'Asesor' : 'Usuario'}
                                     </Text>
                                 </View>
+                                {isConsultor && (
+                                    <TouchableOpacity
+                                        onPress={() => handleRemoveMember(participant)}
+                                        style={styles.removeParticipantButton}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="close-circle" size={22} color="#EF4444" />
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         ))}
+
+                        {/* Botón agregar participante */}
+                        {isConsultor && (
+                            <TouchableOpacity
+                                style={[styles.addParticipantButton, { borderColor: colors.primary }]}
+                                onPress={handleOpenAddMember}
+                                activeOpacity={0.7}
+                            >
+                                <Ionicons name="person-add" size={20} color={colors.primary} />
+                                <Text style={[styles.addParticipantText, { color: colors.primary }]}>
+                                    Agregar participante
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 
@@ -851,6 +956,88 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                     </View>
                 </View>
             </Modal>
+
+            {/* Modal para agregar miembros al grupo */}
+            <Modal
+                visible={showAddMemberModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowAddMemberModal(false)}
+            >
+                <View style={styles.reportModalOverlay}>
+                    <TouchableOpacity
+                        style={styles.reportModalDismiss}
+                        activeOpacity={1}
+                        onPress={() => setShowAddMemberModal(false)}
+                    />
+                    <View style={[styles.reportModalContent, { backgroundColor: colors.background }]}>
+                        <View style={styles.reportModalHeader}>
+                            <Text style={[styles.reportModalTitle, { color: colors.textPrimary }]}>
+                                Agregar participante
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowAddMemberModal(false)}>
+                                <Ionicons name="close" size={24} color={colors.textPrimary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={[styles.memberSearchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            <Ionicons name="search" size={20} color={colors.textMuted} />
+                            <TextInput
+                                style={[styles.memberSearchInput, { color: colors.textPrimary }]}
+                                placeholder="Buscar usuarios..."
+                                placeholderTextColor={colors.textMuted}
+                                value={memberSearchQuery}
+                                onChangeText={setMemberSearchQuery}
+                            />
+                        </View>
+
+                        {isLoadingUsers ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color={colors.primary} />
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={filteredAvailableUsers}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={[styles.participantItem, { borderBottomColor: colors.divider }]}
+                                        onPress={() => handleAddMember(item)}
+                                        activeOpacity={0.7}
+                                    >
+                                        {item.avatar_url ? (
+                                            <Image source={{ uri: item.avatar_url }} style={styles.participantAvatar} />
+                                        ) : (
+                                            <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder, { backgroundColor: colors.primary }]}>
+                                                <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+                                                    {(item.name || '?').charAt(0).toUpperCase()}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <View style={styles.participantInfo}>
+                                            <Text style={[styles.participantName, { color: colors.textPrimary }]}>
+                                                {item.name || 'Usuario'}
+                                            </Text>
+                                            <Text style={[styles.participantRole, { color: colors.textMuted }]}>
+                                                {item.rfc}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="add-circle" size={24} color={colors.primary} />
+                                    </TouchableOpacity>
+                                )}
+                                ListEmptyComponent={
+                                    <View style={styles.emptyState}>
+                                        <Ionicons name="people-outline" size={48} color={colors.textMuted} />
+                                        <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                                            No hay usuarios disponibles
+                                        </Text>
+                                    </View>
+                                }
+                            />
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -1047,6 +1234,39 @@ const styles = StyleSheet.create({
     participantRole: {
         fontSize: 13,
         marginTop: 2,
+    },
+    // Estilos de gestión de miembros
+    removeParticipantButton: {
+        padding: 4,
+    },
+    addParticipantButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        gap: 8,
+    },
+    addParticipantText: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    memberSearchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        marginBottom: 12,
+        borderWidth: 1,
+        gap: 8,
+    },
+    memberSearchInput: {
+        flex: 1,
+        fontSize: 15,
+        paddingVertical: 12,
     },
     // Estilos de moderación
     moderationButtons: {

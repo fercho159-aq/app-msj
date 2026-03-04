@@ -189,6 +189,24 @@ export async function getChatById(chatId: string): Promise<ChatWithDetails | nul
   return chats[0] || null;
 }
 
+// Agregar miembros a un grupo existente
+export async function addGroupMembers(chatId: string, userIds: string[]): Promise<void> {
+  for (const userId of userIds) {
+    await query(
+      'INSERT INTO chat_participants (chat_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [chatId, userId]
+    );
+  }
+}
+
+// Eliminar un miembro de un grupo
+export async function removeGroupMember(chatId: string, userId: string): Promise<void> {
+  await query(
+    'DELETE FROM chat_participants WHERE chat_id = $1 AND user_id = $2',
+    [chatId, userId]
+  );
+}
+
 // Marcar mensajes como leídos
 export async function markChatAsRead(chatId: string, userId: string): Promise<void> {
   await query(

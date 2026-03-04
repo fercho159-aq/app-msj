@@ -818,9 +818,16 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
 
                                     {/* Términos y condiciones */}
                                     <View style={styles.termsFooter}>
-                                        <View style={styles.termsCheckbox}>
-                                            <View style={styles.termsCheckboxCircle} />
-                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.termsCheckbox}
+                                            onPress={() => setTermsAccepted(!termsAccepted)}
+                                        >
+                                            <Ionicons
+                                                name={termsAccepted ? "checkmark-circle" : "ellipse-outline"}
+                                                size={24}
+                                                color={termsAccepted ? "#5474BC" : "#C4C4C4"}
+                                            />
+                                        </TouchableOpacity>
                                         <Text style={styles.termsFooterText}>
                                             Al tocar "Aceptar y Continuar" a continuación, acepta los{' '}
                                             <Text style={styles.termsFooterLink} onPress={() => setShowTermsModal(true)}>
