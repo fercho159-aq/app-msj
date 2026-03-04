@@ -22,7 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import { api, CheckIdResponse } from '../api/client';
 import { GradientButton } from '../components';
 
-type ViewMode = 'ROLE_SELECTION' | 'USER_AUTH_CHOICE' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_WELCOME' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
+type ViewMode = 'ROLE_SELECTION' | 'USER_AUTH_CHOICE' | 'USER_TERMS' | 'USER_REGISTER' | 'USER_WELCOME_MSG' | 'USER_WELCOME' | 'USER_LOGIN' | 'CONSULTANT_LOGIN' | 'ADVISOR_LOGIN';
 
 // Obtener estado de México a partir del código postal
 const getEstadoFromCP = (cp: string | null): string | null => {
@@ -104,6 +104,41 @@ export const LoginScreen: React.FC = () => {
                 duration: 1000,
                 useNativeDriver: true,
             }).start();
+        }
+    }, [viewMode]);
+
+    // Welcome message screen animations
+    const msgAnim1 = useRef(new Animated.Value(0)).current;
+    const msgAnim2 = useRef(new Animated.Value(0)).current;
+    const msgAnim3 = useRef(new Animated.Value(0)).current;
+    const msgAnim4 = useRef(new Animated.Value(0)).current;
+    const msgPulse = useRef(new Animated.Value(1)).current;
+    const msgPulseLoop = useRef<Animated.CompositeAnimation | null>(null);
+
+    useEffect(() => {
+        if (viewMode === 'USER_WELCOME_MSG') {
+            msgAnim1.setValue(0);
+            msgAnim2.setValue(0);
+            msgAnim3.setValue(0);
+            msgAnim4.setValue(0);
+            msgPulse.setValue(1);
+
+            Animated.stagger(350, [
+                Animated.spring(msgAnim1, { toValue: 1, useNativeDriver: true, tension: 40, friction: 7 }),
+                Animated.timing(msgAnim2, { toValue: 1, duration: 700, useNativeDriver: true }),
+                Animated.timing(msgAnim3, { toValue: 1, duration: 700, useNativeDriver: true }),
+                Animated.timing(msgAnim4, { toValue: 1, duration: 500, useNativeDriver: true }),
+            ]).start();
+
+            msgPulseLoop.current = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(msgPulse, { toValue: 1.04, duration: 2000, useNativeDriver: true }),
+                    Animated.timing(msgPulse, { toValue: 1, duration: 2000, useNativeDriver: true }),
+                ])
+            );
+            msgPulseLoop.current.start();
+        } else {
+            msgPulseLoop.current?.stop();
         }
     }, [viewMode]);
 
@@ -481,10 +516,6 @@ export const LoginScreen: React.FC = () => {
             Alert.alert('Error', 'RFC es requerido');
             return;
         }
-        if (!userPhone || userPhone.length < 10) {
-            Alert.alert('Error', 'Ingrese un número de teléfono válido');
-            return;
-        }
         if (!userPassword || userPassword.length < 6) {
             Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
             return;
@@ -666,8 +697,11 @@ export const LoginScreen: React.FC = () => {
                 setViewMode('USER_LOGIN');
                 setIsUserRegistering(true);
                 break;
-            case 'USER_WELCOME':
+            case 'USER_WELCOME_MSG':
                 setViewMode('USER_REGISTER');
+                break;
+            case 'USER_WELCOME':
+                setViewMode('USER_WELCOME_MSG');
                 break;
             default:
                 setViewMode('ROLE_SELECTION');
@@ -1201,7 +1235,7 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                                         Alert.alert('Error', 'Las contraseñas no coinciden');
                                         return;
                                     }
-                                    setViewMode('USER_WELCOME');
+                                    setViewMode('USER_WELCOME_MSG');
                                 }}
                                 disabled={isLoading}
                                 loading={isLoading}
@@ -1217,6 +1251,100 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         </View>
                     </ScrollView>
                 </KeyboardAvoidingView>
+            </View>
+        );
+    }
+
+    // USER WELCOME MESSAGE Screen - Pantalla de bienvenida con animación
+    if (viewMode === 'USER_WELCOME_MSG') {
+        return (
+            <View style={styles.msgContainer}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FAFBFF" />
+
+                {/* Decorative background elements */}
+                <View style={styles.msgDecoBg}>
+                    <View style={styles.msgDecoCircle1} />
+                    <View style={styles.msgDecoCircle2} />
+                    <View style={styles.msgDecoCircle3} />
+                    <View style={styles.msgDecoRing1} />
+                    <View style={styles.msgDecoRing2} />
+                </View>
+
+                <TouchableOpacity
+                    style={styles.msgContent}
+                    activeOpacity={1}
+                    onPress={() => setViewMode('USER_WELCOME')}
+                >
+                    {/* Logo with entrance + pulse animation */}
+                    <Animated.View style={{
+                        opacity: msgAnim1,
+                        transform: [{ scale: msgAnim1.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }],
+                    }}>
+                        <Animated.View style={{ transform: [{ scale: msgPulse }] }}>
+                            <View style={styles.msgLogoGlow}>
+                                <Image
+                                    source={require('../../assets/logo.png')}
+                                    style={styles.msgLogo}
+                                    resizeMode="contain"
+                                />
+                            </View>
+                        </Animated.View>
+                    </Animated.View>
+
+                    {/* Decorative divider */}
+                    <Animated.View style={[
+                        styles.msgDivider,
+                        {
+                            opacity: msgAnim2,
+                            transform: [{ scaleX: msgAnim2 }],
+                        },
+                    ]}>
+                        <View style={styles.msgDividerLine} />
+                        <Ionicons name="diamond-outline" size={10} color="#5474BC" />
+                        <View style={styles.msgDividerLine} />
+                    </Animated.View>
+
+                    {/* Welcome title + name */}
+                    <Animated.View style={{
+                        opacity: msgAnim2,
+                        transform: [{ translateY: msgAnim2.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                        alignItems: 'center',
+                    }}>
+                        <Text style={styles.msgWelcomeTitle}>BIENVENIDO</Text>
+                        <Text style={styles.msgUserName} numberOfLines={2}>
+                            {fiscalData?.razonSocial || ''}
+                        </Text>
+                    </Animated.View>
+
+                    {/* Email card */}
+                    <Animated.View style={[
+                        styles.msgEmailCard,
+                        {
+                            opacity: msgAnim3,
+                            transform: [{ translateY: msgAnim3.interpolate({ inputRange: [0, 1], outputRange: [25, 0] }) }],
+                        },
+                    ]}>
+                        <View style={styles.msgEmailIconWrap}>
+                            <Ionicons name="mail-outline" size={22} color="#5474BC" />
+                        </View>
+                        <Text style={styles.msgEmailBody}>
+                            En estos momentos está llegando nuestro correo de términos y condiciones a
+                        </Text>
+                        <Text style={styles.msgEmailAddress}>{userEmail || 'tu correo'}</Text>
+                    </Animated.View>
+
+                    {/* Continue hint */}
+                    <Animated.View style={{
+                        opacity: msgAnim4,
+                        marginTop: 44,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 6,
+                    }}>
+                        <Text style={styles.msgContinueText}>toca para continuar</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+                    </Animated.View>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -1277,33 +1405,8 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         <Text style={styles.welcomeLogoText}>BE HEART</Text>
                     </View>
 
-                    {/* Mensaje de bienvenida animado */}
-                    <Animated.View style={[
-                        styles.welcomeMessageContainer,
-                        {
-                            opacity: welcomeAnim,
-                            transform: [{
-                                translateY: welcomeAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [20, 0],
-                                }),
-                            }],
-                        },
-                    ]}>
-                        <Ionicons name="mail-outline" size={28} color="#5474BC" style={{ marginBottom: 12 }} />
-                        <Text style={styles.welcomeMessageText}>
-                            Bienvenido{' '}
-                            <Text style={styles.welcomeMessageBold}>{fiscalData?.razonSocial || ''}</Text>
-                            , en estos momentos está llegando nuestro correo de términos y condiciones a{' '}
-                            <Text style={styles.welcomeMessageEmail}>{userEmail || 'tu correo'}</Text>
-                        </Text>
-                    </Animated.View>
-
                     {/* Texto de seguridad */}
-                    <Animated.View style={[
-                        styles.welcomeSecurityContainer,
-                        { opacity: welcomeAnim },
-                    ]}>
+                    <View style={styles.welcomeSecurityContainer}>
                         <Ionicons name="shield-checkmark" size={20} color="#5474BC" />
                         <Text style={styles.welcomeSecurityText}>
                             Su información se encuentra protegida por{' '}
@@ -1311,7 +1414,7 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                             , bajo los estatutos del{' '}
                             <Text style={styles.welcomeSecurityLink}>Instituto Nacional de Normas y Tecnología</Text>.
                         </Text>
-                    </Animated.View>
+                    </View>
 
                     {/* Botón Siguiente */}
                     <GradientButton
@@ -2492,6 +2595,154 @@ const styles = StyleSheet.create({
         color: '#1A2138',
         paddingHorizontal: 0,
     },
+    // =====================================================
+    // Estilos para pantalla USER_WELCOME_MSG (bienvenida)
+    // =====================================================
+    msgContainer: {
+        flex: 1,
+        backgroundColor: '#FAFBFF',
+    },
+    msgDecoBg: {
+        ...StyleSheet.absoluteFillObject,
+        overflow: 'hidden',
+    },
+    msgDecoCircle1: {
+        position: 'absolute',
+        top: -70,
+        right: -50,
+        width: 240,
+        height: 240,
+        borderRadius: 120,
+        backgroundColor: 'rgba(84, 116, 188, 0.05)',
+    },
+    msgDecoCircle2: {
+        position: 'absolute',
+        bottom: 80,
+        left: -70,
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(84, 116, 188, 0.04)',
+    },
+    msgDecoCircle3: {
+        position: 'absolute',
+        top: 280,
+        right: -25,
+        width: 110,
+        height: 110,
+        borderRadius: 55,
+        backgroundColor: 'rgba(84, 116, 188, 0.03)',
+    },
+    msgDecoRing1: {
+        position: 'absolute',
+        bottom: -35,
+        left: 80,
+        width: 150,
+        height: 150,
+        borderRadius: 75,
+        borderWidth: 1.5,
+        borderColor: 'rgba(84, 116, 188, 0.06)',
+    },
+    msgDecoRing2: {
+        position: 'absolute',
+        top: 120,
+        left: -40,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 1,
+        borderColor: 'rgba(84, 116, 188, 0.04)',
+    },
+    msgContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 36,
+    },
+    msgLogoGlow: {
+        shadowColor: '#5474BC',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.15,
+        shadowRadius: 30,
+        elevation: 8,
+        marginBottom: 20,
+    },
+    msgLogo: {
+        width: 150,
+        height: 150,
+    },
+    msgDivider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 28,
+        gap: 14,
+    },
+    msgDividerLine: {
+        width: 44,
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: 'rgba(84, 116, 188, 0.35)',
+    },
+    msgWelcomeTitle: {
+        fontSize: 30,
+        fontWeight: '200',
+        letterSpacing: 10,
+        color: '#1a1a2e',
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    msgUserName: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#1a1a2e',
+        textAlign: 'center',
+        letterSpacing: 1.5,
+    },
+    msgEmailCard: {
+        marginTop: 36,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 22,
+        paddingVertical: 28,
+        paddingHorizontal: 26,
+        alignItems: 'center',
+        width: '100%',
+        shadowColor: '#5474BC',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(84, 116, 188, 0.07)',
+    },
+    msgEmailIconWrap: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        backgroundColor: 'rgba(84, 116, 188, 0.08)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+    },
+    msgEmailBody: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 10,
+    },
+    msgEmailAddress: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#5474BC',
+        textAlign: 'center',
+        letterSpacing: 0.3,
+    },
+    msgContinueText: {
+        fontSize: 12,
+        color: '#9CA3AF',
+        letterSpacing: 3,
+        textTransform: 'uppercase',
+    },
+
     // Estilos para pantalla USER_WELCOME
     welcomeScrollContent: {
         flexGrow: 1,
