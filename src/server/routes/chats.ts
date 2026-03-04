@@ -119,7 +119,18 @@ router.get('/:id', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Chat no encontrado' });
         }
 
-        res.json({ chat });
+        // Formatear respuesta igual que el listado
+        const formattedChat = {
+            id: chat.id,
+            isGroup: chat.is_group,
+            groupName: chat.group_name,
+            groupAvatar: chat.group_avatar_url,
+            participants: chat.participants,
+            createdAt: chat.created_at,
+            updatedAt: chat.updated_at,
+        };
+
+        res.json({ chat: formattedChat });
 
     } catch (error: any) {
         console.error('Error al obtener chat:', error);
