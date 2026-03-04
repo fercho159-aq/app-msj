@@ -640,6 +640,30 @@ class ApiClient {
         });
     }
 
+    // ==================== UNCLAIMED USERS ====================
+
+    async getUnclaimedUsers() {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ users: UnclaimedUserInfo[] }>(
+            `/chats/unclaimed?userId=${this.userId}`
+        );
+    }
+
+    async claimUser(chatId: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ success: boolean; message: string }>(`/chats/${chatId}/claim`, {
+            method: 'POST',
+            body: JSON.stringify({ userId: this.userId }),
+        });
+    }
+
+    async getDashboardUnclaimedUsers() {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ count: number; users: UnclaimedUserInfo[] }>(
+            `/dashboard/unclaimed-users?userId=${this.userId}`
+        );
+    }
+
     // ==================== DASHBOARD ====================
 
     async getDashboardSummary() {
@@ -985,6 +1009,18 @@ export interface Message {
     mediaUrl: string | null;
     status: 'sent' | 'delivered' | 'read';
     timestamp: string;
+}
+
+export interface UnclaimedUserInfo {
+    user_id: string;
+    name: string | null;
+    rfc: string;
+    avatar_url: string | null;
+    phone: string | null;
+    registered_at: string;
+    chat_id: string;
+    last_message: string | null;
+    message_count: number;
 }
 
 export interface BlockedUserInfo {

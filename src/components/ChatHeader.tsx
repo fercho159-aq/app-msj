@@ -4,6 +4,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 
+interface Participant {
+    id: string;
+    name: string | null;
+    avatar_url: string | null;
+}
+
 interface ChatHeaderProps {
     name: string;
     avatar: string;
@@ -11,11 +17,70 @@ interface ChatHeaderProps {
     status?: 'online' | 'offline' | 'typing';
     lastSeen?: string;
     isAdmin?: boolean;
+    isGroup?: boolean;
+    participants?: Participant[];
     onBack: () => void;
     onCall?: () => void;
     onMore?: () => void;
     onUserPress?: () => void;
 }
+
+// Mini group avatar for header (2x2 grid clipped in circle)
+const MiniGroupAvatar = ({ participants, size, colors }: { participants: Participant[]; size: number; colors: any }) => {
+    const display = participants.slice(0, 4);
+    const gap = 1;
+    const cellSize = (size - gap) / 2;
+
+    const renderCell = (p: Participant) => (
+        p.avatar_url ? (
+            <Image source={{ uri: p.avatar_url }} style={{ width: cellSize, height: cellSize }} />
+        ) : (
+            <View style={{ width: cellSize, height: cellSize, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: cellSize * 0.4, fontWeight: 'bold' }}>
+                    {(p.name || '?').charAt(0).toUpperCase()}
+                </Text>
+            </View>
+        )
+    );
+
+    if (display.length <= 1) {
+        const p = display[0];
+        if (!p) {
+            return (
+                <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="people" size={size * 0.45} color="#fff" />
+                </View>
+            );
+        }
+        return p.avatar_url ? (
+            <Image source={{ uri: p.avatar_url }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        ) : (
+            <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: size * 0.4, fontWeight: 'bold' }}>{(p.name || '?').charAt(0).toUpperCase()}</Text>
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', height: cellSize }}>
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>{renderCell(display[0])}</View>
+                <View style={{ width: gap }} />
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>{renderCell(display[1])}</View>
+            </View>
+            <View style={{ height: gap }} />
+            <View style={{ flexDirection: 'row', height: cellSize }}>
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {display[2] ? renderCell(display[2]) : <View style={{ width: cellSize, height: cellSize, backgroundColor: `${colors.primary}30` }} />}
+                </View>
+                <View style={{ width: gap }} />
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {display[3] ? renderCell(display[3]) : <View style={{ width: cellSize, height: cellSize, backgroundColor: `${colors.primary}20` }} />}
+                </View>
+            </View>
+        </View>
+    );
+};
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
     name,
@@ -24,6 +89,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
     status = 'offline',
     lastSeen,
     isAdmin = false,
+    isGroup = false,
+    participants = [],
     onBack,
     onCall,
     onMore,
@@ -53,7 +120,9 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
             <TouchableOpacity style={styles.userInfo} activeOpacity={0.7} onPress={onUserPress}>
                 <View style={styles.avatarContainer}>
-                    {avatar ? (
+                    {isGroup && participants.length > 0 ? (
+                        <MiniGroupAvatar participants={participants} size={40} colors={colors} />
+                    ) : avatar ? (
                         <Image source={{ uri: avatar }} style={[styles.avatar, { borderColor: colors.border }]} />
                     ) : (
                         <LinearGradient
@@ -65,7 +134,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
                             </Text>
                         </LinearGradient>
                     )}
-                    {status === 'online' && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.backgroundSecondary }]} />}
+                    {!isGroup && status === 'online' && <View style={[styles.onlineIndicator, { backgroundColor: colors.online, borderColor: colors.backgroundSecondary }]} />}
                 </View>
 
                 <View style={styles.textContainer}>

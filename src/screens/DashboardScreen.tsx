@@ -81,16 +81,19 @@ export const DashboardScreen: React.FC = () => {
     const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [unclaimedCount, setUnclaimedCount] = useState(0);
 
     const loadData = async (showLoading = true) => {
         if (showLoading) setIsLoading(true);
         try {
-            const [summaryResult, activityResult] = await Promise.all([
+            const [summaryResult, activityResult, unclaimedResult] = await Promise.all([
                 api.getDashboardSummary(),
                 api.getDashboardActivity(period),
+                api.getDashboardUnclaimedUsers(),
             ]);
             if (summaryResult.data) setSummary(summaryResult.data.summary);
             if (activityResult.data) setActivity(activityResult.data.activity);
+            if (unclaimedResult.data) setUnclaimedCount(unclaimedResult.data.count);
         } catch (error) {
             console.error('Error loading dashboard:', error);
         } finally {
@@ -240,6 +243,14 @@ export const DashboardScreen: React.FC = () => {
                             color="#F59E0B"
                             accentGradient={['#F59E0B', '#FCD34D']}
                             subtitle={`${summary?.blockedUsers || 0} bloqueados`}
+                        />
+                        <StatCard
+                            title="Sin reclamar"
+                            value={unclaimedCount}
+                            icon="person-add"
+                            color="#8B5CF6"
+                            accentGradient={['#8B5CF6', '#C4B5FD']}
+                            subtitle="usuarios nuevos"
                         />
                     </View>
 

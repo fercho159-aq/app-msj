@@ -44,8 +44,6 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({ participants, size, colors })
         );
     }
 
-    const smallSize = size * 0.55;
-
     if (count === 1) {
         const p = displayParticipants[0];
         return p.avatar_url ? (
@@ -59,45 +57,63 @@ const GroupAvatar: React.FC<GroupAvatarProps> = ({ participants, size, colors })
         );
     }
 
-    return (
-        <View style={{ width: size, height: size, position: 'relative' }}>
-            {displayParticipants.map((p, index) => {
-                const positions = count === 2
-                    ? [{ top: 0, left: 0 }, { bottom: 0, right: 0 }]
-                    : count === 3
-                    ? [{ top: 0, left: size * 0.15 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }]
-                    : [{ top: 0, left: 0 }, { top: 0, right: 0 }, { bottom: 0, left: 0 }, { bottom: 0, right: 0 }];
+    // Grid layout: 2x2 con gap minimo, clippeado en circulo
+    const gap = 2;
+    const cellSize = (size - gap) / 2;
 
-                const pos = positions[index];
+    const renderCell = (p: User, cellSz: number) => (
+        p.avatar_url ? (
+            <Image source={{ uri: p.avatar_url }} style={{ width: cellSz, height: cellSz }} />
+        ) : (
+            <View style={{ width: cellSz, height: cellSz, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: cellSz * 0.38, fontWeight: 'bold' }}>
+                    {(p.name || '?').charAt(0).toUpperCase()}
+                </Text>
+            </View>
+        )
+    );
 
-                return (
-                    <View
-                        key={p.id}
-                        style={[
-                            {
-                                position: 'absolute',
-                                ...pos,
-                                width: smallSize,
-                                height: smallSize,
-                                borderRadius: smallSize / 2,
-                                borderWidth: 2,
-                                borderColor: colors.background,
-                                overflow: 'hidden',
-                            }
-                        ]}
-                    >
-                        {p.avatar_url ? (
-                            <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
-                        ) : (
-                            <View style={{ width: '100%', height: '100%', backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
-                                <Text style={{ color: '#fff', fontSize: smallSize * 0.4, fontWeight: 'bold' }}>
-                                    {(p.name || '?').charAt(0).toUpperCase()}
-                                </Text>
-                            </View>
-                        )}
+    if (count === 2) {
+        return (
+            <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.background }}>
+                <View style={{ flexDirection: 'row' }}>
+                    <View style={{ width: cellSize, height: size }}>
+                        {renderCell(displayParticipants[0], size)}
                     </View>
-                );
-            })}
+                    <View style={{ width: gap, backgroundColor: colors.background }} />
+                    <View style={{ width: cellSize, height: size }}>
+                        {renderCell(displayParticipants[1], size)}
+                    </View>
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', backgroundColor: colors.background }}>
+            <View style={{ flexDirection: 'row', height: cellSize }}>
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {renderCell(displayParticipants[0], cellSize)}
+                </View>
+                <View style={{ width: gap }} />
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {renderCell(displayParticipants[1], cellSize)}
+                </View>
+            </View>
+            <View style={{ height: gap }} />
+            <View style={{ flexDirection: 'row', height: cellSize }}>
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {renderCell(displayParticipants[2], cellSize)}
+                </View>
+                <View style={{ width: gap }} />
+                <View style={{ width: cellSize, height: cellSize, overflow: 'hidden' }}>
+                    {count >= 4 ? renderCell(displayParticipants[3], cellSize) : (
+                        <View style={{ width: cellSize, height: cellSize, backgroundColor: `${colors.primary}20`, justifyContent: 'center', alignItems: 'center' }}>
+                            <Ionicons name="people" size={cellSize * 0.4} color={colors.primary} />
+                        </View>
+                    )}
+                </View>
+            </View>
         </View>
     );
 };
@@ -528,49 +544,90 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                 {/* Lista de participantes del grupo */}
                 {isGroup && groupParticipants.length > 0 && (
                     <View style={styles.participantsSection}>
-                        <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                            Participantes
-                        </Text>
-                        {groupParticipants.map((participant: User) => (
-                            <View key={participant.id} style={[styles.participantItem, { borderBottomColor: colors.divider }]}>
-                                {participant.avatar_url ? (
-                                    <Image source={{ uri: participant.avatar_url }} style={styles.participantAvatar} />
-                                ) : (
-                                    <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder, { backgroundColor: colors.primary }]}>
-                                        <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
-                                            {(participant.name || '?').charAt(0).toUpperCase()}
-                                        </Text>
-                                    </View>
-                                )}
-                                <View style={styles.participantInfo}>
-                                    <Text style={[styles.participantName, { color: colors.textPrimary }]}>
-                                        {participant.name || 'Usuario'}
-                                    </Text>
-                                    <Text style={[styles.participantRole, { color: colors.textMuted }]}>
-                                        {participant.role === 'consultor' ? 'Consultor' :
-                                         participant.role === 'asesor' ? 'Asesor' : 'Usuario'}
-                                    </Text>
-                                </View>
-                                {isConsultor && (
-                                    <TouchableOpacity
-                                        onPress={() => handleRemoveMember(participant)}
-                                        style={styles.removeParticipantButton}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Ionicons name="close-circle" size={22} color="#EF4444" />
-                                    </TouchableOpacity>
-                                )}
+                        <View style={styles.participantsSectionHeader}>
+                            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                                Participantes
+                            </Text>
+                            <View style={[styles.participantCountBadge, { backgroundColor: `${colors.primary}18` }]}>
+                                <Text style={[styles.participantCountText, { color: colors.primary }]}>
+                                    {groupParticipants.length}
+                                </Text>
                             </View>
-                        ))}
+                        </View>
+
+                        <View style={[styles.participantsList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                            {groupParticipants.map((participant: User, index: number) => (
+                                <View
+                                    key={participant.id}
+                                    style={[
+                                        styles.participantItem,
+                                        index < groupParticipants.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: colors.divider },
+                                    ]}
+                                >
+                                    {participant.avatar_url ? (
+                                        <Image source={{ uri: participant.avatar_url }} style={styles.participantAvatar} />
+                                    ) : (
+                                        <LinearGradient
+                                            colors={[colors.primary, colors.primaryDark]}
+                                            style={[styles.participantAvatar, styles.participantAvatarPlaceholder]}
+                                        >
+                                            <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                                                {(participant.name || '?').charAt(0).toUpperCase()}
+                                            </Text>
+                                        </LinearGradient>
+                                    )}
+                                    <View style={styles.participantInfo}>
+                                        <Text style={[styles.participantName, { color: colors.textPrimary }]} numberOfLines={1}>
+                                            {participant.name || 'Usuario'}
+                                        </Text>
+                                        <View style={[
+                                            styles.roleBadge,
+                                            {
+                                                backgroundColor: participant.role === 'consultor'
+                                                    ? `${colors.primary}15`
+                                                    : participant.role === 'asesor'
+                                                    ? '#F59E0B12'
+                                                    : `${colors.textMuted}12`,
+                                            }
+                                        ]}>
+                                            <Text style={[
+                                                styles.roleBadgeText,
+                                                {
+                                                    color: participant.role === 'consultor'
+                                                        ? colors.primary
+                                                        : participant.role === 'asesor'
+                                                        ? '#D97706'
+                                                        : colors.textMuted,
+                                                }
+                                            ]}>
+                                                {participant.role === 'consultor' ? 'Consultor' :
+                                                 participant.role === 'asesor' ? 'Asesor' : 'Usuario'}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    {isConsultor && (
+                                        <TouchableOpacity
+                                            onPress={() => handleRemoveMember(participant)}
+                                            style={[styles.removeParticipantButton, { backgroundColor: '#EF444410' }]}
+                                            activeOpacity={0.6}
+                                        >
+                                            <Ionicons name="remove" size={16} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                            ))}
+                        </View>
 
                         {/* Botón agregar participante */}
                         {isConsultor && (
                             <TouchableOpacity
-                                style={[styles.addParticipantButton, { borderColor: colors.primary }]}
+                                style={[styles.addParticipantButton, { backgroundColor: `${colors.primary}10` }]}
                                 onPress={handleOpenAddMember}
                                 activeOpacity={0.7}
                             >
-                                <Ionicons name="person-add" size={20} color={colors.primary} />
+                                <View style={[styles.addParticipantIcon, { backgroundColor: colors.primary }]}>
+                                    <Ionicons name="add" size={18} color="#fff" />
+                                </View>
                                 <Text style={[styles.addParticipantText, { color: colors.primary }]}>
                                     Agregar participante
                                 </Text>
@@ -581,7 +638,7 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
 
                 {/* Sección de archivos compartidos */}
                 <View style={styles.filesSection}>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+                    <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 16 }]}>
                         Archivos Compartidos
                     </Text>
 
@@ -970,25 +1027,37 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                         activeOpacity={1}
                         onPress={() => setShowAddMemberModal(false)}
                     />
-                    <View style={[styles.reportModalContent, { backgroundColor: colors.background }]}>
+                    <View style={[styles.addMemberModalContent, { backgroundColor: colors.background }]}>
+                        {/* Handle bar */}
+                        <View style={[styles.modalHandle, { backgroundColor: colors.border }]} />
+
                         <View style={styles.reportModalHeader}>
                             <Text style={[styles.reportModalTitle, { color: colors.textPrimary }]}>
                                 Agregar participante
                             </Text>
-                            <TouchableOpacity onPress={() => setShowAddMemberModal(false)}>
-                                <Ionicons name="close" size={24} color={colors.textPrimary} />
+                            <TouchableOpacity
+                                onPress={() => setShowAddMemberModal(false)}
+                                style={[styles.modalCloseButton, { backgroundColor: colors.surfaceLight }]}
+                            >
+                                <Ionicons name="close" size={18} color={colors.textSecondary} />
                             </TouchableOpacity>
                         </View>
 
-                        <View style={[styles.memberSearchContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <Ionicons name="search" size={20} color={colors.textMuted} />
+                        <View style={[styles.memberSearchContainer, { backgroundColor: colors.surfaceLight }]}>
+                            <Ionicons name="search" size={18} color={colors.textMuted} />
                             <TextInput
                                 style={[styles.memberSearchInput, { color: colors.textPrimary }]}
-                                placeholder="Buscar usuarios..."
+                                placeholder="Buscar por nombre o RFC..."
                                 placeholderTextColor={colors.textMuted}
                                 value={memberSearchQuery}
                                 onChangeText={setMemberSearchQuery}
+                                autoFocus
                             />
+                            {memberSearchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setMemberSearchQuery('')}>
+                                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                                </TouchableOpacity>
+                            )}
                         </View>
 
                         {isLoadingUsers ? (
@@ -999,37 +1068,44 @@ export const UserProfileScreen: React.FC<UserProfileScreenProps> = ({ route, nav
                             <FlatList
                                 data={filteredAvailableUsers}
                                 keyExtractor={(item) => item.id}
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={{ paddingBottom: 20 }}
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
-                                        style={[styles.participantItem, { borderBottomColor: colors.divider }]}
+                                        style={[styles.addMemberItem, { borderBottomColor: colors.divider }]}
                                         onPress={() => handleAddMember(item)}
-                                        activeOpacity={0.7}
+                                        activeOpacity={0.6}
                                     >
                                         {item.avatar_url ? (
-                                            <Image source={{ uri: item.avatar_url }} style={styles.participantAvatar} />
+                                            <Image source={{ uri: item.avatar_url }} style={styles.addMemberAvatar} />
                                         ) : (
-                                            <View style={[styles.participantAvatar, styles.participantAvatarPlaceholder, { backgroundColor: colors.primary }]}>
-                                                <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+                                            <LinearGradient
+                                                colors={[colors.primary, colors.primaryDark]}
+                                                style={[styles.addMemberAvatar, { justifyContent: 'center', alignItems: 'center' }]}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>
                                                     {(item.name || '?').charAt(0).toUpperCase()}
                                                 </Text>
-                                            </View>
+                                            </LinearGradient>
                                         )}
-                                        <View style={styles.participantInfo}>
-                                            <Text style={[styles.participantName, { color: colors.textPrimary }]}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={[styles.addMemberName, { color: colors.textPrimary }]} numberOfLines={1}>
                                                 {item.name || 'Usuario'}
                                             </Text>
-                                            <Text style={[styles.participantRole, { color: colors.textMuted }]}>
+                                            <Text style={[styles.addMemberRfc, { color: colors.textMuted }]}>
                                                 {item.rfc}
                                             </Text>
                                         </View>
-                                        <Ionicons name="add-circle" size={24} color={colors.primary} />
+                                        <View style={[styles.addMemberAction, { backgroundColor: `${colors.primary}12` }]}>
+                                            <Ionicons name="person-add" size={16} color={colors.primary} />
+                                        </View>
                                     </TouchableOpacity>
                                 )}
                                 ListEmptyComponent={
                                     <View style={styles.emptyState}>
-                                        <Ionicons name="people-outline" size={48} color={colors.textMuted} />
+                                        <Ionicons name="people-outline" size={44} color={colors.textMuted} />
                                         <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                                            No hay usuarios disponibles
+                                            {memberSearchQuery ? 'Sin resultados' : 'No hay usuarios disponibles'}
                                         </Text>
                                     </View>
                                 }
@@ -1132,7 +1208,6 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        marginBottom: 16,
     },
     tabsContainer: {
         flexDirection: 'row',
@@ -1208,16 +1283,36 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         marginBottom: 24,
     },
+    participantsSectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        gap: 8,
+    },
+    participantCountBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 3,
+        borderRadius: 12,
+    },
+    participantCountText: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    participantsList: {
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
     participantItem: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
-        borderBottomWidth: 0.5,
+        paddingHorizontal: 14,
     },
     participantAvatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         marginRight: 12,
     },
     participantAvatarPlaceholder: {
@@ -1226,47 +1321,112 @@ const styles = StyleSheet.create({
     },
     participantInfo: {
         flex: 1,
+        gap: 4,
     },
     participantName: {
-        fontSize: 16,
-        fontWeight: '500',
+        fontSize: 15,
+        fontWeight: '600',
     },
-    participantRole: {
-        fontSize: 13,
-        marginTop: 2,
+    roleBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    roleBadgeText: {
+        fontSize: 11,
+        fontWeight: '600',
     },
     // Estilos de gestión de miembros
     removeParticipantButton: {
-        padding: 4,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     addParticipantButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 12,
-        marginTop: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        gap: 8,
+        paddingVertical: 14,
+        marginTop: 10,
+        borderRadius: 14,
+        gap: 10,
+    },
+    addParticipantIcon: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     addParticipantText: {
         fontSize: 15,
         fontWeight: '600',
+    },
+    // Modal agregar miembro
+    addMemberModalContent: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 24,
+        paddingTop: 12,
+        paddingBottom: 40,
+        maxHeight: '75%',
+    },
+    modalHandle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 14,
+    },
+    modalCloseButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     memberSearchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 12,
         paddingHorizontal: 12,
-        marginBottom: 12,
-        borderWidth: 1,
+        marginBottom: 16,
         gap: 8,
     },
     memberSearchInput: {
         flex: 1,
         fontSize: 15,
         paddingVertical: 12,
+    },
+    addMemberItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 11,
+        borderBottomWidth: 0.5,
+    },
+    addMemberAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 12,
+    },
+    addMemberName: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    addMemberRfc: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+    addMemberAction: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     // Estilos de moderación
     moderationButtons: {

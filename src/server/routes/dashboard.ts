@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { queryOne } from '../../database/config';
+import { query, queryOne } from '../../database/config';
 import {
     getDashboardSummary,
     getDashboardActivity,
@@ -79,6 +79,44 @@ router.get('/user-media/:targetUserId', requireConsultor, async (req: Request, r
         res.json({ media });
     } catch (error: any) {
         console.error('Error al obtener detalle de media:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/dashboard/unclaimed-users?userId=xxx
+router.get('/unclaimed-users', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const adminUser = await queryOne<{ id: string }>(
+            `SELECT id FROM users WHERE rfc = 'ADMIN000CONS'`
+        );
+        if (!adminUser) {
+            return res.json({ count: 0, users: [] });
+        }
+
+        const unclaimedUsers = await query<any>(`
+            SELECT
+                u.id as user_id,
+                u.name,
+                u.rfc,
+                u.avatar_url,
+                u.phone,
+                u.created_at as registered_at,
+                c.id as chat_id,
+                (SELECT text FROM messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                (SELECT COUNT(*) FROM messages WHERE chat_id = c.id) as message_count
+            FROM users u
+            INNER JOIN chat_participants cp1 ON cp1.user_id = u.id
+            INNER JOIN chat_participants cp2 ON cp2.chat_id = cp1.chat_id AND cp2.user_id = $1
+            INNER JOIN chats c ON c.id = cp1.chat_id AND c.is_group = false
+            WHERE u.role = 'usuario'
+              AND u.claimed_by IS NULL
+              AND u.id != $1
+            ORDER BY u.created_at DESC
+        `, [adminUser.id]);
+
+        res.json({ count: unclaimedUsers.length, users: unclaimedUsers });
+    } catch (error: any) {
+        console.error('Error al obtener usuarios sin reclamar:', error);
         res.status(500).json({ error: error.message });
     }
 });

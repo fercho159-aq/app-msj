@@ -24,12 +24,16 @@ CREATE TABLE IF NOT EXISTS users (
     codigo_postal VARCHAR(5),
     estado VARCHAR(100),
     domicilio TEXT,
+    claimed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    claimed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Índice para búsqueda rápida por RFC
 CREATE INDEX IF NOT EXISTS idx_users_rfc ON users(rfc);
+-- Índice para usuarios sin reclamar
+CREATE INDEX IF NOT EXISTS idx_users_unclaimed ON users(claimed_by) WHERE claimed_by IS NULL AND role = 'usuario';
 -- Índice para búsqueda por teléfono
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 

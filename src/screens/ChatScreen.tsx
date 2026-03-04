@@ -923,6 +923,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 avatar={userAvatar}
                 rfc={userRfc}
                 isAdmin={isAdmin}
+                isGroup={chatInfo?.isGroup || false}
+                participants={chatInfo?.participants || []}
                 onBack={() => navigation.goBack()}
                 onCall={handleCall}
                 onUserPress={handleUserPress}

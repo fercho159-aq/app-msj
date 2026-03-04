@@ -11,8 +11,11 @@ import {
 } from '../../services/chatService';
 import { getChatMessages } from '../../services/messageService';
 import { getChatLabels } from '../../services/labelService';
+import { query, queryOne, transaction } from '../../database/config';
 
 const router = Router();
+
+const ADMIN_RFC = 'ADMIN000CONS';
 
 // GET /api/chats - Obtener chats del usuario
 router.get('/', async (req: Request, res: Response) => {
@@ -60,6 +63,144 @@ router.get('/', async (req: Request, res: Response) => {
 
     } catch (error: any) {
         console.error('Error al obtener chats:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/chats/unclaimed - Obtener usuarios sin reclamar (para consultores)
+router.get('/unclaimed', async (req: Request, res: Response) => {
+    try {
+        const userId = req.query.userId as string;
+        if (!userId) {
+            return res.status(400).json({ error: 'userId es requerido como query param' });
+        }
+
+        // Verificar que es consultor
+        const requester = await queryOne<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+        if (!requester || requester.role !== 'consultor') {
+            return res.status(403).json({ error: 'Solo consultores pueden ver usuarios sin reclamar' });
+        }
+
+        // Obtener admin user id
+        const adminUser = await queryOne<{ id: string }>(
+            `SELECT id FROM users WHERE rfc = $1`,
+            [ADMIN_RFC]
+        );
+        if (!adminUser) {
+            return res.json({ users: [] });
+        }
+
+        // Usuarios con role='usuario', claimed_by IS NULL, que tengan chat con ADMIN000CONS
+        const unclaimedUsers = await query<any>(`
+            SELECT
+                u.id as user_id,
+                u.name,
+                u.rfc,
+                u.avatar_url,
+                u.phone,
+                u.created_at as registered_at,
+                c.id as chat_id,
+                (SELECT text FROM messages WHERE chat_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+                (SELECT COUNT(*) FROM messages WHERE chat_id = c.id) as message_count
+            FROM users u
+            INNER JOIN chat_participants cp1 ON cp1.user_id = u.id
+            INNER JOIN chat_participants cp2 ON cp2.chat_id = cp1.chat_id AND cp2.user_id = $1
+            INNER JOIN chats c ON c.id = cp1.chat_id AND c.is_group = false
+            WHERE u.role = 'usuario'
+              AND u.claimed_by IS NULL
+              AND u.id != $1
+            ORDER BY u.created_at DESC
+        `, [adminUser.id]);
+
+        res.json({ users: unclaimedUsers });
+    } catch (error: any) {
+        console.error('Error al obtener usuarios sin reclamar:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/chats/:id/claim - Reclamar un usuario (transferir chat de ADMIN a consultor)
+router.post('/:id/claim', async (req: Request, res: Response) => {
+    try {
+        const chatId = req.params.id;
+        const { userId } = req.body; // userId del consultor que reclama
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId es requerido' });
+        }
+
+        // Verificar que es consultor
+        const requester = await queryOne<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+        if (!requester || requester.role !== 'consultor') {
+            return res.status(403).json({ error: 'Solo consultores pueden reclamar usuarios' });
+        }
+
+        // Obtener admin user id
+        const adminUser = await queryOne<{ id: string }>(
+            `SELECT id FROM users WHERE rfc = $1`,
+            [ADMIN_RFC]
+        );
+        if (!adminUser) {
+            return res.status(404).json({ error: 'Admin user not found' });
+        }
+
+        // Verificar que el chat existe y tiene a ADMIN000CONS como participante
+        const chatParticipant = await queryOne<{ user_id: string }>(
+            `SELECT user_id FROM chat_participants WHERE chat_id = $1 AND user_id = $2`,
+            [chatId, adminUser.id]
+        );
+        if (!chatParticipant) {
+            return res.status(400).json({ error: 'Este chat no tiene al consultor base como participante' });
+        }
+
+        // Obtener el usuario del otro lado del chat
+        const otherParticipant = await queryOne<{ user_id: string }>(
+            `SELECT user_id FROM chat_participants WHERE chat_id = $1 AND user_id != $2`,
+            [chatId, adminUser.id]
+        );
+        if (!otherParticipant) {
+            return res.status(400).json({ error: 'No se encontró al usuario en este chat' });
+        }
+
+        // Verificar que el usuario no ha sido reclamado
+        const targetUser = await queryOne<{ claimed_by: string | null }>(
+            `SELECT claimed_by FROM users WHERE id = $1`,
+            [otherParticipant.user_id]
+        );
+        if (targetUser?.claimed_by) {
+            return res.status(409).json({ error: 'Este usuario ya fue reclamado por otro consultor' });
+        }
+
+        // Transacción: reclamar usuario y transferir chat
+        await transaction(async (client) => {
+            // 1. Marcar usuario como reclamado
+            await client.query(
+                `UPDATE users SET claimed_by = $1, claimed_at = NOW() WHERE id = $2 AND claimed_by IS NULL`,
+                [userId, otherParticipant.user_id]
+            );
+
+            // 2. Reemplazar ADMIN000CONS por el consultor en el chat
+            await client.query(
+                `UPDATE chat_participants SET user_id = $1 WHERE chat_id = $2 AND user_id = $3`,
+                [userId, chatId, adminUser.id]
+            );
+
+            // 3. Actualizar timestamp del chat
+            await client.query(
+                `UPDATE chats SET updated_at = NOW() WHERE id = $1`,
+                [chatId]
+            );
+        });
+
+        res.json({ success: true, message: 'Usuario reclamado exitosamente' });
+    } catch (error: any) {
+        console.error('Error al reclamar usuario:', error);
         res.status(500).json({ error: error.message });
     }
 });

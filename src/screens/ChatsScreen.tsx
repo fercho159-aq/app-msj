@@ -23,7 +23,7 @@ import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { api, Chat, User, ChatLabel } from '../api';
+import { api, Chat, User, ChatLabel, UnclaimedUserInfo } from '../api';
 import { RootStackParamList } from '../types';
 
 type ChatsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
@@ -258,7 +258,7 @@ const ChatItem: React.FC<ChatItemProps> = ({ chat, currentUserId, onPress, onLon
 };
 
 // Tipos de pestañas para consultores
-type ChatTab = 'usuarios' | 'asesores' | 'consultores' | 'grupos';
+type ChatTab = 'nuevos' | 'usuarios' | 'asesores' | 'consultores' | 'grupos';
 
 // Función para determinar el tipo de usuario
 // Prioriza el campo 'role' si está disponible, si no, infiere del RFC
@@ -280,10 +280,11 @@ const getUserType = (user: User | undefined): 'usuario' | 'asesor' | 'consultor'
 
 // Tipo unificado para mostrar en la lista (chat existente o usuario sin chat)
 interface ListItem {
-    type: 'chat' | 'user';
+    type: 'chat' | 'user' | 'unclaimed';
     id: string;
     chat?: Chat;
     user?: User;
+    unclaimedUser?: UnclaimedUserInfo;
 }
 
 export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
@@ -297,6 +298,8 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<ChatTab>('usuarios');
     const [isCreatingChat, setIsCreatingChat] = useState(false);
+    const [unclaimedUsers, setUnclaimedUsers] = useState<UnclaimedUserInfo[]>([]);
+    const [isClaimingChat, setIsClaimingChat] = useState<string | null>(null);
     const [showFabMenu, setShowFabMenu] = useState(false);
     const [showLabelsModal, setShowLabelsModal] = useState(false);
     const [selectedChatForLabels, setSelectedChatForLabels] = useState<Chat | null>(null);
@@ -341,12 +344,18 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                 });
             }
 
-            // Si es consultor, también cargar todos los usuarios
+            // Si es consultor, también cargar todos los usuarios y sin reclamar
             if (isConsultor && isInitialLoad) {
-                const usersResult = await api.getUsers();
+                const [usersResult, unclaimedResult] = await Promise.all([
+                    api.getUsers(),
+                    api.getUnclaimedUsers(),
+                ]);
                 console.log('📋 Usuarios cargados:', usersResult.data?.users?.length || 0);
                 if (usersResult.data?.users) {
                     setAllUsers(usersResult.data.users);
+                }
+                if (unclaimedResult.data?.users) {
+                    setUnclaimedUsers(unclaimedResult.data.users);
                 }
             }
         } catch (error) {
@@ -426,6 +435,17 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
 
         // Para consultores: manejar pestañas
         const items: ListItem[] = [];
+
+        // Pestaña de nuevos - usuarios sin reclamar
+        if (activeTab === 'nuevos') {
+            unclaimedUsers.forEach(u => {
+                const matchesSearch = u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    u.rfc?.toLowerCase().includes(searchQuery.toLowerCase());
+                if (!matchesSearch) return;
+                items.push({ type: 'unclaimed', id: u.chat_id, unclaimedUser: u });
+            });
+            return items;
+        }
 
         // Pestaña de grupos - solo mostrar chats grupales
         if (activeTab === 'grupos') {
@@ -530,6 +550,27 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             console.error('Error creating chat:', error);
         } finally {
             setIsCreatingChat(false);
+        }
+    };
+
+    // Reclamar un usuario sin reclamar
+    const handleClaimUser = async (chatId: string) => {
+        if (isClaimingChat) return;
+        setIsClaimingChat(chatId);
+        try {
+            const result = await api.claimUser(chatId);
+            if (result.data?.success) {
+                // Remover de la lista de sin reclamar
+                setUnclaimedUsers(prev => prev.filter(u => u.chat_id !== chatId));
+                // Recargar chats para que aparezca en la lista normal
+                await loadChats(true);
+            } else if (result.error) {
+                console.error('Error al reclamar:', result.error);
+            }
+        } catch (error) {
+            console.error('Error claiming user:', error);
+        } finally {
+            setIsClaimingChat(null);
         }
     };
 
@@ -756,6 +797,68 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         );
     };
 
+    // Componente para mostrar usuario sin reclamar
+    const renderUnclaimedItem = (unclaimedUser: UnclaimedUserInfo) => {
+        const displayName = unclaimedUser.name || 'Usuario';
+        const isClaiming = isClaimingChat === unclaimedUser.chat_id;
+
+        return (
+            <View
+                style={[styles.chatItem, { backgroundColor: colors.background, borderBottomColor: colors.divider }]}
+            >
+                <View style={styles.avatarContainer}>
+                    {unclaimedUser.avatar_url ? (
+                        <Image source={{ uri: unclaimedUser.avatar_url }} style={[styles.avatar, { borderColor: colors.border }]} />
+                    ) : (
+                        <View style={[styles.avatar, styles.avatarPlaceholder, { backgroundColor: '#F59E0B' }]}>
+                            <Text style={[styles.avatarText, { color: '#fff' }]}>
+                                {displayName.charAt(0).toUpperCase()}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={[styles.chatContent, { flex: 1 }]}>
+                    <View style={styles.chatHeader}>
+                        <Text style={[styles.chatName, { color: colors.textPrimary }]} numberOfLines={1}>
+                            {displayName}
+                        </Text>
+                        <Text style={[styles.chatTime, { color: colors.textMuted, fontSize: 11 }]}>
+                            {unclaimedUser.registered_at ? formatMessageTime(unclaimedUser.registered_at) : ''}
+                        </Text>
+                    </View>
+                    <View style={styles.chatMessageRow}>
+                        <Text style={[styles.chatMessage, { color: colors.textMuted }]} numberOfLines={1}>
+                            {unclaimedUser.last_message || 'Sin mensajes'}
+                        </Text>
+                    </View>
+                    {unclaimedUser.phone && (
+                        <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 2 }}>
+                            {unclaimedUser.phone}
+                        </Text>
+                    )}
+                </View>
+
+                <TouchableOpacity
+                    style={[
+                        styles.claimButton,
+                        { backgroundColor: '#F59E0B' },
+                        isClaiming && { opacity: 0.6 }
+                    ]}
+                    onPress={() => handleClaimUser(unclaimedUser.chat_id)}
+                    disabled={!!isClaimingChat}
+                    activeOpacity={0.7}
+                >
+                    {isClaiming ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                        <Text style={styles.claimButtonText}>Reclamar</Text>
+                    )}
+                </TouchableOpacity>
+            </View>
+        );
+    };
+
     // Render item de la lista combinada
     const renderListItem = ({ item }: { item: ListItem }) => {
         if (item.type === 'chat' && item.chat) {
@@ -771,6 +874,9 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         }
         if (item.type === 'user' && item.user) {
             return renderUserItem(item.user);
+        }
+        if (item.type === 'unclaimed' && item.unclaimedUser) {
+            return renderUnclaimedItem(item.unclaimedUser);
         }
         return null;
     };
@@ -846,6 +952,25 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                         style={styles.tabsScrollView}
                         contentContainerStyle={styles.tabsScrollContent}
                     >
+                        {unclaimedUsers.length > 0 && (
+                            <TouchableOpacity
+                                style={[
+                                    styles.tabPill,
+                                    activeTab === 'nuevos'
+                                        ? { backgroundColor: '#F59E0B' }
+                                        : { backgroundColor: '#FEF3C7', borderColor: '#F59E0B', borderWidth: 1 }
+                                ]}
+                                onPress={() => setActiveTab('nuevos')}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={[
+                                    styles.tabPillText,
+                                    { color: activeTab === 'nuevos' ? '#fff' : '#92400E', fontWeight: '700' }
+                                ]}>
+                                    Nuevos ({unclaimedUsers.length})
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
                             style={[
                                 styles.tabPill,
@@ -943,9 +1068,11 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                             <Ionicons name="chatbubbles-outline" size={64} color={colors.textMuted} />
                             <Text style={[styles.emptyText, { color: colors.textPrimary }]}>
                                 {isConsultor
-                                    ? activeTab === 'grupos'
-                                        ? 'No hay grupos'
-                                        : `No hay ${activeTab} registrados`
+                                    ? activeTab === 'nuevos'
+                                        ? 'No hay usuarios nuevos sin reclamar'
+                                        : activeTab === 'grupos'
+                                            ? 'No hay grupos'
+                                            : `No hay ${activeTab} registrados`
                                     : 'No hay conversaciones'
                                 }
                             </Text>
@@ -1397,6 +1524,20 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 8,
+    },
+    claimButton: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 8,
+        marginLeft: 10,
+        alignSelf: 'center',
+        minWidth: 80,
+        alignItems: 'center',
+    },
+    claimButtonText: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '700',
     },
     emptyContainer: {
         flex: 1,

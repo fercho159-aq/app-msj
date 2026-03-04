@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { createOrGetUserByRFC, getUserByRFC, updateUser, verifyCredentials } from '../../services/userService';
 import { query } from '../../database/config';
 import bcrypt from 'bcryptjs';
+import { pushNotificationService } from '../services/pushNotificationService';
 
 const router = Router();
 
@@ -226,6 +227,24 @@ router.post('/login', async (req: Request, res: Response) => {
                     estado,
                     domicilio
                 };
+
+                // Notificar a todos los consultores del nuevo registro
+                try {
+                    const consultores = await query<{ id: string }>('SELECT id FROM users WHERE role = $1', ['consultor']);
+                    if (consultores.length > 0) {
+                        const consultorIds = consultores.map(c => c.id);
+                        const userName = razonSocial || name || `Usuario ${rfc.substring(0, 4)}`;
+                        await pushNotificationService.sendBulkNotification(
+                            consultorIds,
+                            'Nuevo usuario',
+                            `Se ha registrado: ${userName}`,
+                            { type: 'new_user_registration', userId: user.id }
+                        );
+                        console.log(`[Auth] Push notification sent to ${consultorIds.length} consultores for new user ${rfc}`);
+                    }
+                } catch (pushError) {
+                    console.error('[Auth] Error sending push notifications:', pushError);
+                }
             } else {
                 // Not a registration, user doesn't exist - return error
                 return res.status(404).json({ error: 'Usuario no encontrado. Por favor regístrese primero.' });
