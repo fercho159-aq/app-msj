@@ -11,6 +11,17 @@ import { Platform } from 'react-native';
 import { ICE_SERVERS, MEDIA_CONSTRAINTS, SDP_CONSTRAINTS } from '../config/webrtc';
 import { socketService } from '../services/socketService';
 
+// Importación condicional de InCallManager para control de altavoz
+let InCallManager: any = null;
+if (Platform.OS !== 'web') {
+  try {
+    InCallManager = require('react-native-incall-manager').default;
+    console.log('[WebRTC] InCallManager cargado correctamente');
+  } catch (e) {
+    console.warn('[WebRTC] react-native-incall-manager no disponible:', e);
+  }
+}
+
 // Importación condicional de WebRTC para React Native
 // En web usamos las APIs nativas del navegador
 let RTCPeerConnection: any;
@@ -246,6 +257,17 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const stream = await mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
 
+      // Iniciar InCallManager para controlar audio routing
+      if (Platform.OS !== 'web' && InCallManager) {
+        try {
+          InCallManager.start({ media: video ? 'video' : 'audio' });
+          InCallManager.setForceSpeakerphoneOn(false);
+          console.log('[WebRTC] InCallManager started');
+        } catch (e) {
+          console.warn('[WebRTC] Error starting InCallManager:', e);
+        }
+      }
+
       setState(prev => ({
         ...prev,
         localStream: stream,
@@ -428,6 +450,16 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       peerConnection.current = null;
     }
 
+    // Detener InCallManager
+    if (Platform.OS !== 'web' && InCallManager) {
+      try {
+        InCallManager.stop();
+        console.log('[WebRTC] InCallManager stopped');
+      } catch (e) {
+        console.warn('[WebRTC] Error stopping InCallManager:', e);
+      }
+    }
+
     // Limpiar referencias
     remoteStreamRef.current = null;
     remoteUserIdRef.current = null;
@@ -455,8 +487,13 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
+        console.log('[WebRTC] Mute toggled:', !audioTrack.enabled ? 'MUTED' : 'UNMUTED');
         setState(prev => ({ ...prev, isMuted: !audioTrack.enabled }));
+      } else {
+        console.warn('[WebRTC] No audio track found to toggle mute');
       }
+    } else {
+      console.warn('[WebRTC] No local stream to toggle mute');
     }
   }, []);
 
@@ -471,11 +508,20 @@ export const WebRTCProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, []);
 
-  // Toggle speaker (solo funciona en nativo con react-native-webrtc)
+  // Toggle speaker
   const toggleSpeaker = useCallback(() => {
-    // En React Native, necesitarías usar InCallManager
-    // Por ahora solo actualizamos el estado
-    setState(prev => ({ ...prev, isSpeakerOn: !prev.isSpeakerOn }));
+    setState(prev => {
+      const newSpeakerState = !prev.isSpeakerOn;
+      if (Platform.OS !== 'web' && InCallManager) {
+        try {
+          InCallManager.setSpeakerphoneOn(newSpeakerState);
+          console.log('[WebRTC] Speaker toggled:', newSpeakerState ? 'ON' : 'OFF');
+        } catch (e) {
+          console.error('[WebRTC] Error toggling speaker:', e);
+        }
+      }
+      return { ...prev, isSpeakerOn: newSpeakerState };
+    });
   }, []);
 
   // Cambiar cámara (frontal/trasera)

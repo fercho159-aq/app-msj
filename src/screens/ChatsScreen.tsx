@@ -467,6 +467,9 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
         // Determinar el rol objetivo según la pestaña
         const targetRole = activeTab === 'usuarios' ? 'usuario' : activeTab === 'asesores' ? 'asesor' : 'consultor';
 
+        // IDs de usuarios sin reclamar (para excluirlos del tab "usuarios")
+        const unclaimedUserIds = new Set(unclaimedUsers.map(u => u.user_id));
+
         // Agregar chats existentes que coinciden con el tab
         chats.forEach(chat => {
             if (chat.isGroup) return; // Grupos solo en pestaña de grupos
@@ -481,14 +484,17 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
             // Filtrar por tipo de usuario
             const otherUserType = getUserType(otherUser);
             if (otherUserType === targetRole) {
+                // En tab "usuarios", excluir los que están sin reclamar
+                if (activeTab === 'usuarios' && otherUser && unclaimedUserIds.has(otherUser.id)) return;
                 items.push({ type: 'chat', id: chat.id, chat });
             }
         });
 
-        // Agregar usuarios sin chat
+        // Agregar usuarios sin chat (no aplica para tab "usuarios" ya que sin reclamar van en "nuevos")
         allUsers.forEach(u => {
             if (u.id === user?.id) return; // Excluir al usuario actual
             if (usersWithChat.has(u.id)) return; // Ya tiene chat
+            if (activeTab === 'usuarios' && unclaimedUserIds.has(u.id)) return; // Sin reclamar van en "nuevos"
 
             const userType = getUserType(u);
             if (userType !== targetRole) return; // No coincide con el tab

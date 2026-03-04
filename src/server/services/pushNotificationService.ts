@@ -3,7 +3,7 @@ import { query, queryOne } from '../../database/config';
 // Interfaz para el mensaje de notificación push
 interface ExpoPushMessage {
     to: string;
-    sound?: 'default' | null;
+    sound?: 'default' | string | null;
     title: string;
     body: string;
     data?: Record<string, any>;
@@ -11,6 +11,7 @@ interface ExpoPushMessage {
     channelId?: string;
     priority?: 'default' | 'normal' | 'high';
     badge?: number;
+    _contentAvailable?: boolean;
 }
 
 interface ExpoPushTicket {
@@ -108,7 +109,7 @@ class PushNotificationService {
 
         const message: ExpoPushMessage = {
             to: pushToken,
-            sound: 'default',
+            sound: 'ringtone.wav',
             title: `Llamada entrante`,
             body: `${callerName} te está haciendo una ${callTypeText}`,
             data: {

@@ -1,15 +1,26 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
+import { Platform, Vibration } from 'react-native';
 import Constants from 'expo-constants';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
+// Para llamadas, mostrar alerta persistente; para mensajes, normal
 Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-    }),
+    handleNotification: async (notification) => {
+        const data = notification.request.content.data as NotificationData;
+        const isCall = data?.type === 'call' || data?.pendingCall === true;
+
+        if (isCall) {
+            // Para llamadas: activar vibración continua
+            Vibration.vibrate([0, 500, 300, 500, 300, 500, 300, 500, 300, 500], true);
+        }
+
+        return {
+            shouldShowAlert: true,
+            shouldPlaySound: true,
+            shouldSetBadge: !isCall,
+        };
+    },
 });
 
 export interface NotificationData {
@@ -75,8 +86,10 @@ class NotificationService {
             await Notifications.setNotificationChannelAsync('calls', {
                 name: 'Llamadas',
                 importance: Notifications.AndroidImportance.MAX,
-                sound: 'default',
-                vibrationPattern: [0, 500, 500, 500],
+                sound: 'ringtone.wav',
+                vibrationPattern: [0, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500],
+                enableVibrate: true,
+                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
             });
         }
 
@@ -88,6 +101,10 @@ class NotificationService {
         // Escuchar cuando el usuario toca una notificación
         this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
             const data = response.notification.request.content.data as NotificationData;
+            // Detener vibración si era una notificación de llamada
+            if (data?.type === 'call' || data?.pendingCall) {
+                Vibration.cancel();
+            }
             if (this.onNotificationTap) {
                 this.onNotificationTap(data);
             }
@@ -147,6 +164,10 @@ class NotificationService {
     async incrementBadge(): Promise<void> {
         const current = await Notifications.getBadgeCountAsync();
         await Notifications.setBadgeCountAsync(current + 1);
+    }
+
+    cancelCallVibration(): void {
+        Vibration.cancel();
     }
 
     cleanup(): void {

@@ -170,9 +170,6 @@ router.post('/login', async (req: Request, res: Response) => {
                 if (!termsAccepted) {
                     return res.status(400).json({ error: 'Debe aceptar los términos y condiciones' });
                 }
-                if (!phone) {
-                    return res.status(400).json({ error: 'El número de teléfono es requerido' });
-                }
                 if (!password) {
                     return res.status(400).json({ error: 'La contraseña es requerida' });
                 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View,
     Text,
@@ -13,6 +13,7 @@ import {
     Modal,
     KeyboardAvoidingView,
     Platform,
+    Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -90,6 +91,21 @@ export const LoginScreen: React.FC = () => {
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [userProfilePhoto, setUserProfilePhoto] = useState<string | null>(null);
+    const [userEmail, setUserEmail] = useState('');
+
+    // Welcome animation
+    const welcomeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (viewMode === 'USER_WELCOME') {
+            welcomeAnim.setValue(0);
+            Animated.timing(welcomeAnim, {
+                toValue: 1,
+                duration: 1000,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [viewMode]);
 
     // RFC Input states
     const [rfcInput, setRfcInput] = useState('');
@@ -238,6 +254,7 @@ export const LoginScreen: React.FC = () => {
             const curpData = checkIdData.resultado?.curp;
             const cpData = checkIdData.resultado?.codigoPostal;
             const regimenData = checkIdData.resultado?.regimenFiscal;
+            const correoData = checkIdData.resultado?.correo;
 
             if (!rfcData && !curpData) {
                 Alert.alert('Error', 'No se encontraron datos fiscales para este RFC');
@@ -273,6 +290,11 @@ export const LoginScreen: React.FC = () => {
                 domicilioCompleto: null,
                 confianza: 100, // Datos verificados del SAT
             });
+
+            // Pre-llenar correo si CheckId lo devuelve
+            if (correoData?.correo) {
+                setUserEmail(correoData.correo);
+            }
 
             // Navegar directamente a pantalla de registro
             setViewMode('USER_REGISTER');
@@ -1110,16 +1132,20 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                                 </Text>
                             </View>
 
-                            <Text style={styles.labelSmall}>Telefono</Text>
-                            <TextInput
-                                style={styles.inputSimple}
-                                value={userPhone}
-                                onChangeText={setUserPhone}
-                                placeholder="55 5393 2100"
-                                placeholderTextColor="#A0AEC0"
-                                keyboardType="phone-pad"
-                                maxLength={10}
-                            />
+                            <Text style={styles.labelSmall}>Correo electrónico</Text>
+                            <View style={styles.inputWithIconRight}>
+                                <TextInput
+                                    style={styles.inputWithIconField}
+                                    value={userEmail}
+                                    onChangeText={setUserEmail}
+                                    placeholder="correo@ejemplo.com"
+                                    placeholderTextColor="#A0AEC0"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                <Ionicons name="mail-outline" size={20} color="#5474BC" />
+                            </View>
 
                             <Text style={styles.labelSmall}>Contraseña</Text>
                             <View style={styles.inputWithIconRight}>
@@ -1163,8 +1189,8 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                                 title="COMENZAR"
                                 onPress={() => {
                                     // Validar campos antes de continuar
-                                    if (!userPhone || userPhone.length < 10) {
-                                        Alert.alert('Error', 'Ingrese un número de teléfono válido');
+                                    if (!userEmail || !userEmail.includes('@') || !userEmail.includes('.')) {
+                                        Alert.alert('Error', 'Ingrese un correo electrónico válido');
                                         return;
                                     }
                                     if (!userPassword || userPassword.length < 6) {
@@ -1251,16 +1277,41 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
                         <Text style={styles.welcomeLogoText}>BE HEART</Text>
                     </View>
 
+                    {/* Mensaje de bienvenida animado */}
+                    <Animated.View style={[
+                        styles.welcomeMessageContainer,
+                        {
+                            opacity: welcomeAnim,
+                            transform: [{
+                                translateY: welcomeAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [20, 0],
+                                }),
+                            }],
+                        },
+                    ]}>
+                        <Ionicons name="mail-outline" size={28} color="#5474BC" style={{ marginBottom: 12 }} />
+                        <Text style={styles.welcomeMessageText}>
+                            Bienvenido{' '}
+                            <Text style={styles.welcomeMessageBold}>{fiscalData?.razonSocial || ''}</Text>
+                            , en estos momentos está llegando nuestro correo de términos y condiciones a{' '}
+                            <Text style={styles.welcomeMessageEmail}>{userEmail || 'tu correo'}</Text>
+                        </Text>
+                    </Animated.View>
+
                     {/* Texto de seguridad */}
-                    <View style={styles.welcomeSecurityContainer}>
+                    <Animated.View style={[
+                        styles.welcomeSecurityContainer,
+                        { opacity: welcomeAnim },
+                    ]}>
                         <Ionicons name="shield-checkmark" size={20} color="#5474BC" />
                         <Text style={styles.welcomeSecurityText}>
-                            Su registro a sido completado, su información se encuentra protegida por{' '}
+                            Su información se encuentra protegida por{' '}
                             <Text style={styles.welcomeSecurityLink}>algoritmos criptográficos PQC</Text>
-                            , bajos los estatutos del{' '}
-                            <Text style={styles.welcomeSecurityLink}>Instituto de Nacional de Normas y Tecnología</Text>.
+                            , bajo los estatutos del{' '}
+                            <Text style={styles.welcomeSecurityLink}>Instituto Nacional de Normas y Tecnología</Text>.
                         </Text>
-                    </View>
+                    </Animated.View>
 
                     {/* Botón Siguiente */}
                     <GradientButton
@@ -1628,8 +1679,8 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     logo: {
-        width: 120,
-        height: 120,
+        width: 180,
+        height: 180,
     },
     welcomeText: {
         fontSize: 32,
@@ -2401,8 +2452,8 @@ const styles = StyleSheet.create({
     },
     // Estilos para pantalla de registro simplificada
     logoLarge: {
-        width: 140,
-        height: 140,
+        width: 200,
+        height: 200,
     },
     labelSmall: {
         fontSize: 12,
@@ -2521,6 +2572,31 @@ const styles = StyleSheet.create({
         color: '#1A2138',
         letterSpacing: 2,
         marginTop: 4,
+    },
+    welcomeMessageContainer: {
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 20,
+        marginTop: 20,
+        marginHorizontal: 10,
+        backgroundColor: '#F0F4FF',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E0E7FF',
+    },
+    welcomeMessageText: {
+        fontSize: 14,
+        color: '#4B5563',
+        textAlign: 'center',
+        lineHeight: 22,
+    },
+    welcomeMessageBold: {
+        fontWeight: '700',
+        color: '#1F2937',
+    },
+    welcomeMessageEmail: {
+        fontWeight: '600',
+        color: '#5474BC',
     },
     welcomeSecurityContainer: {
         flexDirection: 'row',

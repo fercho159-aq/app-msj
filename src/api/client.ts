@@ -932,6 +932,7 @@ class ApiClient {
                     obtenerCURP: true,
                     obtenerCodigoPostal: true,
                     obtenerRegimenFiscal: true,
+                    obtenerCorreo: true,
                     obtenerNSS: false,
                     obtenerEstado69o69B: false,
                 }),
@@ -942,6 +943,8 @@ class ApiClient {
 
             const data = await response.json();
             console.log(`✅ CheckId Response:`, data.exitoso ? 'Exitoso' : data.error);
+            console.log(`📧 CheckId Full resultado keys:`, data.resultado ? Object.keys(data.resultado) : 'no resultado');
+            console.log(`📧 CheckId correo:`, JSON.stringify(data.resultado?.correo));
 
             if (!response.ok) {
                 return { error: data.error || 'Error al consultar RFC' };
@@ -1102,6 +1105,9 @@ export interface CheckIdResponse {
         } | null;
         regimenFiscal: {
             regimenesFiscales: string;
+        } | null;
+        correo: {
+            correo: string;
         } | null;
         nss: {
             nss: string;
