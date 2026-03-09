@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
-    ActivityIndicator, StyleSheet, Modal, Platform, useWindowDimensions,
+    ActivityIndicator, StyleSheet, Modal, Platform, useWindowDimensions, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,6 +57,10 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<ResultData | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [step, setStep] = useState<'search' | 'form'>('search');
+    const [formData, setFormData] = useState<Record<string, string>>({});
+    const [celular, setCelular] = useState('');
+    const [comentarios, setComentarios] = useState('');
 
     const handleSearch = async () => {
         const term = searchTerm.trim().toUpperCase();
@@ -123,7 +127,63 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         setSearchTerm('');
         setResult(null);
         setError(null);
+        setStep('search');
+        setFormData({});
+        setCelular('');
+        setComentarios('');
         onClose();
+    };
+
+    const handleSiguiente = () => {
+        if (!result) return;
+        const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ');
+        const data: Record<string, string> = {};
+        if (result.rfc) data['RFC'] = result.rfc;
+        if (result.razonSocial && result.razonSocial !== 'No disponible') data['Razon Social'] = result.razonSocial;
+        if (nombre) data[result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre Completo'] = nombre;
+        if (result.curp) data['CURP'] = result.curp;
+        if (result.rfcRepresentante) data['RFC del Representante'] = result.rfcRepresentante;
+        if (result.curpRepresentante) data['CURP del Representante'] = result.curpRepresentante;
+        if (result.regimenFiscal) data['Regimen Fiscal'] = result.regimenFiscal;
+        if (result.codigoPostal) data['Codigo Postal'] = result.codigoPostal;
+        if (result.entidadFederativa) data['Entidad Federativa'] = result.entidadFederativa;
+        if (result.validoHasta) data['FIEL valida hasta'] = result.validoHasta;
+        if (result.emailContacto) data['Email de Contacto'] = result.emailContacto;
+        if (result.fechaNacimiento) data['Fecha de Nacimiento'] = result.fechaNacimiento;
+        if (result.sexo) data['Sexo'] = result.sexo;
+        if (result.entidadNacimiento) data['Entidad de Nacimiento'] = result.entidadNacimiento;
+        if (result.nss) data['NSS'] = result.nss;
+        // Situacion Fiscal
+        if (result.estado69) {
+            const e = result.estado69;
+            data['Lista 69 / 69-B (SAT)'] = e.conProblema ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales';
+            if (e.situacion) data['Situacion'] = e.situacion;
+            e.problemas.forEach((p, i) => {
+                data[`Art. 69 - ${p.descripcion}`] = `Publicado: ${p.fechaPublicacion?.split('T')[0] || 'N/A'}`;
+            });
+            e.oficiosEFOS.forEach((o, i) => {
+                data[`EFOS - ${o.tipo}`] = `Oficio: ${o.oficioID}`;
+            });
+        }
+        setFormData(data);
+        setStep('form');
+    };
+
+    const handleShareWhatsApp = () => {
+        let msg = '*Datos Fiscales*\n\n';
+        Object.entries(formData).forEach(([key, val]) => {
+            if (val) msg += `*${key}:* ${val}\n`;
+        });
+        if (celular) msg += `*Celular:* ${celular}\n`;
+        if (comentarios) msg += `*Comentarios:* ${comentarios}\n`;
+        msg += '\n---\n';
+        msg += 'Descarga la app Yakoob:\nhttps://apps.apple.com/mx/app/yakoob/id6758861392';
+
+        const encoded = encodeURIComponent(msg);
+        const url = celular
+            ? `https://wa.me/52${celular.replace(/\D/g, '')}?text=${encoded}`
+            : `https://wa.me/?text=${encoded}`;
+        Linking.openURL(url);
     };
 
     const cardBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)';
@@ -131,20 +191,15 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const fieldBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
 
     const renderField = (label: string, value: string | null, icon: keyof typeof Ionicons.glyphMap) => {
-        const hasValue = !!value;
+        if (!value) return null;
         return (
             <View style={[styles.field, { backgroundColor: fieldBg }]}>
-                <View style={[styles.fieldIcon, !hasValue && { opacity: 0.4 }]}>
+                <View style={styles.fieldIcon}>
                     <Ionicons name={icon} size={16} color={colors.primary} />
                 </View>
                 <View style={styles.fieldContent}>
                     <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
-                    <Text
-                        style={[styles.fieldValue, { color: hasValue ? colors.textPrimary : colors.textMuted }]}
-                        selectable={hasValue}
-                    >
-                        {value || 'No disponible'}
-                    </Text>
+                    <Text style={[styles.fieldValue, { color: colors.textPrimary }]} selectable>{value}</Text>
                 </View>
             </View>
         );
@@ -245,7 +300,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                             </View>
                         )}
 
-                        {!result && !error && !isLoading && (
+                        {!result && !error && !isLoading && step === 'search' && (
                             <View style={styles.emptyState}>
                                 <View style={[styles.emptyIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(92,118,178,0.08)' }]}>
                                     <Ionicons name="document-text-outline" size={36} color={isDark ? '#97B1DE' : '#5C76B2'} />
@@ -259,7 +314,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                             </View>
                         )}
 
-                        {result && (
+                        {result && step === 'search' && (
                             <View style={styles.resultContainer}>
                                 {/* Status badges row */}
                                 <View style={styles.badgesRow}>
@@ -321,101 +376,204 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                 </View>
 
                                 {/* Datos Fiscales */}
-                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATOS FISCALES</Text>
-                                <View style={styles.fieldsGrid}>
-                                    {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
-                                    {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
-                                    {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
-                                    {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
-                                    {renderField('Email de Contacto', result.emailContacto, 'mail-outline')}
-                                </View>
+                                {(result.regimenFiscal || result.codigoPostal || result.entidadFederativa || result.validoHasta || result.emailContacto) && (
+                                    <>
+                                        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATOS FISCALES</Text>
+                                        <View style={styles.fieldsGrid}>
+                                            {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
+                                            {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
+                                            {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
+                                            {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
+                                            {renderField('Email de Contacto', result.emailContacto, 'mail-outline')}
+                                        </View>
+                                    </>
+                                )}
 
                                 {/* Representante Legal / Persona */}
-                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-                                    {result.tipoPersona === 'moral' ? 'REPRESENTANTE LEGAL' : 'DATOS PERSONALES'}
-                                </Text>
-                                <View style={styles.fieldsGrid}>
-                                    {renderField(
-                                        result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre completo',
-                                        [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null,
-                                        'person-outline'
-                                    )}
-                                    {result.tipoPersona === 'moral' && renderField('RFC del Representante', result.rfcRepresentante, 'document-text-outline')}
-                                    {renderField(
-                                        result.tipoPersona === 'moral' ? 'CURP del Representante' : 'CURP',
-                                        result.curpRepresentante || result.curp,
-                                        'card-outline'
-                                    )}
-                                    {renderField('Fecha de Nacimiento', result.fechaNacimiento, 'calendar-outline')}
-                                    {renderField('Sexo', result.sexo, 'people-outline')}
-                                    {renderField('Entidad de Nacimiento', result.entidadNacimiento, 'flag-outline')}
-                                    {renderField('NSS', result.nss, 'shield-outline')}
-                                </View>
-
-                                {/* Estado 69 / 69-B */}
-                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>SITUACION FISCAL</Text>
                                 {(() => {
-                                    const e = result.estado69;
-                                    const hasData = e !== null;
-                                    const hasProblem = e?.conProblema === true;
-                                    const colorOk = '#10B981';
-                                    const colorBad = '#EF4444';
-                                    const color = !hasData ? colors.textMuted : (hasProblem ? colorBad : colorOk);
+                                    const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null;
+                                    const curpVal = result.curpRepresentante || result.curp;
+                                    const hasPersonData = !!(nombre || result.rfcRepresentante || curpVal || result.fechaNacimiento || result.sexo || result.entidadNacimiento || result.nss);
+                                    if (!hasPersonData) return null;
                                     return (
-                                        <View style={styles.fieldsGrid}>
-                                            <View style={[styles.field, {
-                                                backgroundColor: !hasData ? fieldBg
-                                                    : hasProblem
-                                                        ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
-                                                        : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
-                                            }]}>
-                                                <View style={[styles.fieldIcon, {
-                                                    backgroundColor: !hasData ? 'rgba(92,118,178,0.1)'
-                                                        : hasProblem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-                                                }]}>
-                                                    <Ionicons
-                                                        name={!hasData ? 'help-circle-outline' : (hasProblem ? 'warning' : 'checkmark-circle')}
-                                                        size={16}
-                                                        color={!hasData ? colors.primary : color}
-                                                    />
-                                                </View>
-                                                <View style={styles.fieldContent}>
-                                                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
-                                                    <Text style={[styles.fieldValue, { color, fontWeight: '700' }]}>
-                                                        {!hasData ? 'No disponible' : (hasProblem ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales')}
-                                                    </Text>
-                                                </View>
+                                        <>
+                                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                                                {result.tipoPersona === 'moral' ? 'REPRESENTANTE LEGAL' : 'DATOS PERSONALES'}
+                                            </Text>
+                                            <View style={styles.fieldsGrid}>
+                                                {renderField(
+                                                    result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre completo',
+                                                    nombre,
+                                                    'person-outline'
+                                                )}
+                                                {result.tipoPersona === 'moral' && renderField('RFC del Representante', result.rfcRepresentante, 'document-text-outline')}
+                                                {renderField(
+                                                    result.tipoPersona === 'moral' ? 'CURP del Representante' : 'CURP',
+                                                    curpVal,
+                                                    'card-outline'
+                                                )}
+                                                {renderField('Fecha de Nacimiento', result.fechaNacimiento, 'calendar-outline')}
+                                                {renderField('Sexo', result.sexo, 'people-outline')}
+                                                {renderField('Entidad de Nacimiento', result.entidadNacimiento, 'flag-outline')}
+                                                {renderField('NSS', result.nss, 'shield-outline')}
                                             </View>
-                                            {e?.situacion && renderField('Situacion', e.situacion, 'information-circle-outline')}
-                                            {e?.problemas && e.problemas.length > 0 && e.problemas.map((p, i) => (
-                                                <View key={i} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
-                                                    <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                                                        <Ionicons name="alert-circle" size={16} color="#EF4444" />
-                                                    </View>
-                                                    <View style={styles.fieldContent}>
-                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>ART. 69 - {p.descripcion}</Text>
-                                                        <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
-                                                            Publicado: {p.fechaPublicacion?.split('T')[0] || 'N/A'}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                            ))}
-                                            {e?.oficiosEFOS && e.oficiosEFOS.length > 0 && e.oficiosEFOS.map((o, i) => (
-                                                <View key={`efos-${i}`} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
-                                                    <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                                                        <Ionicons name="document-text" size={16} color="#EF4444" />
-                                                    </View>
-                                                    <View style={styles.fieldContent}>
-                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>EFOS - {o.tipo}</Text>
-                                                        <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
-                                                            Oficio: {o.oficioID}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                            ))}
-                                        </View>
+                                        </>
                                     );
                                 })()}
+
+                                {/* Estado 69 / 69-B - solo mostrar si hay datos */}
+                                {result.estado69 && (() => {
+                                    const e = result.estado69!;
+                                    const hasProblem = e.conProblema;
+                                    const color = hasProblem ? '#EF4444' : '#10B981';
+                                    return (
+                                        <>
+                                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>SITUACION FISCAL</Text>
+                                            <View style={styles.fieldsGrid}>
+                                                <View style={[styles.field, {
+                                                    backgroundColor: hasProblem
+                                                        ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
+                                                        : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
+                                                }]}>
+                                                    <View style={[styles.fieldIcon, {
+                                                        backgroundColor: hasProblem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                                                    }]}>
+                                                        <Ionicons
+                                                            name={hasProblem ? 'warning' : 'checkmark-circle'}
+                                                            size={16}
+                                                            color={color}
+                                                        />
+                                                    </View>
+                                                    <View style={styles.fieldContent}>
+                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
+                                                        <Text style={[styles.fieldValue, { color, fontWeight: '700' }]}>
+                                                            {hasProblem ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales'}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                {e.situacion && renderField('Situacion', e.situacion, 'information-circle-outline')}
+                                                {e.problemas.length > 0 && e.problemas.map((p, i) => (
+                                                    <View key={i} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
+                                                        <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                            <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                                                        </View>
+                                                        <View style={styles.fieldContent}>
+                                                            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>ART. 69 - {p.descripcion}</Text>
+                                                            <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                                Publicado: {p.fechaPublicacion?.split('T')[0] || 'N/A'}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                                {e.oficiosEFOS.length > 0 && e.oficiosEFOS.map((o, i) => (
+                                                    <View key={`efos-${i}`} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
+                                                        <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                            <Ionicons name="document-text" size={16} color="#EF4444" />
+                                                        </View>
+                                                        <View style={styles.fieldContent}>
+                                                            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>EFOS - {o.tipo}</Text>
+                                                            <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                                Oficio: {o.oficioID}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        </>
+                                    );
+                                })()}
+
+                                {/* Boton Siguiente */}
+                                <TouchableOpacity onPress={handleSiguiente} style={styles.siguienteBtn}>
+                                    <LinearGradient
+                                        colors={['#5C76B2', '#7A93C8'] as [string, string]}
+                                        style={styles.siguienteBtnGradient}
+                                    >
+                                        <Text style={styles.siguienteBtnText}>Siguiente</Text>
+                                        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        {/* Form Step */}
+                        {step === 'form' && (
+                            <View style={styles.resultContainer}>
+                                <TouchableOpacity
+                                    onPress={() => setStep('search')}
+                                    style={styles.volverBtn}
+                                >
+                                    <Ionicons name="arrow-back" size={16} color={colors.primary} />
+                                    <Text style={[styles.volverText, { color: colors.primary }]}>Volver a resultados</Text>
+                                </TouchableOpacity>
+
+                                <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0 }]}>EDITAR DATOS</Text>
+
+                                <View style={styles.fieldsGrid}>
+                                    {Object.entries(formData).map(([key, val]) => (
+                                        <View key={key} style={[styles.formField, {
+                                            backgroundColor: fieldBg,
+                                            borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                                        }]}>
+                                            <Text style={[styles.formFieldLabel, { color: colors.textMuted }]}>{key}</Text>
+                                            <TextInput
+                                                style={[styles.formFieldInput, { color: colors.textPrimary }]}
+                                                value={val}
+                                                onChangeText={(t) => setFormData(prev => ({ ...prev, [key]: t }))}
+                                            />
+                                        </View>
+                                    ))}
+
+                                    {/* Campo celular */}
+                                    <View style={[styles.formField, {
+                                        backgroundColor: isDark ? 'rgba(92,118,178,0.08)' : 'rgba(92,118,178,0.05)',
+                                        borderColor: colors.primary,
+                                        borderWidth: 1.5,
+                                    }]}>
+                                        <View style={styles.formFieldLabelRow}>
+                                            <Ionicons name="call-outline" size={14} color={colors.primary} />
+                                            <Text style={[styles.formFieldLabel, { color: colors.primary, marginBottom: 0 }]}>Numero de Celular</Text>
+                                        </View>
+                                        <TextInput
+                                            style={[styles.formFieldInput, { color: colors.textPrimary }]}
+                                            value={celular}
+                                            onChangeText={setCelular}
+                                            placeholder="10 digitos"
+                                            placeholderTextColor={colors.textMuted}
+                                            keyboardType="phone-pad"
+                                            maxLength={10}
+                                        />
+                                    </View>
+                                    {/* Campo comentarios */}
+                                    <View style={[styles.formField, {
+                                        backgroundColor: fieldBg,
+                                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                                    }]}>
+                                        <View style={styles.formFieldLabelRow}>
+                                            <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
+                                            <Text style={[styles.formFieldLabel, { color: colors.textMuted, marginBottom: 0 }]}>Comentarios</Text>
+                                        </View>
+                                        <TextInput
+                                            style={[styles.formFieldInput, { color: colors.textPrimary, minHeight: 60, textAlignVertical: 'top' }]}
+                                            value={comentarios}
+                                            onChangeText={setComentarios}
+                                            placeholder="Proceso de revision profunda"
+                                            placeholderTextColor={colors.textMuted}
+                                            multiline
+                                        />
+                                    </View>
+                                </View>
+
+                                {/* WhatsApp button */}
+                                <TouchableOpacity onPress={handleShareWhatsApp} style={styles.whatsappBtn}>
+                                    <LinearGradient
+                                        colors={['#25D366', '#128C7E'] as [string, string]}
+                                        style={styles.whatsappBtnGradient}
+                                    >
+                                        <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
+                                        <Text style={styles.whatsappBtnText}>Compartir por WhatsApp</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </ScrollView>
@@ -673,5 +831,74 @@ const styles = StyleSheet.create({
     fieldValue: {
         fontSize: 14,
         fontWeight: '600',
+    },
+    siguienteBtn: {
+        marginTop: 8,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    siguienteBtnGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: 12,
+    },
+    siguienteBtnText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+    volverBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 8,
+    },
+    volverText: {
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    formField: {
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: 12,
+    },
+    formFieldLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+        marginBottom: 6,
+    },
+    formFieldLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 6,
+    },
+    formFieldInput: {
+        fontSize: 14,
+        fontWeight: '600',
+        padding: 0,
+    },
+    whatsappBtn: {
+        marginTop: 8,
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    whatsappBtnGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        paddingVertical: 14,
+        borderRadius: 12,
+    },
+    whatsappBtnText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
     },
 });
