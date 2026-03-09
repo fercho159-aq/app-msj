@@ -190,8 +190,8 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
                 obtenerCodigoPostal: true,
                 obtenerRegimenFiscal: true,
                 obtenerCorreo: true,
-                obtenerNSS: false,
-                obtenerEstado69o69B: false,
+                obtenerNSS: true,
+                obtenerEstado69o69B: true,
             }),
             signal: controller.signal,
         });

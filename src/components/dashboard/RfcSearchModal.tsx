@@ -25,6 +25,8 @@ interface ResultData {
     codigoPostal: string | null;
     regimenFiscal: string | null;
     correo: string | null;
+    nss: string | null;
+    estado69o69B: boolean | null;
 }
 
 export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose }) => {
@@ -71,6 +73,8 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                 codigoPostal: r.codigoPostal?.codigoPostal || null,
                 regimenFiscal: r.regimenFiscal?.regimenesFiscales || null,
                 correo: r.correo?.correo || null,
+                nss: r.nss?.nss || null,
+                estado69o69B: r.estado69o69B?.conProblema ?? null,
             });
         } catch (err) {
             setError('Error de conexion. Intenta de nuevo.');
@@ -259,15 +263,44 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                                 {/* Detail fields */}
                                 <View style={styles.fieldsGrid}>
-                                    {renderField('CURP', result.curp, 'card-outline')}
                                     {result.nombres && renderField(
                                         'Nombre completo',
                                         [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' '),
                                         'person-outline'
                                     )}
+                                    {renderField('CURP', result.curp, 'card-outline')}
                                     {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
                                     {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
                                     {renderField('Correo electronico', result.correo, 'mail-outline')}
+                                    {renderField('NSS (Numero de Seguro Social)', result.nss, 'shield-outline')}
+                                    {result.estado69o69B !== null && (
+                                        <View style={[styles.field, {
+                                            backgroundColor: result.estado69o69B
+                                                ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
+                                                : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
+                                        }]}>
+                                            <View style={[styles.fieldIcon, {
+                                                backgroundColor: result.estado69o69B
+                                                    ? 'rgba(239,68,68,0.15)'
+                                                    : 'rgba(16,185,129,0.15)',
+                                            }]}>
+                                                <Ionicons
+                                                    name={result.estado69o69B ? 'warning' : 'checkmark-circle'}
+                                                    size={16}
+                                                    color={result.estado69o69B ? '#EF4444' : '#10B981'}
+                                                />
+                                            </View>
+                                            <View style={styles.fieldContent}>
+                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
+                                                <Text style={[styles.fieldValue, {
+                                                    color: result.estado69o69B ? '#EF4444' : '#10B981',
+                                                    fontWeight: '700',
+                                                }]}>
+                                                    {result.estado69o69B ? 'Con problema fiscal' : 'Sin problemas fiscales'}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    )}
                                 </View>
                             </View>
                         )}
