@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
         borderRightWidth: 1,
         paddingTop: 24,
         paddingHorizontal: 12,
-        flex: 1,
+        flexShrink: 0,
     },
     containerCollapsed: {
         width: 68,
