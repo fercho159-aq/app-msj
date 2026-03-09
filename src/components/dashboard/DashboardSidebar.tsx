@@ -9,6 +9,7 @@ interface SidebarProps {
     activeView: DashboardView;
     onChangeView: (view: DashboardView) => void;
     onNavigateTab?: (tab: string) => void;
+    collapsed?: boolean;
 }
 
 const NAV_ITEMS: { key: DashboardView; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -21,20 +22,28 @@ const SECONDARY_NAV: { key: string; label: string; icon: keyof typeof Ionicons.g
     { key: 'Settings', label: 'Ajustes', icon: 'settings-outline' },
 ];
 
-export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, onNavigateTab }) => {
+export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeView, onNavigateTab, collapsed }) => {
     const { colors, isDark } = useTheme();
 
     return (
-        <View style={[styles.container, {
-            backgroundColor: isDark ? '#0a0a0a' : 'rgba(255,255,255,0.95)',
-            borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-        }]}>
-            <View style={styles.logoSection}>
+        <View style={[
+            styles.container,
+            {
+                backgroundColor: isDark ? '#0a0a0a' : 'rgba(255,255,255,0.95)',
+                borderRightColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+            },
+            collapsed && styles.containerCollapsed,
+        ]}>
+            <View style={[styles.logoSection, collapsed && styles.logoSectionCollapsed]}>
                 <View style={[styles.logoCircle, { backgroundColor: `${colors.primary}15` }]}>
                     <Ionicons name="business-outline" size={22} color={colors.primary} />
                 </View>
-                <Text style={[styles.logoText, { color: colors.textPrimary }]}>Yaakob</Text>
-                <Text style={[styles.logoSub, { color: colors.textMuted }]}>Panel Admin</Text>
+                {!collapsed && (
+                    <>
+                        <Text style={[styles.logoText, { color: colors.textPrimary }]}>Yaakob</Text>
+                        <Text style={[styles.logoSub, { color: colors.textMuted }]}>Panel Admin</Text>
+                    </>
+                )}
             </View>
 
             <View style={styles.nav}>
@@ -48,6 +57,7 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeV
                                 isActive && {
                                     backgroundColor: `${colors.primary}12`,
                                 },
+                                collapsed && styles.navItemCollapsed,
                             ]}
                             onPress={() => onChangeView(item.key)}
                             activeOpacity={0.7}
@@ -57,14 +67,16 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeV
                                 size={20}
                                 color={isActive ? colors.primary : colors.textMuted}
                             />
-                            <Text style={[
-                                styles.navLabel,
-                                { color: isActive ? colors.primary : colors.textSecondary },
-                                isActive && styles.navLabelActive,
-                            ]}>
-                                {item.label}
-                            </Text>
-                            {isActive && (
+                            {!collapsed && (
+                                <Text style={[
+                                    styles.navLabel,
+                                    { color: isActive ? colors.primary : colors.textSecondary },
+                                    isActive && styles.navLabelActive,
+                                ]}>
+                                    {item.label}
+                                </Text>
+                            )}
+                            {isActive && !collapsed && (
                                 <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />
                             )}
                         </TouchableOpacity>
@@ -80,14 +92,16 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeV
                 {SECONDARY_NAV.map(item => (
                     <TouchableOpacity
                         key={item.key}
-                        style={styles.secondaryItem}
+                        style={[styles.secondaryItem, collapsed && styles.navItemCollapsed]}
                         onPress={() => onNavigateTab?.(item.key)}
                         activeOpacity={0.7}
                     >
                         <Ionicons name={item.icon} size={18} color={colors.textMuted} />
-                        <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>
-                            {item.label}
-                        </Text>
+                        {!collapsed && (
+                            <Text style={[styles.secondaryLabel, { color: colors.textSecondary }]}>
+                                {item.label}
+                            </Text>
+                        )}
                     </TouchableOpacity>
                 ))}
             </View>
@@ -97,16 +111,24 @@ export const DashboardSidebar: React.FC<SidebarProps> = ({ activeView, onChangeV
 
 const styles = StyleSheet.create({
     container: {
-        width: 240,
+        width: 220,
         borderRightWidth: 1,
         paddingTop: 24,
         paddingHorizontal: 12,
         flex: 1,
     },
+    containerCollapsed: {
+        width: 68,
+        paddingHorizontal: 8,
+    },
     logoSection: {
         alignItems: 'center',
         paddingBottom: 24,
         marginBottom: 8,
+    },
+    logoSectionCollapsed: {
+        paddingBottom: 16,
+        marginBottom: 4,
     },
     logoCircle: {
         width: 44,
@@ -137,6 +159,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         borderRadius: 10,
         position: 'relative',
+    },
+    navItemCollapsed: {
+        justifyContent: 'center',
+        paddingHorizontal: 0,
+        gap: 0,
     },
     navLabel: {
         fontSize: 13,

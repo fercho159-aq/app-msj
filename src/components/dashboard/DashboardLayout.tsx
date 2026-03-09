@@ -5,6 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { DashboardSidebar, DashboardView } from './DashboardSidebar';
 
 const MOBILE_BREAKPOINT = 768;
+const TABLET_BREAKPOINT = 1024;
 
 interface DashboardLayoutProps {
     activeView: DashboardView;
@@ -22,6 +23,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const { width } = useWindowDimensions();
     const { colors, isDark } = useTheme();
     const isMobile = width < MOBILE_BREAKPOINT;
+    const isTablet = width >= MOBILE_BREAKPOINT && width < TABLET_BREAKPOINT;
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleChangeView = (view: DashboardView) => {
@@ -36,12 +38,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
     return (
         <View style={styles.container}>
-            {/* Desktop sidebar */}
+            {/* Desktop/Tablet sidebar */}
             {!isMobile && (
                 <DashboardSidebar
                     activeView={activeView}
                     onChangeView={onChangeView}
                     onNavigateTab={onNavigateTab}
+                    collapsed={isTablet}
                 />
             )}
 
