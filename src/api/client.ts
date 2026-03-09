@@ -939,15 +939,14 @@ class ApiClient {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    apiKey: CHECKID_API_KEY,
-                    terminoBusqueda: terminoBusqueda.toUpperCase().trim(),
-                    obtenerRFC: true,
-                    obtenerCURP: true,
-                    obtenerCodigoPostal: true,
-                    obtenerRegimenFiscal: true,
-                    obtenerCorreo: true,
-                    obtenerNSS: false,
-                    obtenerEstado69o69B: false,
+                    ApiKey: CHECKID_API_KEY,
+                    TerminoBusqueda: terminoBusqueda.toUpperCase().trim(),
+                    ObtenerRFC: true,
+                    ObtenerCURP: true,
+                    ObtenerCP: true,
+                    ObtenerRegimenFiscal: true,
+                    ObtenerNSS: true,
+                    Obtener69o69B: true,
                 }),
                 signal: controller.signal,
             });
@@ -1100,35 +1099,68 @@ export interface CheckIdResponse {
     exitoso: boolean;
     codigoError: string | null;
     error: string | null;
-    tipoPersona: 'fisica' | 'moral';
-    entidadFederativa: string | null;
+    // Extra fields added by our server
+    tipoPersona?: 'fisica' | 'moral';
+    entidadFederativa?: string | null;
     resultado: {
         rfc: {
+            exitoso: boolean;
             rfc: string;
             razonSocial: string;
             valido: boolean;
-            curp: string;
+            validoHasta: string | null;
+            validoHastaText: string | null;
+            rfcRepresentante: string | null;
+            curpRepresentante: string | null;
+            curp: string | null;
+            emailContacto: string | null;
         } | null;
         curp: {
+            exitoso: boolean;
             curp: string;
+            fechaNacimiento: string | null;
             nombres: string;
             primerApellido: string;
             segundoApellido: string;
+            sexo: string | null;
+            nacionalidad: string | null;
+            entidad: string | null;
+            municipioRegistro: string | null;
+            fechaNacimientoText: string | null;
         } | null;
         codigoPostal: {
+            exitoso: boolean;
             codigoPostal: string;
         } | null;
         regimenFiscal: {
+            exitoso: boolean;
             regimenesFiscales: string;
         } | null;
-        correo: {
-            correo: string;
-        } | null;
         nss: {
+            exitoso: boolean;
             nss: string;
         } | null;
         estado69o69B: {
+            exitoso: boolean;
             conProblema: boolean;
+            detalles?: {
+                nombre: string;
+                situacionContribuyente: string;
+                statusContribuyente: string;
+                problemas: Array<{
+                    descripcion: string;
+                    fechaPublicacion: string;
+                    fechaLFTAIP: string | null;
+                    fechaActualizacion: string | null;
+                }>;
+                oficiosEFOS: Array<{
+                    tipo: string;
+                    oficioID: string;
+                    fechaPublicacionSAT: string;
+                    fechaPublicacionDOF: string;
+                    rutaOficioSat: string;
+                }>;
+            };
         } | null;
     };
 }

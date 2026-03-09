@@ -14,21 +14,39 @@ interface RfcSearchModalProps {
     onClose: () => void;
 }
 
+interface Estado69Detail {
+    conProblema: boolean;
+    situacion: string | null;
+    problemas: Array<{ descripcion: string; fechaPublicacion: string }>;
+    oficiosEFOS: Array<{ tipo: string; oficioID: string; fechaPublicacionSAT: string }>;
+}
+
 interface ResultData {
     rfc: string;
     razonSocial: string;
     valido: boolean;
     tipoPersona: 'fisica' | 'moral';
+    // FIEL
+    validoHasta: string | null;
+    // Representante legal
+    rfcRepresentante: string | null;
+    curpRepresentante: string | null;
+    emailContacto: string | null;
+    // CURP data
     curp: string | null;
     nombres: string | null;
     primerApellido: string | null;
     segundoApellido: string | null;
+    sexo: string | null;
+    entidadNacimiento: string | null;
+    fechaNacimiento: string | null;
+    // Fiscal
     codigoPostal: string | null;
     regimenFiscal: string | null;
-    correo: string | null;
-    nss: string | null;
-    estado69o69B: boolean | null;
     entidadFederativa: string | null;
+    // Extras
+    nss: string | null;
+    estado69: Estado69Detail | null;
 }
 
 export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose }) => {
@@ -65,21 +83,34 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
             const r = data.resultado;
             console.log('📋 CheckID resultado completo:', JSON.stringify(data, null, 2));
+
+            const e69 = r.estado69o69B;
             setResult({
                 rfc: r.rfc?.rfc || term,
                 razonSocial: r.rfc?.razonSocial || 'No disponible',
                 valido: r.rfc?.valido ?? false,
                 tipoPersona: data.tipoPersona || (term.length === 12 ? 'moral' : 'fisica'),
+                validoHasta: r.rfc?.validoHastaText || r.rfc?.validoHasta || null,
+                rfcRepresentante: r.rfc?.rfcRepresentante || null,
+                curpRepresentante: r.rfc?.curpRepresentante || null,
+                emailContacto: r.rfc?.emailContacto || null,
                 curp: r.rfc?.curp || r.curp?.curp || null,
                 nombres: r.curp?.nombres || null,
                 primerApellido: r.curp?.primerApellido || null,
                 segundoApellido: r.curp?.segundoApellido || null,
+                sexo: r.curp?.sexo || null,
+                entidadNacimiento: r.curp?.entidad || null,
+                fechaNacimiento: r.curp?.fechaNacimientoText || null,
                 codigoPostal: r.codigoPostal?.codigoPostal || null,
                 regimenFiscal: r.regimenFiscal?.regimenesFiscales || null,
-                correo: r.correo?.correo || null,
+                entidadFederativa: data.entidadFederativa || r.curp?.entidad || null,
                 nss: r.nss?.nss || null,
-                estado69o69B: r.estado69o69B?.conProblema ?? null,
-                entidadFederativa: data.entidadFederativa || null,
+                estado69: e69 ? {
+                    conProblema: e69.conProblema,
+                    situacion: e69.detalles?.situacionContribuyente || null,
+                    problemas: e69.detalles?.problemas || [],
+                    oficiosEFOS: e69.detalles?.oficiosEFOS || [],
+                } : null,
             });
         } catch (err) {
             setError('Error de conexion. Intenta de nuevo.');
@@ -289,30 +320,49 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                     </View>
                                 </View>
 
-                                {/* Detail fields */}
+                                {/* Datos Fiscales */}
+                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATOS FISCALES</Text>
+                                <View style={styles.fieldsGrid}>
+                                    {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
+                                    {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
+                                    {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
+                                    {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
+                                    {renderField('Email de Contacto', result.emailContacto, 'mail-outline')}
+                                </View>
+
+                                {/* Representante Legal / Persona */}
+                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
+                                    {result.tipoPersona === 'moral' ? 'REPRESENTANTE LEGAL' : 'DATOS PERSONALES'}
+                                </Text>
                                 <View style={styles.fieldsGrid}>
                                     {renderField(
-                                        result.tipoPersona === 'moral' ? 'Apoderado Legal' : 'Nombre completo',
+                                        result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre completo',
                                         [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null,
                                         'person-outline'
                                     )}
+                                    {result.tipoPersona === 'moral' && renderField('RFC del Representante', result.rfcRepresentante, 'document-text-outline')}
                                     {renderField(
-                                        result.tipoPersona === 'moral' ? 'CURP del Apoderado' : 'CURP',
-                                        result.curp,
+                                        result.tipoPersona === 'moral' ? 'CURP del Representante' : 'CURP',
+                                        result.curpRepresentante || result.curp,
                                         'card-outline'
                                     )}
-                                    {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
-                                    {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
-                                    {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
-                                    {renderField('Correo electronico', result.correo, 'mail-outline')}
-                                    {renderField('NSS (Numero de Seguro Social)', result.nss, 'shield-outline')}
-                                    {(() => {
-                                        const hasData = result.estado69o69B !== null;
-                                        const hasProblem = result.estado69o69B === true;
-                                        const colorOk = '#10B981';
-                                        const colorBad = '#EF4444';
-                                        const color = !hasData ? colors.textMuted : (hasProblem ? colorBad : colorOk);
-                                        return (
+                                    {renderField('Fecha de Nacimiento', result.fechaNacimiento, 'calendar-outline')}
+                                    {renderField('Sexo', result.sexo, 'people-outline')}
+                                    {renderField('Entidad de Nacimiento', result.entidadNacimiento, 'flag-outline')}
+                                    {renderField('NSS', result.nss, 'shield-outline')}
+                                </View>
+
+                                {/* Estado 69 / 69-B */}
+                                <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>SITUACION FISCAL</Text>
+                                {(() => {
+                                    const e = result.estado69;
+                                    const hasData = e !== null;
+                                    const hasProblem = e?.conProblema === true;
+                                    const colorOk = '#10B981';
+                                    const colorBad = '#EF4444';
+                                    const color = !hasData ? colors.textMuted : (hasProblem ? colorBad : colorOk);
+                                    return (
+                                        <View style={styles.fieldsGrid}>
                                             <View style={[styles.field, {
                                                 backgroundColor: !hasData ? fieldBg
                                                     : hasProblem
@@ -322,27 +372,50 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                                 <View style={[styles.fieldIcon, {
                                                     backgroundColor: !hasData ? 'rgba(92,118,178,0.1)'
                                                         : hasProblem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-                                                    opacity: hasData ? 1 : 0.4,
                                                 }]}>
                                                     <Ionicons
-                                                        name={!hasData ? 'alert-circle-outline' : (hasProblem ? 'warning' : 'checkmark-circle')}
+                                                        name={!hasData ? 'help-circle-outline' : (hasProblem ? 'warning' : 'checkmark-circle')}
                                                         size={16}
                                                         color={!hasData ? colors.primary : color}
                                                     />
                                                 </View>
                                                 <View style={styles.fieldContent}>
                                                     <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
-                                                    <Text style={[styles.fieldValue, {
-                                                        color,
-                                                        fontWeight: hasData ? '700' : '500',
-                                                    }]}>
-                                                        {!hasData ? 'No disponible' : (hasProblem ? 'Con problema fiscal' : 'Sin problemas fiscales')}
+                                                    <Text style={[styles.fieldValue, { color, fontWeight: '700' }]}>
+                                                        {!hasData ? 'No disponible' : (hasProblem ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales')}
                                                     </Text>
                                                 </View>
                                             </View>
-                                        );
-                                    })()}
-                                </View>
+                                            {e?.situacion && renderField('Situacion', e.situacion, 'information-circle-outline')}
+                                            {e?.problemas && e.problemas.length > 0 && e.problemas.map((p, i) => (
+                                                <View key={i} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
+                                                    <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                        <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                                                    </View>
+                                                    <View style={styles.fieldContent}>
+                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>ART. 69 - {p.descripcion}</Text>
+                                                        <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                            Publicado: {p.fechaPublicacion?.split('T')[0] || 'N/A'}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            ))}
+                                            {e?.oficiosEFOS && e.oficiosEFOS.length > 0 && e.oficiosEFOS.map((o, i) => (
+                                                <View key={`efos-${i}`} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
+                                                    <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                        <Ionicons name="document-text" size={16} color="#EF4444" />
+                                                    </View>
+                                                    <View style={styles.fieldContent}>
+                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>EFOS - {o.tipo}</Text>
+                                                        <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                            Oficio: {o.oficioID}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    );
+                                })()}
                             </View>
                         )}
                     </ScrollView>
@@ -561,6 +634,13 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: 2,
         letterSpacing: 0.5,
+    },
+    sectionTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 1,
+        marginTop: 6,
+        marginBottom: -4,
     },
     fieldsGrid: {
         gap: 8,
