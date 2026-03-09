@@ -18,6 +18,7 @@ interface ResultData {
     rfc: string;
     razonSocial: string;
     valido: boolean;
+    tipoPersona: 'fisica' | 'moral';
     curp: string | null;
     nombres: string | null;
     primerApellido: string | null;
@@ -27,6 +28,7 @@ interface ResultData {
     correo: string | null;
     nss: string | null;
     estado69o69B: boolean | null;
+    entidadFederativa: string | null;
 }
 
 export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose }) => {
@@ -62,10 +64,12 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
             }
 
             const r = data.resultado;
+            console.log('📋 CheckID resultado completo:', JSON.stringify(data, null, 2));
             setResult({
                 rfc: r.rfc?.rfc || term,
                 razonSocial: r.rfc?.razonSocial || 'No disponible',
                 valido: r.rfc?.valido ?? false,
+                tipoPersona: data.tipoPersona || (term.length === 12 ? 'moral' : 'fisica'),
                 curp: r.rfc?.curp || r.curp?.curp || null,
                 nombres: r.curp?.nombres || null,
                 primerApellido: r.curp?.primerApellido || null,
@@ -75,6 +79,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                 correo: r.correo?.correo || null,
                 nss: r.nss?.nss || null,
                 estado69o69B: r.estado69o69B?.conProblema ?? null,
+                entidadFederativa: data.entidadFederativa || null,
             });
         } catch (err) {
             setError('Error de conexion. Intenta de nuevo.');
@@ -95,15 +100,20 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const fieldBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
 
     const renderField = (label: string, value: string | null, icon: keyof typeof Ionicons.glyphMap) => {
-        if (!value) return null;
+        const hasValue = !!value;
         return (
             <View style={[styles.field, { backgroundColor: fieldBg }]}>
-                <View style={styles.fieldIcon}>
+                <View style={[styles.fieldIcon, !hasValue && { opacity: 0.4 }]}>
                     <Ionicons name={icon} size={16} color={colors.primary} />
                 </View>
                 <View style={styles.fieldContent}>
                     <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
-                    <Text style={[styles.fieldValue, { color: colors.textPrimary }]} selectable>{value}</Text>
+                    <Text
+                        style={[styles.fieldValue, { color: hasValue ? colors.textPrimary : colors.textMuted }]}
+                        selectable={hasValue}
+                    >
+                        {value || 'No disponible'}
+                    </Text>
                 </View>
             </View>
         );
@@ -220,35 +230,53 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                         {result && (
                             <View style={styles.resultContainer}>
-                                {/* Status badge */}
-                                <View style={[
-                                    styles.statusBadge,
-                                    {
-                                        backgroundColor: result.valido
-                                            ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
-                                            : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
-                                    },
-                                ]}>
-                                    <Ionicons
-                                        name={result.valido ? 'checkmark-circle' : 'close-circle'}
-                                        size={18}
-                                        color={result.valido ? '#10B981' : '#EF4444'}
-                                    />
-                                    <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
-                                        RFC {result.valido ? 'Valido' : 'No valido'}
-                                    </Text>
+                                {/* Status badges row */}
+                                <View style={styles.badgesRow}>
+                                    <View style={[
+                                        styles.statusBadge,
+                                        {
+                                            backgroundColor: result.valido
+                                                ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
+                                                : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
+                                        },
+                                    ]}>
+                                        <Ionicons
+                                            name={result.valido ? 'checkmark-circle' : 'close-circle'}
+                                            size={16}
+                                            color={result.valido ? '#10B981' : '#EF4444'}
+                                        />
+                                        <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
+                                            RFC {result.valido ? 'Valido' : 'No valido'}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.statusBadge, {
+                                        backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.08)',
+                                    }]}>
+                                        <Ionicons
+                                            name={result.tipoPersona === 'moral' ? 'business' : 'person'}
+                                            size={16}
+                                            color="#8B5CF6"
+                                        />
+                                        <Text style={[styles.statusText, { color: '#8B5CF6' }]}>
+                                            Persona {result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}
+                                        </Text>
+                                    </View>
                                 </View>
 
                                 {/* Main info card */}
                                 <View style={[styles.resultCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
                                     <View style={styles.resultHeader}>
                                         <LinearGradient
-                                            colors={['#5C76B2', '#97B1DE'] as [string, string]}
+                                            colors={result.tipoPersona === 'moral'
+                                                ? ['#8B5CF6', '#C4B5FD'] as [string, string]
+                                                : ['#5C76B2', '#97B1DE'] as [string, string]}
                                             style={styles.resultAvatar}
                                         >
-                                            <Text style={styles.resultAvatarText}>
-                                                {result.razonSocial.charAt(0).toUpperCase()}
-                                            </Text>
+                                            <Ionicons
+                                                name={result.tipoPersona === 'moral' ? 'business' : 'person'}
+                                                size={22}
+                                                color="#FFFFFF"
+                                            />
                                         </LinearGradient>
                                         <View style={styles.resultHeaderInfo}>
                                             <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={2}>
@@ -263,44 +291,57 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                                 {/* Detail fields */}
                                 <View style={styles.fieldsGrid}>
-                                    {result.nombres && renderField(
-                                        'Nombre completo',
-                                        [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' '),
+                                    {renderField(
+                                        result.tipoPersona === 'moral' ? 'Apoderado Legal' : 'Nombre completo',
+                                        [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null,
                                         'person-outline'
                                     )}
-                                    {renderField('CURP', result.curp, 'card-outline')}
+                                    {renderField(
+                                        result.tipoPersona === 'moral' ? 'CURP del Apoderado' : 'CURP',
+                                        result.curp,
+                                        'card-outline'
+                                    )}
                                     {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
+                                    {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
                                     {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
                                     {renderField('Correo electronico', result.correo, 'mail-outline')}
                                     {renderField('NSS (Numero de Seguro Social)', result.nss, 'shield-outline')}
-                                    {result.estado69o69B !== null && (
-                                        <View style={[styles.field, {
-                                            backgroundColor: result.estado69o69B
-                                                ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
-                                                : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
-                                        }]}>
-                                            <View style={[styles.fieldIcon, {
-                                                backgroundColor: result.estado69o69B
-                                                    ? 'rgba(239,68,68,0.15)'
-                                                    : 'rgba(16,185,129,0.15)',
+                                    {(() => {
+                                        const hasData = result.estado69o69B !== null;
+                                        const hasProblem = result.estado69o69B === true;
+                                        const colorOk = '#10B981';
+                                        const colorBad = '#EF4444';
+                                        const color = !hasData ? colors.textMuted : (hasProblem ? colorBad : colorOk);
+                                        return (
+                                            <View style={[styles.field, {
+                                                backgroundColor: !hasData ? fieldBg
+                                                    : hasProblem
+                                                        ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
+                                                        : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
                                             }]}>
-                                                <Ionicons
-                                                    name={result.estado69o69B ? 'warning' : 'checkmark-circle'}
-                                                    size={16}
-                                                    color={result.estado69o69B ? '#EF4444' : '#10B981'}
-                                                />
-                                            </View>
-                                            <View style={styles.fieldContent}>
-                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
-                                                <Text style={[styles.fieldValue, {
-                                                    color: result.estado69o69B ? '#EF4444' : '#10B981',
-                                                    fontWeight: '700',
+                                                <View style={[styles.fieldIcon, {
+                                                    backgroundColor: !hasData ? 'rgba(92,118,178,0.1)'
+                                                        : hasProblem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+                                                    opacity: hasData ? 1 : 0.4,
                                                 }]}>
-                                                    {result.estado69o69B ? 'Con problema fiscal' : 'Sin problemas fiscales'}
-                                                </Text>
+                                                    <Ionicons
+                                                        name={!hasData ? 'alert-circle-outline' : (hasProblem ? 'warning' : 'checkmark-circle')}
+                                                        size={16}
+                                                        color={!hasData ? colors.primary : color}
+                                                    />
+                                                </View>
+                                                <View style={styles.fieldContent}>
+                                                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
+                                                    <Text style={[styles.fieldValue, {
+                                                        color,
+                                                        fontWeight: hasData ? '700' : '500',
+                                                    }]}>
+                                                        {!hasData ? 'No disponible' : (hasProblem ? 'Con problema fiscal' : 'Sin problemas fiscales')}
+                                                    </Text>
+                                                </View>
                                             </View>
-                                        </View>
-                                    )}
+                                        );
+                                    })()}
                                 </View>
                             </View>
                         )}
@@ -468,17 +509,21 @@ const styles = StyleSheet.create({
     resultContainer: {
         gap: 14,
     },
+    badgesRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
     statusBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        alignSelf: 'flex-start',
         gap: 6,
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 20,
     },
     statusText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
     },
     resultCard: {

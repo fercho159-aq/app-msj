@@ -7,6 +7,7 @@ import {
     getUserMediaDetail,
 } from '../../services/dashboardService';
 import { sendAiChatMessage } from '../../services/aiChatService';
+import { consultarDatosFiscales } from '../../services/syntageService';
 
 const router = Router();
 
@@ -179,26 +180,42 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const response = await fetch(CHECKID_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                apiKey: CHECKID_API_KEY,
-                terminoBusqueda: terminoBusqueda.toUpperCase().trim(),
-                obtenerRFC: true,
-                obtenerCURP: true,
-                obtenerCodigoPostal: true,
-                obtenerRegimenFiscal: true,
-                obtenerCorreo: true,
-                obtenerNSS: true,
-                obtenerEstado69o69B: true,
-            }),
-            signal: controller.signal,
-        });
+        // Call CheckID and Syntage in parallel
+        const rfcNorm = terminoBusqueda.toUpperCase().trim();
 
-        clearTimeout(timeoutId);
+        const [checkIdResponse, syntageResult] = await Promise.all([
+            (async () => {
+                const resp = await fetch(CHECKID_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiKey: CHECKID_API_KEY,
+                        terminoBusqueda: rfcNorm,
+                        obtenerRFC: true,
+                        obtenerCURP: true,
+                        obtenerCodigoPostal: true,
+                        obtenerRegimenFiscal: true,
+                        obtenerCorreo: true,
+                        obtenerNSS: true,
+                        obtenerEstado69o69B: true,
+                    }),
+                    signal: controller.signal,
+                });
+                clearTimeout(timeoutId);
+                return resp.json();
+            })(),
+            consultarDatosFiscales(rfcNorm).catch(() => null),
+        ]);
 
-        const data = await response.json();
+        // Merge Syntage data into response
+        const tipoPersona = rfcNorm.length === 12 ? 'moral' : 'fisica';
+        const data = {
+            ...checkIdResponse,
+            // Extra fields from Syntage + derived
+            tipoPersona,
+            entidadFederativa: syntageResult?.data?.estado || null,
+        };
+
         res.json(data);
     } catch (error: any) {
         console.error('Error en search-rfc:', error);

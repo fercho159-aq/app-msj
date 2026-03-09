@@ -1100,6 +1100,8 @@ export interface CheckIdResponse {
     exitoso: boolean;
     codigoError: string | null;
     error: string | null;
+    tipoPersona: 'fisica' | 'moral';
+    entidadFederativa: string | null;
     resultado: {
         rfc: {
             rfc: string;
