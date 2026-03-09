@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
@@ -22,6 +22,8 @@ export const StatCard: React.FC<StatCardProps> = ({
     subtitle,
 }) => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const iconColor = color || colors.primary;
     const gradient = accentGradient || [iconColor, `${iconColor}88`];
 
@@ -33,6 +35,7 @@ export const StatCard: React.FC<StatCardProps> = ({
                     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
                     borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
                 },
+                isMobile && styles.cardMobile,
             ]}
         >
             {/* Accent strip */}
@@ -74,6 +77,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row' as const,
         marginBottom: 0,
     },
+    cardMobile: {
+        minWidth: 140,
+    },
     accentStrip: {
         width: 4,
         alignSelf: 'stretch',
@@ -104,10 +110,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     value: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: '800',
         letterSpacing: -1,
-        lineHeight: 36,
+        lineHeight: 32,
     },
     subtitle: {
         fontSize: 12,

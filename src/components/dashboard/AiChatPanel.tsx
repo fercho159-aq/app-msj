@@ -10,6 +10,7 @@ import {
     Animated,
     Platform,
     KeyboardAvoidingView,
+    useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +20,8 @@ import type { AiChatMessage } from '../../types';
 
 export const AiChatPanel: React.FC = () => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<AiChatMessage[]>([]);
     const [input, setInput] = useState('');
@@ -90,7 +93,7 @@ export const AiChatPanel: React.FC = () => {
 
     const panelHeight = slideAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 520],
+        outputRange: [0, isMobile ? 420 : 520],
     });
 
     const panelOpacity = slideAnim.interpolate({
@@ -106,7 +109,7 @@ export const AiChatPanel: React.FC = () => {
     ];
 
     return (
-        <View style={styles.wrapper} pointerEvents="box-none">
+        <View style={[styles.wrapper, isMobile && styles.wrapperMobile]} pointerEvents="box-none">
             {/* Chat Panel */}
             <Animated.View
                 style={[
@@ -117,6 +120,7 @@ export const AiChatPanel: React.FC = () => {
                         backgroundColor: isDark ? '#111113' : '#FFFFFF',
                         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
                     },
+                    isMobile && styles.panelMobile,
                 ]}
             >
                 {/* Panel Header */}
@@ -298,6 +302,11 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         zIndex: 1000,
     },
+    wrapperMobile: {
+        bottom: 16,
+        right: 12,
+        left: 12,
+    },
     fab: {
         width: 56,
         height: 56,
@@ -326,6 +335,9 @@ const styles = StyleSheet.create({
         } : {
             elevation: 12,
         }),
+    },
+    panelMobile: {
+        width: '100%',
     },
     panelHeader: {
         flexDirection: 'row',

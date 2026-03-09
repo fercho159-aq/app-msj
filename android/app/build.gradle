@@ -92,8 +92,8 @@ android {
         applicationId 'com.fernandotrejo.consultora'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.0.0"
+        versionCode 6
+        versionName "1.0.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -105,10 +105,15 @@ android {
             keyPassword 'android'
         }
         release {
-            storeFile file('release.keystore')
-            storePassword 'YakoobSoyCorazon2026'
-            keyAlias 'yaakob'
-            keyPassword 'YakoobSoyCorazon2026'
+            def props = new Properties()
+            def localPropsFile = rootProject.file('local.properties')
+            if (localPropsFile.exists()) {
+                props.load(new FileInputStream(localPropsFile))
+            }
+            storeFile file(props.getProperty('RELEASE_STORE_FILE', 'release.keystore'))
+            storePassword props.getProperty('RELEASE_STORE_PASSWORD', '')
+            keyAlias props.getProperty('RELEASE_KEY_ALIAS', '')
+            keyPassword props.getProperty('RELEASE_KEY_PASSWORD', '')
         }
     }
     buildTypes {

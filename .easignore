@@ -8,6 +8,7 @@ ios/build/
 # Android build artifacts
 android/.gradle/
 android/app/build/
+android/build/
 
 # Environment variables
 .env
@@ -30,5 +31,14 @@ yarn-error.log*
 .vscode/
 .idea/
 
-# APKs
+# APKs and AABs
 *.apk
+*.aab
+build-*.aab
+
+# Server code (not needed for mobile build)
+src/server/
+src/database/
+
+# Git
+.git

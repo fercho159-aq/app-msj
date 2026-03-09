@@ -28,7 +28,8 @@
           "voip",
           "remote-notification"
         ]
-      }
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +38,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.fernandotrejo.consultora"
+      "package": "com.fernandotrejo.consultora",
+      "versionCode": 5
     },
     "plugins": [
       "./plugins/withAndroidCleartextTraffic",
@@ -46,7 +48,9 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/ringtone.wav"]
+          "sounds": [
+            "./assets/ringtone.wav"
+          ]
         }
       ]
     ],

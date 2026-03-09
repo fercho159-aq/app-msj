@@ -8,6 +8,8 @@ import {
     ActivityIndicator,
     RefreshControl,
     Platform,
+    useWindowDimensions,
+    TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +24,7 @@ import { UserMediaTable } from '../components/dashboard/UserMediaTable';
 import { AiChatPanel } from '../components/dashboard/AiChatPanel';
 import { DashboardLayout } from '../components/dashboard/DashboardLayout';
 import { GestionView } from '../components/dashboard/GestionView';
+import { RfcSearchModal } from '../components/dashboard/RfcSearchModal';
 import type { DashboardView } from '../components/dashboard/DashboardSidebar';
 import type { DashboardSummary, DashboardActivity } from '../types';
 
@@ -71,10 +74,14 @@ const CHART_COLORS = {
 
 const PIE_PALETTE = [CHART_COLORS.blue, CHART_COLORS.emerald, CHART_COLORS.amber, CHART_COLORS.rose, CHART_COLORS.violet, CHART_COLORS.cyan];
 
+const MOBILE_BREAKPOINT = 768;
+
 export const DashboardScreen: React.FC = () => {
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
     const navigation = useNavigation<any>();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < MOBILE_BREAKPOINT;
     const [activeView, setActiveView] = useState<DashboardView>('dashboard');
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [activity, setActivity] = useState<DashboardActivity | null>(null);
@@ -82,6 +89,7 @@ export const DashboardScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [unclaimedCount, setUnclaimedCount] = useState(0);
+    const [rfcSearchVisible, setRfcSearchVisible] = useState(false);
 
     const loadData = async (showLoading = true) => {
         if (showLoading) setIsLoading(true);
@@ -171,7 +179,10 @@ export const DashboardScreen: React.FC = () => {
                 <ScrollView
                     style={styles.scroll}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
+                    contentContainerStyle={[
+                        styles.scrollContent,
+                        isMobile && styles.scrollContentMobile,
+                    ]}
                     refreshControl={
                         <RefreshControl
                             refreshing={isRefreshing}
@@ -181,37 +192,54 @@ export const DashboardScreen: React.FC = () => {
                     }
                 >
                     {/* ═══════ HEADER ═══════ */}
-                    <View style={styles.header}>
-                        <View style={styles.headerTop}>
-                            <View>
-                                <Text style={[styles.greeting, { color: colors.textMuted }]}>
+                    <View style={[styles.header, isMobile && styles.headerMobile]}>
+                        <View style={[styles.headerTop, isMobile && styles.headerTopMobile]}>
+                            <View style={isMobile ? { marginTop: 4 } : undefined}>
+                                <Text style={[styles.greeting, { color: colors.textMuted }, isMobile && { fontSize: 11 }]}>
                                     {dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}
                                 </Text>
-                                <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                                <Text style={[styles.headerTitle, { color: colors.textPrimary }, isMobile && styles.headerTitleMobile]}>
                                     Dashboard
                                 </Text>
                             </View>
-                            <View style={[styles.userBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
-                                <LinearGradient
-                                    colors={['#5C76B2', '#97B1DE'] as [string, string]}
-                                    style={styles.userAvatar}
+                            <View style={[styles.headerActions, isMobile && styles.headerActionsMobile]}>
+                                <TouchableOpacity
+                                    style={[styles.rfcSearchBtn, { borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(92,118,178,0.2)' }]}
+                                    onPress={() => setRfcSearchVisible(true)}
+                                    activeOpacity={0.7}
                                 >
-                                    <Text style={styles.userInitial}>
-                                        {(user?.name || 'C').charAt(0).toUpperCase()}
-                                    </Text>
-                                </LinearGradient>
-                                <View>
-                                    <Text style={[styles.userName, { color: colors.textPrimary }]}>
-                                        {user?.name || 'Consultor'}
-                                    </Text>
-                                    <Text style={[styles.userRole, { color: colors.textMuted }]}>Consultor</Text>
-                                </View>
+                                    <LinearGradient
+                                        colors={['#5C76B2', '#7A93C8'] as [string, string]}
+                                        style={styles.rfcSearchBtnGradient}
+                                    >
+                                        <Ionicons name="search" size={16} color="#FFFFFF" />
+                                        <Text style={styles.rfcSearchBtnText}>Buscar RFC</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                                {!isMobile && (
+                                    <View style={[styles.userBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                                        <LinearGradient
+                                            colors={['#5C76B2', '#97B1DE'] as [string, string]}
+                                            style={styles.userAvatar}
+                                        >
+                                            <Text style={styles.userInitial}>
+                                                {(user?.name || 'C').charAt(0).toUpperCase()}
+                                            </Text>
+                                        </LinearGradient>
+                                        <View>
+                                            <Text style={[styles.userName, { color: colors.textPrimary }]}>
+                                                {user?.name || 'Consultor'}
+                                            </Text>
+                                            <Text style={[styles.userRole, { color: colors.textMuted }]}>Consultor</Text>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         </View>
                     </View>
 
                     {/* ═══════ KPI CARDS ═══════ */}
-                    <View style={styles.kpiGrid}>
+                    <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
                         <StatCard
                             title="Usuarios"
                             value={summary?.users.total || 0}
@@ -255,14 +283,14 @@ export const DashboardScreen: React.FC = () => {
                     </View>
 
                     {/* ═══════ TWO-COLUMN SPLIT: TABLE + CHARTS ═══════ */}
-                    <View style={styles.splitLayout}>
+                    <View style={[styles.splitLayout, isMobile && styles.splitLayoutMobile]}>
                         {/* LEFT: Users Media Table */}
-                        <View style={styles.splitLeft}>
+                        <View style={[styles.splitLeft, isMobile && styles.splitFullWidth]}>
                             <UserMediaTable />
                         </View>
 
                         {/* RIGHT: All Charts Stacked */}
-                        <View style={styles.splitRight}>
+                        <View style={[styles.splitRight, isMobile && styles.splitFullWidth]}>
                             {/* Activity */}
                             <ChartContainer
                                 title="Actividad de Mensajes"
@@ -303,8 +331,8 @@ export const DashboardScreen: React.FC = () => {
                             </ChartContainer>
 
                             {/* New users + Message types side by side */}
-                            <View style={styles.chartRow}>
-                                <View style={styles.chartHalf}>
+                            <View style={[styles.chartRow, isMobile && styles.chartRowMobile]}>
+                                <View style={[styles.chartHalf, isMobile && styles.chartFullWidth]}>
                                     <ChartContainer title="Nuevos Usuarios" subtitle="Registros por dia">
                                         {activity && activity.newUsers.length > 0 ? (
                                             <ResponsiveContainer width="100%" height={200}>
@@ -329,7 +357,7 @@ export const DashboardScreen: React.FC = () => {
                                         )}
                                     </ChartContainer>
                                 </View>
-                                <View style={styles.chartHalf}>
+                                <View style={[styles.chartHalf, isMobile && styles.chartFullWidth]}>
                                     <ChartContainer title="Tipos de Mensaje" subtitle="Distribucion por formato">
                                         {summary && summary.messages.byType.length > 0 ? (
                                             <ResponsiveContainer width="100%" height={200}>
@@ -370,8 +398,8 @@ export const DashboardScreen: React.FC = () => {
                             </View>
 
                             {/* Roles + Calls side by side */}
-                            <View style={styles.chartRow}>
-                                <View style={styles.chartHalf}>
+                            <View style={[styles.chartRow, isMobile && styles.chartRowMobile]}>
+                                <View style={[styles.chartHalf, isMobile && styles.chartFullWidth]}>
                                     <ChartContainer title="Roles de Usuario" subtitle="Distribucion por tipo">
                                         {summary && summary.users.byRole.length > 0 ? (
                                             <ResponsiveContainer width="100%" height={200}>
@@ -409,7 +437,7 @@ export const DashboardScreen: React.FC = () => {
                                         )}
                                     </ChartContainer>
                                 </View>
-                                <View style={styles.chartHalf}>
+                                <View style={[styles.chartHalf, isMobile && styles.chartFullWidth]}>
                                     <ChartContainer title="Resumen de Llamadas" subtitle="Solicitudes e historial">
                                         {summary && (summary.callRequests.byStatus.length > 0 || summary.callHistory.byStatus.length > 0) ? (
                                             <ResponsiveContainer width="100%" height={200}>
@@ -507,6 +535,12 @@ export const DashboardScreen: React.FC = () => {
 
             {/* AI Chat Floating Panel */}
             <AiChatPanel />
+
+            {/* RFC Search Modal */}
+            <RfcSearchModal
+                visible={rfcSearchVisible}
+                onClose={() => setRfcSearchVisible(false)}
+            />
         </View>
         </DashboardLayout>
     );
@@ -541,16 +575,26 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         width: '100%',
     },
+    scrollContentMobile: {
+        paddingHorizontal: 14,
+    },
 
     // Header
     header: {
         paddingTop: 32,
         paddingBottom: 8,
     },
+    headerMobile: {
+        paddingTop: 56,
+    },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+    },
+    headerTopMobile: {
+        flexDirection: 'column',
+        alignItems: 'flex-start',
     },
     greeting: {
         fontSize: 13,
@@ -562,6 +606,35 @@ const styles = StyleSheet.create({
         fontSize: 32,
         fontWeight: '800',
         letterSpacing: -0.8,
+    },
+    headerTitleMobile: {
+        fontSize: 24,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerActionsMobile: {
+        marginTop: 14,
+    },
+    rfcSearchBtn: {
+        borderRadius: 12,
+        overflow: 'hidden',
+        borderWidth: 1,
+    },
+    rfcSearchBtnGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+    },
+    rfcSearchBtnText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
     },
     userBadge: {
         flexDirection: 'row',
@@ -601,12 +674,19 @@ const styles = StyleSheet.create({
         marginTop: 20,
         marginBottom: 20,
     },
+    kpiGridMobile: {
+        gap: 10,
+    },
 
     // Split layout
     splitLayout: {
         flexDirection: 'row',
         gap: 20,
         alignItems: 'flex-start',
+    },
+    splitLayoutMobile: {
+        flexDirection: 'column',
+        gap: 14,
     },
     splitLeft: {
         flex: 1,
@@ -615,14 +695,23 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 14,
     },
+    splitFullWidth: {
+        width: '100%',
+    },
 
     // Charts
     chartRow: {
         flexDirection: 'row',
         gap: 14,
     },
+    chartRowMobile: {
+        flexDirection: 'column',
+    },
     chartHalf: {
         flex: 1,
+    },
+    chartFullWidth: {
+        width: '100%',
     },
 
     noDataContainer: {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, Platform, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
@@ -14,6 +14,8 @@ const getInitials = (name: string | null, rfc: string) => {
 
 export const UserMediaTable: React.FC = () => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const [users, setUsers] = useState<UserMediaRow[]>([]);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
@@ -64,6 +66,7 @@ export const UserMediaTable: React.FC = () => {
                 index % 2 === 0 && {
                     backgroundColor: isDark ? 'rgba(255,255,255,0.015)' : 'rgba(0,0,0,0.015)',
                 },
+                isMobile && styles.rowMobile,
             ]}
         >
             {/* Avatar */}
@@ -86,25 +89,29 @@ export const UserMediaTable: React.FC = () => {
                 </Text>
             </View>
 
-            {/* Media counts */}
-            <View style={styles.mediaCell}>
-                <View style={styles.mediaBadge}>
-                    <Ionicons name="image-outline" size={12} color={colors.textMuted} />
-                    <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.images}</Text>
-                </View>
-            </View>
-            <View style={styles.mediaCell}>
-                <View style={styles.mediaBadge}>
-                    <Ionicons name="videocam-outline" size={12} color={colors.textMuted} />
-                    <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.videos}</Text>
-                </View>
-            </View>
-            <View style={styles.mediaCell}>
-                <View style={styles.mediaBadge}>
-                    <Ionicons name="document-outline" size={12} color={colors.textMuted} />
-                    <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.files}</Text>
-                </View>
-            </View>
+            {/* Media counts - hide individual columns on mobile */}
+            {!isMobile && (
+                <>
+                    <View style={styles.mediaCell}>
+                        <View style={styles.mediaBadge}>
+                            <Ionicons name="image-outline" size={12} color={colors.textMuted} />
+                            <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.images}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.mediaCell}>
+                        <View style={styles.mediaBadge}>
+                            <Ionicons name="videocam-outline" size={12} color={colors.textMuted} />
+                            <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.videos}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.mediaCell}>
+                        <View style={styles.mediaBadge}>
+                            <Ionicons name="document-outline" size={12} color={colors.textMuted} />
+                            <Text style={[styles.mediaCount, { color: colors.textSecondary }]}>{item.files}</Text>
+                        </View>
+                    </View>
+                </>
+            )}
 
             {/* Total with mini bar */}
             <View style={styles.totalCell}>
@@ -182,12 +189,16 @@ export const UserMediaTable: React.FC = () => {
             </View>
 
             {/* Column headers */}
-            <View style={[styles.columnHeaders, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }]}>
+            <View style={[styles.columnHeaders, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }, isMobile && styles.columnHeadersMobile]}>
                 <View style={styles.avatarCell} />
                 <Text style={[styles.colHeader, styles.userCell, { color: colors.textMuted }]}>USUARIO</Text>
-                <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>IMG</Text>
-                <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>VID</Text>
-                <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>ARCH</Text>
+                {!isMobile && (
+                    <>
+                        <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>IMG</Text>
+                        <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>VID</Text>
+                        <Text style={[styles.colHeader, styles.mediaCell, { color: colors.textMuted }]}>ARCH</Text>
+                    </>
+                )}
                 <Text style={[styles.colHeader, styles.totalCell, { color: colors.textMuted }]}>TOTAL</Text>
             </View>
 
@@ -346,6 +357,13 @@ const styles = StyleSheet.create({
             // @ts-ignore
             transition: 'background-color 0.15s ease',
         } : {}),
+    },
+    rowMobile: {
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+    },
+    columnHeadersMobile: {
+        paddingHorizontal: 12,
     },
     avatarCell: {
         width: 40,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView,
-    ActivityIndicator, StyleSheet,
+    ActivityIndicator, StyleSheet, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -23,8 +23,12 @@ interface BreadcrumbItem {
     level: GestionLevel;
 }
 
+const MOBILE_BREAKPOINT = 768;
+
 export const GestionView: React.FC = () => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < MOBILE_BREAKPOINT;
     const [level, setLevel] = useState<GestionLevel>('clients');
     const [selectedClient, setSelectedClient] = useState<ClientRow | null>(null);
     const [selectedProject, setSelectedProject] = useState<ProjectRow | null>(null);
@@ -98,9 +102,9 @@ export const GestionView: React.FC = () => {
     return (
         <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, isMobile && styles.headerMobile]}>
                 <View>
-                    <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+                    <Text style={[styles.headerTitle, { color: colors.textPrimary }, isMobile && styles.headerTitleMobile]}>
                         Gestion de Clientes
                     </Text>
                     {/* Breadcrumb */}
@@ -134,7 +138,7 @@ export const GestionView: React.FC = () => {
 
             {/* KPI Cards */}
             {level === 'clients' && (
-                <View style={styles.kpiGrid}>
+                <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
                     <StatCard
                         title="Clientes"
                         value={summary?.totalClients || 0}
@@ -167,7 +171,7 @@ export const GestionView: React.FC = () => {
             )}
 
             {/* Content */}
-            <View style={styles.content}>
+            <View style={[styles.content, isMobile && styles.contentMobile]}>
                 {level === 'clients' && (
                     <View style={[styles.contentCard, {
                         backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
@@ -178,8 +182,8 @@ export const GestionView: React.FC = () => {
                 )}
 
                 {level === 'client-detail' && selectedClient && (
-                    <View style={styles.splitLayout}>
-                        <View style={styles.splitLeft}>
+                    <View style={[styles.splitLayout, isMobile && styles.splitLayoutMobile]}>
+                        <View style={[styles.splitLeft, isMobile && styles.splitLeftMobile]}>
                             <ClientFiscalProfile clientId={selectedClient.id} />
                         </View>
                         <View style={styles.splitRight}>
@@ -192,7 +196,7 @@ export const GestionView: React.FC = () => {
                 )}
 
                 {level === 'project-detail' && selectedProject && selectedClient && (
-                    <View style={styles.projectLayout}>
+                    <View style={[styles.projectLayout, isMobile && styles.projectLayoutMobile]}>
                         <View style={styles.phaseBoardArea}>
                             <PhaseBoard
                                 projectId={selectedProject.id}
@@ -230,10 +234,17 @@ const styles = StyleSheet.create({
         paddingTop: 28,
         paddingBottom: 8,
     },
+    headerMobile: {
+        paddingHorizontal: 14,
+        paddingTop: 56,
+    },
     headerTitle: {
         fontSize: 28,
         fontWeight: '800',
         letterSpacing: -0.8,
+    },
+    headerTitleMobile: {
+        fontSize: 22,
     },
     breadcrumb: {
         flexDirection: 'row',
@@ -262,10 +273,17 @@ const styles = StyleSheet.create({
         marginTop: 16,
         marginBottom: 16,
     },
+    kpiGridMobile: {
+        paddingHorizontal: 14,
+        gap: 10,
+    },
     content: {
         flex: 1,
         paddingHorizontal: 24,
         paddingBottom: 24,
+    },
+    contentMobile: {
+        paddingHorizontal: 14,
     },
     contentCard: {
         flex: 1,
@@ -278,8 +296,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 24,
     },
+    splitLayoutMobile: {
+        flexDirection: 'column',
+        gap: 14,
+    },
     splitLeft: {
         width: 380,
+    },
+    splitLeftMobile: {
+        width: '100%',
     },
     splitRight: {
         flex: 1,
@@ -287,6 +312,9 @@ const styles = StyleSheet.create({
     projectLayout: {
         flex: 1,
         flexDirection: 'row',
+    },
+    projectLayoutMobile: {
+        flexDirection: 'column',
     },
     phaseBoardArea: {
         flex: 1,

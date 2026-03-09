@@ -151,4 +151,62 @@ router.post('/ai-chat', async (req: Request, res: Response) => {
     }
 });
 
+// POST /api/dashboard/search-rfc
+router.post('/search-rfc', async (req: Request, res: Response) => {
+    try {
+        const { userId, terminoBusqueda } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ error: 'userId es requerido' });
+        }
+
+        const user = await queryOne<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+
+        if (!user || user.role !== 'consultor') {
+            return res.status(403).json({ error: 'Acceso denegado. Solo consultores.' });
+        }
+
+        if (!terminoBusqueda || typeof terminoBusqueda !== 'string') {
+            return res.status(400).json({ error: 'terminoBusqueda es requerido' });
+        }
+
+        const CHECKID_API_KEY = 'ewXxGI3XHrCJn41umWcaCGQLXTFn/sbk/EMeptuIuCI=';
+        const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const response = await fetch(CHECKID_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                apiKey: CHECKID_API_KEY,
+                terminoBusqueda: terminoBusqueda.toUpperCase().trim(),
+                obtenerRFC: true,
+                obtenerCURP: true,
+                obtenerCodigoPostal: true,
+                obtenerRegimenFiscal: true,
+                obtenerCorreo: true,
+                obtenerNSS: false,
+                obtenerEstado69o69B: false,
+            }),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error: any) {
+        console.error('Error en search-rfc:', error);
+        if (error.name === 'AbortError') {
+            return res.status(504).json({ error: 'Tiempo de espera agotado.' });
+        }
+        res.status(500).json({ error: 'Error al consultar RFC' });
+    }
+});
+
 export { router as dashboardRoutes };

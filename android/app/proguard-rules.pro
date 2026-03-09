@@ -11,4 +11,13 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# react-native-webrtc
+-keep class org.webrtc.** { *; }
+
+# react-native-incall-manager
+-keep class com.zxcpoiu.incallmanager.** { *; }
+
+# expo modules
+-keep class expo.modules.** { *; }
+
 # Add any project specific keep options here:

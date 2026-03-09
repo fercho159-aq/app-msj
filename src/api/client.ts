@@ -908,7 +908,20 @@ class ApiClient {
         );
     }
 
-    // ==================== CHECKID API ====================
+    // ==================== CHECKID API (server-proxied) ====================
+
+    async searchRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<CheckIdResponse>(
+            '/dashboard/search-rfc',
+            {
+                method: 'POST',
+                body: JSON.stringify({ userId: this.userId, terminoBusqueda }),
+            }
+        );
+    }
+
+    // ==================== CHECKID API (direct - mobile only) ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {
         const CHECKID_API_KEY = 'ewXxGI3XHrCJn41umWcaCGQLXTFn/sbk/EMeptuIuCI=';

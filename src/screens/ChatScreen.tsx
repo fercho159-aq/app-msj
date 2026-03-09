@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import { usePreventScreenCapture } from 'expo-screen-capture';
 
 import { ChatHeader, MessageInput, MediaPreview } from '../components';
 import { useAuth } from '../context/AuthContext';
@@ -330,6 +331,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
 };
 
 export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => {
+    usePreventScreenCapture();
     const { chatId, userName, userAvatar, userRfc, participantId: routeParticipantId } = route.params as any;
     const { user } = useAuth();
     const { colors, isDark } = useTheme();
