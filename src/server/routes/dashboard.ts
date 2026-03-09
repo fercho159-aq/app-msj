@@ -209,14 +209,11 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
 
         // Merge Syntage data into response
         const tipoPersona = rfcNorm.length === 12 ? 'moral' : 'fisica';
-        const data = {
-            ...checkIdResponse,
-            // Extra fields from Syntage + derived
-            tipoPersona,
-            entidadFederativa: syntageResult?.data?.estado || null,
-        };
+        const checkIdObj = checkIdResponse as Record<string, any>;
+        checkIdObj.tipoPersona = tipoPersona;
+        checkIdObj.entidadFederativa = syntageResult?.data?.estado || null;
 
-        res.json(data);
+        res.json(checkIdObj);
     } catch (error: any) {
         console.error('Error en search-rfc:', error);
         if (error.name === 'AbortError') {
