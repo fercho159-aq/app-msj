@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
     ActivityIndicator, StyleSheet, Modal, Platform, useWindowDimensions, Linking,
+    Animated, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,13 +27,10 @@ interface ResultData {
     razonSocial: string;
     valido: boolean;
     tipoPersona: 'fisica' | 'moral';
-    // FIEL
     validoHasta: string | null;
-    // Representante legal
     rfcRepresentante: string | null;
     curpRepresentante: string | null;
     emailContacto: string | null;
-    // CURP data
     curp: string | null;
     nombres: string | null;
     primerApellido: string | null;
@@ -40,11 +38,9 @@ interface ResultData {
     sexo: string | null;
     entidadNacimiento: string | null;
     fechaNacimiento: string | null;
-    // Fiscal
     codigoPostal: string | null;
     regimenFiscal: string | null;
     entidadFederativa: string | null;
-    // Extras
     nss: string | null;
     estado69: Estado69Detail | null;
 }
@@ -57,10 +53,50 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<ResultData | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [step, setStep] = useState<'search' | 'form'>('search');
-    const [formData, setFormData] = useState<Record<string, string>>({});
     const [celular, setCelular] = useState('');
-    const [comentarios, setComentarios] = useState('');
+    const [comentarios, setComentarios] = useState('Proceso de revision profunda');
+
+    const slideAnim = useRef(new Animated.Value(0)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const inputRef = useRef<TextInput>(null);
+
+    useEffect(() => {
+        if (visible) {
+            Animated.parallel([
+                Animated.spring(slideAnim, {
+                    toValue: 1,
+                    useNativeDriver: true,
+                    damping: 20,
+                    stiffness: 200,
+                }),
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+            ]).start(() => {
+                setTimeout(() => inputRef.current?.focus(), 100);
+            });
+        } else {
+            slideAnim.setValue(0);
+            fadeAnim.setValue(0);
+        }
+    }, [visible]);
+
+    const handleAnimatedClose = () => {
+        Animated.parallel([
+            Animated.timing(slideAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }),
+        ]).start(() => handleClose());
+    };
 
     const handleSearch = async () => {
         const term = searchTerm.trim().toUpperCase();
@@ -127,57 +163,53 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         setSearchTerm('');
         setResult(null);
         setError(null);
-        setStep('search');
-        setFormData({});
         setCelular('');
-        setComentarios('');
+        setComentarios('Proceso de revision profunda');
         onClose();
     };
 
-    const handleSiguiente = () => {
+    const handleShareWhatsApp = () => {
         if (!result) return;
         const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ');
-        const data: Record<string, string> = {};
-        if (result.rfc) data['RFC'] = result.rfc;
-        if (result.razonSocial && result.razonSocial !== 'No disponible') data['Razon Social'] = result.razonSocial;
-        if (nombre) data[result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre Completo'] = nombre;
-        if (result.curp) data['CURP'] = result.curp;
-        if (result.rfcRepresentante) data['RFC del Representante'] = result.rfcRepresentante;
-        if (result.curpRepresentante) data['CURP del Representante'] = result.curpRepresentante;
-        if (result.regimenFiscal) data['Regimen Fiscal'] = result.regimenFiscal;
-        if (result.codigoPostal) data['Codigo Postal'] = result.codigoPostal;
-        if (result.entidadFederativa) data['Entidad Federativa'] = result.entidadFederativa;
-        if (result.validoHasta) data['FIEL valida hasta'] = result.validoHasta;
-        if (result.emailContacto) data['Email de Contacto'] = result.emailContacto;
-        if (result.fechaNacimiento) data['Fecha de Nacimiento'] = result.fechaNacimiento;
-        if (result.sexo) data['Sexo'] = result.sexo;
-        if (result.entidadNacimiento) data['Entidad de Nacimiento'] = result.entidadNacimiento;
-        if (result.nss) data['NSS'] = result.nss;
-        // Situacion Fiscal
+
+        let msg = '*DATOS FISCALES*\n';
+        if (result.regimenFiscal) msg += `*Regimen Fiscal:* ${result.regimenFiscal}\n`;
+        if (result.validoHasta) msg += `*FIEL valida hasta:* ${result.validoHasta}\n`;
+        if (result.codigoPostal) msg += `*Codigo Postal:* ${result.codigoPostal}\n`;
+        if (result.entidadFederativa) msg += `*Entidad:* ${result.entidadFederativa}\n`;
+
+        msg += '\n*REPRESENTANTE LEGAL*\n';
+        if (nombre) msg += `*Nombre completo:* ${nombre}\n`;
+        if (result.rfcRepresentante || result.rfc) msg += `*RFC:* ${result.rfcRepresentante || result.rfc}\n`;
+        if (result.curpRepresentante || result.curp) msg += `*CURP:* ${result.curpRepresentante || result.curp}\n`;
+        if (result.nss) msg += `*NSS:* ${result.nss}\n`;
+        if (result.fechaNacimiento) msg += `*Fecha de nacimiento:* ${result.fechaNacimiento}\n`;
+        if (result.emailContacto) msg += `*Email de contacto:* ${result.emailContacto}\n`;
+
         if (result.estado69) {
             const e = result.estado69;
-            data['Lista 69 / 69-B (SAT)'] = e.conProblema ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales';
-            if (e.situacion) data['Situacion'] = e.situacion;
-            e.problemas.forEach((p, i) => {
-                data[`Art. 69 - ${p.descripcion}`] = `Publicado: ${p.fechaPublicacion?.split('T')[0] || 'N/A'}`;
-            });
-            e.oficiosEFOS.forEach((o, i) => {
-                data[`EFOS - ${o.tipo}`] = `Oficio: ${o.oficioID}`;
-            });
+            msg += '\n*SITUACION FISCAL*\n';
+            if (e.problemas.length > 0) {
+                e.problemas.forEach((p) => {
+                    msg += `*Art. 69 - ${p.descripcion}:* Publicado: ${p.fechaPublicacion?.split('T')[0] || 'N/A'}\n`;
+                });
+            } else {
+                msg += `*Oficios Art. 69:* Sin oficios\n`;
+            }
+            if (e.oficiosEFOS.length > 0) {
+                e.oficiosEFOS.forEach((o) => {
+                    msg += `*Art. 69B - ${o.tipo}:* Oficio: ${o.oficioID}\n`;
+                });
+            } else {
+                msg += `*Oficios Art. 69B:* Sin oficios\n`;
+            }
         }
-        setFormData(data);
-        setStep('form');
-    };
 
-    const handleShareWhatsApp = () => {
-        let msg = '*Datos Fiscales*\n\n';
-        Object.entries(formData).forEach(([key, val]) => {
-            if (val) msg += `*${key}:* ${val}\n`;
-        });
-        if (celular) msg += `*Celular:* ${celular}\n`;
-        if (comentarios) msg += `*Comentarios:* ${comentarios}\n`;
+        if (comentarios) msg += `\n*Comentarios:* ${comentarios}\n`;
         msg += '\n---\n';
-        msg += 'Descarga la app Yakoob:\nhttps://apps.apple.com/mx/app/yakoob/id6758861392';
+        msg += 'Descarga la app Yakoob:\n';
+        msg += 'iOS: https://apps.apple.com/mx/app/yakoob/id6758861392\n';
+        msg += 'Android: https://play.google.com/store/apps/details?id=com.yakoob.app';
 
         const encoded = encodeURIComponent(msg);
         const url = celular
@@ -186,16 +218,19 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         Linking.openURL(url);
     };
 
-    const cardBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)';
-    const cardBorder = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-    const fieldBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)';
+    const surfaceBg = isDark ? '#1A1B1F' : '#F6F7FB';
+    const cardBg = isDark ? 'rgba(255,255,255,0.04)' : '#FFFFFF';
+    const cardBorder = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const fieldBg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(92,118,178,0.04)';
+    const inputBg = isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF';
+    const inputBorder = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(92,118,178,0.2)';
 
     const renderField = (label: string, value: string | null, icon: keyof typeof Ionicons.glyphMap) => {
         if (!value) return null;
         return (
             <View style={[styles.field, { backgroundColor: fieldBg }]}>
-                <View style={styles.fieldIcon}>
-                    <Ionicons name={icon} size={16} color={colors.primary} />
+                <View style={[styles.fieldIcon, { backgroundColor: isDark ? 'rgba(92,118,178,0.15)' : 'rgba(92,118,178,0.1)' }]}>
+                    <Ionicons name={icon} size={15} color={isDark ? '#97B1DE' : '#5C76B2'} />
                 </View>
                 <View style={styles.fieldContent}>
                     <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{label}</Text>
@@ -205,53 +240,72 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         );
     };
 
-    return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
-            <View style={styles.overlay}>
-                <View style={[
-                    styles.modal,
-                    {
-                        backgroundColor: isDark ? '#111113' : '#FFFFFF',
-                        borderColor: cardBorder,
-                    },
-                    isMobile && styles.modalMobile,
-                ]}>
-                    {/* Header */}
-                    <LinearGradient
-                        colors={isDark ? ['#1a1a2e', '#16213e'] as [string, string] : ['#5C76B2', '#7A93C8'] as [string, string]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.header}
-                    >
-                        <View style={styles.headerLeft}>
-                            <View style={styles.headerIconBg}>
-                                <Ionicons name="search" size={18} color="#FFFFFF" />
-                            </View>
-                            <View>
-                                <Text style={styles.headerTitle}>Buscar RFC</Text>
-                                <Text style={styles.headerSubtitle}>Consulta datos fiscales por RFC</Text>
-                            </View>
-                        </View>
-                        <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-                            <Ionicons name="close" size={20} color="rgba(255,255,255,0.9)" />
-                        </TouchableOpacity>
-                    </LinearGradient>
+    const translateY = slideAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: [600, 0],
+    });
 
-                    {/* Search Input */}
-                    <View style={styles.searchSection}>
-                        <View style={[styles.searchRow, isMobile && styles.searchRowMobile]}>
+    return (
+        <Modal visible={visible} transparent animationType="none" onRequestClose={handleAnimatedClose}>
+            <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+                <TouchableOpacity style={styles.overlayTouch} activeOpacity={1} onPress={handleAnimatedClose} />
+
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={styles.keyboardView}
+                >
+                    <Animated.View style={[
+                        styles.modal,
+                        {
+                            backgroundColor: isDark ? '#111113' : '#FFFFFF',
+                            transform: [{ translateY }],
+                        },
+                        isMobile && styles.modalMobile,
+                    ]}>
+                        {/* Drag handle */}
+                        {isMobile && (
+                            <View style={styles.dragHandleContainer}>
+                                <View style={[styles.dragHandle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
+                            </View>
+                        )}
+
+                        {/* Header */}
+                        <View style={[styles.header, { borderBottomColor: cardBorder }]}>
+                            <View style={styles.headerLeft}>
+                                <LinearGradient
+                                    colors={['#4A63A0', '#6B83C0'] as [string, string]}
+                                    style={styles.headerIconBg}
+                                >
+                                    <Ionicons name="search" size={17} color="#FFFFFF" />
+                                </LinearGradient>
+                                <View>
+                                    <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Buscar RFC</Text>
+                                    <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>Consulta datos fiscales por RFC</Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity onPress={handleAnimatedClose} style={[styles.closeBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }]}>
+                                <Ionicons name="close" size={18} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Search Input */}
+                        <View style={[styles.searchSection, { backgroundColor: surfaceBg }]}>
                             <View style={[
                                 styles.inputContainer,
                                 {
-                                    backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+                                    backgroundColor: inputBg,
+                                    borderColor: searchTerm.length > 0 ? '#5C76B2' : inputBorder,
+                                    borderWidth: searchTerm.length > 0 ? 1.5 : 1,
                                 },
                             ]}>
-                                <Ionicons name="document-text-outline" size={18} color={colors.textMuted} />
+                                <View style={[styles.inputIconWrap, { backgroundColor: isDark ? 'rgba(92,118,178,0.12)' : 'rgba(92,118,178,0.08)' }]}>
+                                    <Ionicons name="document-text-outline" size={16} color={isDark ? '#97B1DE' : '#5C76B2'} />
+                                </View>
                                 <TextInput
+                                    ref={inputRef}
                                     style={[styles.input, { color: colors.textPrimary }]}
-                                    placeholder="Ingresa un RFC (ej. XAXX010101000)"
-                                    placeholderTextColor={colors.textMuted}
+                                    placeholder="Ej. XAXX010101000"
+                                    placeholderTextColor={isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)'}
                                     value={searchTerm}
                                     onChangeText={(t) => setSearchTerm(t.toUpperCase())}
                                     onSubmitEditing={handleSearch}
@@ -260,7 +314,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                     editable={!isLoading}
                                 />
                                 {searchTerm.length > 0 && !isLoading && (
-                                    <TouchableOpacity onPress={() => setSearchTerm('')}>
+                                    <TouchableOpacity onPress={() => setSearchTerm('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                                         <Ionicons name="close-circle" size={18} color={colors.textMuted} />
                                     </TouchableOpacity>
                                 )}
@@ -268,10 +322,12 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                             <TouchableOpacity
                                 onPress={handleSearch}
                                 disabled={!searchTerm.trim() || isLoading}
-                                style={[styles.searchBtn, (!searchTerm.trim() || isLoading) && { opacity: 0.5 }]}
+                                activeOpacity={0.8}
                             >
                                 <LinearGradient
-                                    colors={['#5C76B2', '#7A93C8'] as [string, string]}
+                                    colors={(!searchTerm.trim() || isLoading) ? ['#A0ADCE', '#B4BFD8'] as [string, string] : ['#4A63A0', '#6B83C0'] as [string, string]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
                                     style={styles.searchBtnGradient}
                                 >
                                     {isLoading ? (
@@ -285,254 +341,260 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                 </LinearGradient>
                             </TouchableOpacity>
                         </View>
-                    </View>
 
-                    {/* Results */}
-                    <ScrollView
-                        style={styles.body}
-                        contentContainerStyle={styles.bodyContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-                        {error && (
-                            <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)' }]}>
-                                <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                                <Text style={[styles.errorText, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>{error}</Text>
-                            </View>
-                        )}
-
-                        {!result && !error && !isLoading && step === 'search' && (
-                            <View style={styles.emptyState}>
-                                <View style={[styles.emptyIcon, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(92,118,178,0.08)' }]}>
-                                    <Ionicons name="document-text-outline" size={36} color={isDark ? '#97B1DE' : '#5C76B2'} />
-                                </View>
-                                <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
-                                    Consulta datos del SAT
-                                </Text>
-                                <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-                                    Ingresa un RFC para obtener razon social, CURP, regimen fiscal, codigo postal y mas.
-                                </Text>
-                            </View>
-                        )}
-
-                        {result && step === 'search' && (
-                            <View style={styles.resultContainer}>
-                                {/* Status badges row */}
-                                <View style={styles.badgesRow}>
-                                    <View style={[
-                                        styles.statusBadge,
-                                        {
-                                            backgroundColor: result.valido
-                                                ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
-                                                : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
-                                        },
-                                    ]}>
-                                        <Ionicons
-                                            name={result.valido ? 'checkmark-circle' : 'close-circle'}
-                                            size={16}
-                                            color={result.valido ? '#10B981' : '#EF4444'}
-                                        />
-                                        <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
-                                            RFC {result.valido ? 'Valido' : 'No valido'}
-                                        </Text>
+                        {/* Results */}
+                        <ScrollView
+                            style={styles.body}
+                            contentContainerStyle={styles.bodyContent}
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            {error && (
+                                <View style={[styles.errorBox, { backgroundColor: isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.05)' }]}>
+                                    <View style={[styles.errorIconWrap, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : 'rgba(239,68,68,0.1)' }]}>
+                                        <Ionicons name="alert-circle" size={18} color="#EF4444" />
                                     </View>
-                                    <View style={[styles.statusBadge, {
-                                        backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.08)',
-                                    }]}>
-                                        <Ionicons
-                                            name={result.tipoPersona === 'moral' ? 'business' : 'person'}
-                                            size={16}
-                                            color="#8B5CF6"
-                                        />
-                                        <Text style={[styles.statusText, { color: '#8B5CF6' }]}>
-                                            Persona {result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}
-                                        </Text>
-                                    </View>
+                                    <Text style={[styles.errorText, { color: isDark ? '#FCA5A5' : '#DC2626' }]}>{error}</Text>
                                 </View>
+                            )}
 
-                                {/* Main info card */}
-                                <View style={[styles.resultCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                                    <View style={styles.resultHeader}>
+                            {!result && !error && !isLoading && (
+                                <View style={styles.emptyState}>
+                                    <View style={[styles.emptyIconOuter, { backgroundColor: isDark ? 'rgba(92,118,178,0.06)' : 'rgba(92,118,178,0.05)' }]}>
                                         <LinearGradient
-                                            colors={result.tipoPersona === 'moral'
-                                                ? ['#8B5CF6', '#C4B5FD'] as [string, string]
-                                                : ['#5C76B2', '#97B1DE'] as [string, string]}
-                                            style={styles.resultAvatar}
+                                            colors={isDark ? ['rgba(92,118,178,0.15)', 'rgba(92,118,178,0.08)'] as [string, string] : ['rgba(92,118,178,0.12)', 'rgba(92,118,178,0.05)'] as [string, string]}
+                                            style={styles.emptyIconInner}
                                         >
+                                            <Ionicons name="document-text-outline" size={28} color={isDark ? '#97B1DE' : '#5C76B2'} />
+                                        </LinearGradient>
+                                    </View>
+                                    <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+                                        Consulta datos del SAT
+                                    </Text>
+                                    <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+                                        Ingresa un RFC para obtener razon social, CURP, regimen fiscal, codigo postal y mas.
+                                    </Text>
+                                </View>
+                            )}
+
+                            {result && (
+                                <View style={styles.resultContainer}>
+                                    {/* Status badges */}
+                                    <View style={styles.badgesRow}>
+                                        <View style={[
+                                            styles.statusBadge,
+                                            {
+                                                backgroundColor: result.valido
+                                                    ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
+                                                    : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
+                                                borderColor: result.valido
+                                                    ? (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)')
+                                                    : (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)'),
+                                            },
+                                        ]}>
+                                            <Ionicons
+                                                name={result.valido ? 'checkmark-circle' : 'close-circle'}
+                                                size={15}
+                                                color={result.valido ? '#10B981' : '#EF4444'}
+                                            />
+                                            <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
+                                                RFC {result.valido ? 'Valido' : 'No valido'}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.statusBadge, {
+                                            backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.08)',
+                                            borderColor: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)',
+                                        }]}>
                                             <Ionicons
                                                 name={result.tipoPersona === 'moral' ? 'business' : 'person'}
-                                                size={22}
-                                                color="#FFFFFF"
+                                                size={15}
+                                                color="#8B5CF6"
                                             />
-                                        </LinearGradient>
-                                        <View style={styles.resultHeaderInfo}>
-                                            <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={2}>
-                                                {result.razonSocial}
-                                            </Text>
-                                            <Text style={[styles.resultRfc, { color: colors.primary }]} selectable>
-                                                {result.rfc}
+                                            <Text style={[styles.statusText, { color: '#8B5CF6' }]}>
+                                                Persona {result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}
                                             </Text>
                                         </View>
                                     </View>
-                                </View>
 
-                                {/* Datos Fiscales */}
-                                {(result.regimenFiscal || result.codigoPostal || result.entidadFederativa || result.validoHasta || result.emailContacto) && (
-                                    <>
-                                        <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>DATOS FISCALES</Text>
-                                        <View style={styles.fieldsGrid}>
-                                            {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
-                                            {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
-                                            {renderField('Entidad Federativa', result.entidadFederativa, 'map-outline')}
-                                            {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
-                                            {renderField('Email de Contacto', result.emailContacto, 'mail-outline')}
-                                        </View>
-                                    </>
-                                )}
-
-                                {/* Representante Legal / Persona */}
-                                {(() => {
-                                    const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null;
-                                    const curpVal = result.curpRepresentante || result.curp;
-                                    const hasPersonData = !!(nombre || result.rfcRepresentante || curpVal || result.fechaNacimiento || result.sexo || result.entidadNacimiento || result.nss);
-                                    if (!hasPersonData) return null;
-                                    return (
-                                        <>
-                                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>
-                                                {result.tipoPersona === 'moral' ? 'REPRESENTANTE LEGAL' : 'DATOS PERSONALES'}
-                                            </Text>
-                                            <View style={styles.fieldsGrid}>
-                                                {renderField(
-                                                    result.tipoPersona === 'moral' ? 'Nombre del Representante' : 'Nombre completo',
-                                                    nombre,
-                                                    'person-outline'
-                                                )}
-                                                {result.tipoPersona === 'moral' && renderField('RFC del Representante', result.rfcRepresentante, 'document-text-outline')}
-                                                {renderField(
-                                                    result.tipoPersona === 'moral' ? 'CURP del Representante' : 'CURP',
-                                                    curpVal,
-                                                    'card-outline'
-                                                )}
-                                                {renderField('Fecha de Nacimiento', result.fechaNacimiento, 'calendar-outline')}
-                                                {renderField('Sexo', result.sexo, 'people-outline')}
-                                                {renderField('Entidad de Nacimiento', result.entidadNacimiento, 'flag-outline')}
-                                                {renderField('NSS', result.nss, 'shield-outline')}
+                                    {/* Main info card */}
+                                    <View style={[styles.resultCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                                        <View style={styles.resultHeader}>
+                                            <LinearGradient
+                                                colors={result.tipoPersona === 'moral'
+                                                    ? ['#7C3AED', '#A78BFA'] as [string, string]
+                                                    : ['#4A63A0', '#7A93C8'] as [string, string]}
+                                                style={styles.resultAvatar}
+                                            >
+                                                <Ionicons
+                                                    name={result.tipoPersona === 'moral' ? 'business' : 'person'}
+                                                    size={20}
+                                                    color="#FFFFFF"
+                                                />
+                                            </LinearGradient>
+                                            <View style={styles.resultHeaderInfo}>
+                                                <Text style={[styles.resultName, { color: colors.textPrimary }]} numberOfLines={2}>
+                                                    {result.razonSocial}
+                                                </Text>
+                                                <View style={styles.rfcRow}>
+                                                    <Text style={[styles.resultRfc, { color: isDark ? '#97B1DE' : '#4A63A0' }]} selectable>
+                                                        {result.rfc}
+                                                    </Text>
+                                                </View>
                                             </View>
-                                        </>
-                                    );
-                                })()}
+                                        </View>
+                                    </View>
 
-                                {/* Estado 69 / 69-B - solo mostrar si hay datos */}
-                                {result.estado69 && (() => {
-                                    const e = result.estado69!;
-                                    const hasProblem = e.conProblema;
-                                    const color = hasProblem ? '#EF4444' : '#10B981';
-                                    return (
-                                        <>
-                                            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>SITUACION FISCAL</Text>
-                                            <View style={styles.fieldsGrid}>
-                                                <View style={[styles.field, {
-                                                    backgroundColor: hasProblem
-                                                        ? (isDark ? 'rgba(239,68,68,0.1)' : 'rgba(239,68,68,0.06)')
-                                                        : (isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.06)'),
-                                                }]}>
-                                                    <View style={[styles.fieldIcon, {
-                                                        backgroundColor: hasProblem ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
-                                                    }]}>
-                                                        <Ionicons
-                                                            name={hasProblem ? 'warning' : 'checkmark-circle'}
-                                                            size={16}
-                                                            color={color}
-                                                        />
+                                    {/* ✓ DATOS FISCALES */}
+                                    <View style={styles.sectionHeaderRow}>
+                                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                        <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0, marginBottom: 0 }]}>DATOS FISCALES</Text>
+                                    </View>
+                                    <View style={styles.fieldsGrid}>
+                                        {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
+                                        {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
+                                        {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
+                                        {renderField('Entidad', result.entidadFederativa, 'map-outline')}
+                                    </View>
+
+                                    {/* ✓ REPRESENTANTE LEGAL */}
+                                    {(() => {
+                                        const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || null;
+                                        const curpVal = result.curpRepresentante || result.curp;
+                                        const rfcVal = result.rfcRepresentante || result.rfc;
+                                        return (
+                                            <>
+                                                <View style={styles.sectionHeaderRow}>
+                                                    <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                                    <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0, marginBottom: 0 }]}>REPRESENTANTE LEGAL</Text>
+                                                </View>
+                                                <View style={styles.fieldsGrid}>
+                                                    {renderField('Nombre completo', nombre, 'person-outline')}
+                                                    {renderField('RFC', rfcVal, 'document-text-outline')}
+                                                    {renderField('CURP', curpVal, 'card-outline')}
+                                                    {renderField('NSS', result.nss, 'shield-outline')}
+                                                    {renderField('Fecha de nacimiento', result.fechaNacimiento, 'calendar-outline')}
+                                                    {renderField('Email de contacto', result.emailContacto, 'mail-outline')}
+                                                </View>
+                                            </>
+                                        );
+                                    })()}
+
+                                    {/* ✓ SITUACION FISCAL */}
+                                    <View style={styles.sectionHeaderRow}>
+                                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                        <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0, marginBottom: 0 }]}>SITUACION FISCAL</Text>
+                                    </View>
+                                    <View style={styles.fieldsGrid}>
+                                        {result.estado69 && (() => {
+                                            const e = result.estado69!;
+                                            return (
+                                                <>
+                                                    {/* Oficios Art. 69 */}
+                                                    {e.problemas.length > 0 ? e.problemas.map((p, i) => (
+                                                        <View key={i} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.03)' }]}>
+                                                            <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                                <Ionicons name="alert-circle" size={15} color="#EF4444" />
+                                                            </View>
+                                                            <View style={styles.fieldContent}>
+                                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIO ART. 69 - {p.descripcion}</Text>
+                                                                <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                                    Publicado: {p.fechaPublicacion?.split('T')[0] || 'N/A'}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    )) : (
+                                                        <View style={[styles.field, { backgroundColor: isDark ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.03)' }]}>
+                                                            <View style={[styles.fieldIcon, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
+                                                                <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+                                                            </View>
+                                                            <View style={styles.fieldContent}>
+                                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIOS ART. 69</Text>
+                                                                <Text style={[styles.fieldValue, { color: '#10B981' }]}>Sin oficios</Text>
+                                                            </View>
+                                                        </View>
+                                                    )}
+
+                                                    {/* Oficios Art. 69B */}
+                                                    {e.oficiosEFOS.length > 0 ? e.oficiosEFOS.map((o, i) => (
+                                                        <View key={`efos-${i}`} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.03)' }]}>
+                                                            <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
+                                                                <Ionicons name="document-text" size={15} color="#EF4444" />
+                                                            </View>
+                                                            <View style={styles.fieldContent}>
+                                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIO ART. 69B - {o.tipo}</Text>
+                                                                <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
+                                                                    Oficio: {o.oficioID}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                    )) : (
+                                                        <View style={[styles.field, { backgroundColor: isDark ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.03)' }]}>
+                                                            <View style={[styles.fieldIcon, { backgroundColor: 'rgba(16,185,129,0.12)' }]}>
+                                                                <Ionicons name="checkmark-circle" size={15} color="#10B981" />
+                                                            </View>
+                                                            <View style={styles.fieldContent}>
+                                                                <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIOS ART. 69B</Text>
+                                                                <Text style={[styles.fieldValue, { color: '#10B981' }]}>Sin oficios</Text>
+                                                            </View>
+                                                        </View>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+
+                                        {!result.estado69 && (
+                                            <>
+                                                <View style={[styles.field, { backgroundColor: fieldBg }]}>
+                                                    <View style={[styles.fieldIcon, { backgroundColor: isDark ? 'rgba(92,118,178,0.15)' : 'rgba(92,118,178,0.1)' }]}>
+                                                        <Ionicons name="help-circle-outline" size={15} color={isDark ? '#97B1DE' : '#5C76B2'} />
                                                     </View>
                                                     <View style={styles.fieldContent}>
-                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>LISTA 69 / 69-B (SAT)</Text>
-                                                        <Text style={[styles.fieldValue, { color, fontWeight: '700' }]}>
-                                                            {hasProblem ? 'CON PROBLEMA FISCAL' : 'Sin problemas fiscales'}
-                                                        </Text>
+                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIOS ART. 69</Text>
+                                                        <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>Sin informacion</Text>
                                                     </View>
                                                 </View>
-                                                {e.situacion && renderField('Situacion', e.situacion, 'information-circle-outline')}
-                                                {e.problemas.length > 0 && e.problemas.map((p, i) => (
-                                                    <View key={i} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
-                                                        <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                                                            <Ionicons name="alert-circle" size={16} color="#EF4444" />
-                                                        </View>
-                                                        <View style={styles.fieldContent}>
-                                                            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>ART. 69 - {p.descripcion}</Text>
-                                                            <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
-                                                                Publicado: {p.fechaPublicacion?.split('T')[0] || 'N/A'}
-                                                            </Text>
-                                                        </View>
+                                                <View style={[styles.field, { backgroundColor: fieldBg }]}>
+                                                    <View style={[styles.fieldIcon, { backgroundColor: isDark ? 'rgba(92,118,178,0.15)' : 'rgba(92,118,178,0.1)' }]}>
+                                                        <Ionicons name="help-circle-outline" size={15} color={isDark ? '#97B1DE' : '#5C76B2'} />
                                                     </View>
-                                                ))}
-                                                {e.oficiosEFOS.length > 0 && e.oficiosEFOS.map((o, i) => (
-                                                    <View key={`efos-${i}`} style={[styles.field, { backgroundColor: isDark ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.04)' }]}>
-                                                        <View style={[styles.fieldIcon, { backgroundColor: 'rgba(239,68,68,0.12)' }]}>
-                                                            <Ionicons name="document-text" size={16} color="#EF4444" />
-                                                        </View>
-                                                        <View style={styles.fieldContent}>
-                                                            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>EFOS - {o.tipo}</Text>
-                                                            <Text style={[styles.fieldValue, { color: '#EF4444' }]}>
-                                                                Oficio: {o.oficioID}
-                                                            </Text>
-                                                        </View>
+                                                    <View style={styles.fieldContent}>
+                                                        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>OFICIOS ART. 69B</Text>
+                                                        <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>Sin informacion</Text>
                                                     </View>
-                                                ))}
-                                            </View>
-                                        </>
-                                    );
-                                })()}
+                                                </View>
+                                            </>
+                                        )}
 
-                                {/* Boton Siguiente */}
-                                <TouchableOpacity onPress={handleSiguiente} style={styles.siguienteBtn}>
-                                    <LinearGradient
-                                        colors={['#5C76B2', '#7A93C8'] as [string, string]}
-                                        style={styles.siguienteBtnGradient}
-                                    >
-                                        <Text style={styles.siguienteBtnText}>Siguiente</Text>
-                                        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {/* Form Step */}
-                        {step === 'form' && (
-                            <View style={styles.resultContainer}>
-                                <TouchableOpacity
-                                    onPress={() => setStep('search')}
-                                    style={styles.volverBtn}
-                                >
-                                    <Ionicons name="arrow-back" size={16} color={colors.primary} />
-                                    <Text style={[styles.volverText, { color: colors.primary }]}>Volver a resultados</Text>
-                                </TouchableOpacity>
-
-                                <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0 }]}>EDITAR DATOS</Text>
-
-                                <View style={styles.fieldsGrid}>
-                                    {Object.entries(formData).map(([key, val]) => (
-                                        <View key={key} style={[styles.formField, {
+                                        {/* Comentarios - editable */}
+                                        <View style={[styles.formField, {
                                             backgroundColor: fieldBg,
-                                            borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                                            borderColor: cardBorder,
                                         }]}>
-                                            <Text style={[styles.formFieldLabel, { color: colors.textMuted }]}>{key}</Text>
+                                            <View style={styles.formFieldLabelRow}>
+                                                <Ionicons name="chatbubble-outline" size={13} color={colors.textMuted} />
+                                                <Text style={[styles.formFieldLabel, { color: colors.textMuted, marginBottom: 0 }]}>Comentarios</Text>
+                                            </View>
                                             <TextInput
-                                                style={[styles.formFieldInput, { color: colors.textPrimary }]}
-                                                value={val}
-                                                onChangeText={(t) => setFormData(prev => ({ ...prev, [key]: t }))}
+                                                style={[styles.formFieldInput, { color: colors.textPrimary, minHeight: 60, textAlignVertical: 'top' }]}
+                                                value={comentarios}
+                                                onChangeText={setComentarios}
+                                                placeholder="Proceso de revision profunda"
+                                                placeholderTextColor={colors.textMuted}
+                                                multiline
                                             />
                                         </View>
-                                    ))}
+                                    </View>
 
-                                    {/* Campo celular */}
+                                    {/* Celular + WhatsApp */}
                                     <View style={[styles.formField, {
-                                        backgroundColor: isDark ? 'rgba(92,118,178,0.08)' : 'rgba(92,118,178,0.05)',
-                                        borderColor: colors.primary,
+                                        backgroundColor: isDark ? 'rgba(92,118,178,0.08)' : 'rgba(92,118,178,0.04)',
+                                        borderColor: isDark ? '#5C76B2' : '#4A63A0',
                                         borderWidth: 1.5,
+                                        marginTop: 6,
                                     }]}>
                                         <View style={styles.formFieldLabelRow}>
-                                            <Ionicons name="call-outline" size={14} color={colors.primary} />
-                                            <Text style={[styles.formFieldLabel, { color: colors.primary, marginBottom: 0 }]}>Numero de Celular</Text>
+                                            <Ionicons name="call-outline" size={13} color={isDark ? '#97B1DE' : '#4A63A0'} />
+                                            <Text style={[styles.formFieldLabel, { color: isDark ? '#97B1DE' : '#4A63A0', marginBottom: 0 }]}>Numero de Celular</Text>
                                         </View>
                                         <TextInput
                                             style={[styles.formFieldInput, { color: colors.textPrimary }]}
@@ -544,41 +606,46 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                             maxLength={10}
                                         />
                                     </View>
-                                    {/* Campo comentarios */}
-                                    <View style={[styles.formField, {
-                                        backgroundColor: fieldBg,
-                                        borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                                    }]}>
-                                        <View style={styles.formFieldLabelRow}>
-                                            <Ionicons name="chatbubble-outline" size={14} color={colors.textMuted} />
-                                            <Text style={[styles.formFieldLabel, { color: colors.textMuted, marginBottom: 0 }]}>Comentarios</Text>
+
+                                    {/* WhatsApp button */}
+                                    <TouchableOpacity onPress={handleShareWhatsApp} activeOpacity={0.8} style={styles.whatsappBtn}>
+                                        <LinearGradient
+                                            colors={['#1EBE55', '#149B47'] as [string, string]}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={styles.whatsappBtnGradient}
+                                        >
+                                            <Ionicons name="logo-whatsapp" size={19} color="#FFFFFF" />
+                                            <Text style={styles.whatsappBtnText}>Compartir por WhatsApp</Text>
+                                        </LinearGradient>
+                                    </TouchableOpacity>
+
+                                    {/* App download links */}
+                                    <View style={styles.downloadLinksContainer}>
+                                        <Text style={[styles.downloadTitle, { color: colors.textMuted }]}>Descarga la app Yakoob</Text>
+                                        <View style={styles.downloadLinksRow}>
+                                            <TouchableOpacity
+                                                onPress={() => Linking.openURL('https://apps.apple.com/mx/app/yakoob/id6758861392')}
+                                                style={[styles.downloadLink, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: cardBorder }]}
+                                            >
+                                                <Ionicons name="logo-apple" size={18} color={colors.textPrimary} />
+                                                <Text style={[styles.downloadLinkText, { color: colors.textPrimary }]}>App Store</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.yakoob.app')}
+                                                style={[styles.downloadLink, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: cardBorder }]}
+                                            >
+                                                <Ionicons name="logo-google-playstore" size={18} color={colors.textPrimary} />
+                                                <Text style={[styles.downloadLinkText, { color: colors.textPrimary }]}>Play Store</Text>
+                                            </TouchableOpacity>
                                         </View>
-                                        <TextInput
-                                            style={[styles.formFieldInput, { color: colors.textPrimary, minHeight: 60, textAlignVertical: 'top' }]}
-                                            value={comentarios}
-                                            onChangeText={setComentarios}
-                                            placeholder="Proceso de revision profunda"
-                                            placeholderTextColor={colors.textMuted}
-                                            multiline
-                                        />
                                     </View>
                                 </View>
-
-                                {/* WhatsApp button */}
-                                <TouchableOpacity onPress={handleShareWhatsApp} style={styles.whatsappBtn}>
-                                    <LinearGradient
-                                        colors={['#25D366', '#128C7E'] as [string, string]}
-                                        style={styles.whatsappBtnGradient}
-                                    >
-                                        <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
-                                        <Text style={styles.whatsappBtnText}>Compartir por WhatsApp</Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </ScrollView>
-                </View>
-            </View>
+                            )}
+                        </ScrollView>
+                    </Animated.View>
+                </KeyboardAvoidingView>
+            </Animated.View>
         </Modal>
     );
 };
@@ -586,112 +653,123 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'flex-end',
+    },
+    overlayTouch: {
+        flex: 1,
+    },
+    keyboardView: {
+        justifyContent: 'flex-end',
     },
     modal: {
         width: '100%',
-        maxWidth: 520,
-        maxHeight: '85%',
-        borderRadius: 18,
-        borderWidth: 1,
+        height: '92%',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
         overflow: 'hidden',
         ...(Platform.OS === 'web' ? {
             // @ts-ignore
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-        } : {}),
+            boxShadow: '0 -8px 40px rgba(0,0,0,0.2)',
+        } : {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 20,
+            elevation: 12,
+        }),
     },
     modalMobile: {
-        maxWidth: '100%',
-        maxHeight: '90%',
+        height: '94%',
+    },
+    dragHandleContainer: {
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 2,
+    },
+    dragHandle: {
+        width: 36,
+        height: 4,
+        borderRadius: 2,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingVertical: 16,
+        paddingTop: 14,
+        paddingBottom: 14,
+        borderBottomWidth: 1,
     },
     headerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        flex: 1,
     },
     headerIconBg: {
         width: 36,
         height: 36,
         borderRadius: 10,
-        backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     headerTitle: {
-        color: '#FFFFFF',
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '700',
+        letterSpacing: -0.3,
     },
     headerSubtitle: {
-        color: 'rgba(255,255,255,0.65)',
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '500',
+        marginTop: 1,
     },
     closeBtn: {
         width: 32,
         height: 32,
-        borderRadius: 8,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
     },
     searchSection: {
         paddingHorizontal: 20,
-        paddingTop: 18,
-        paddingBottom: 14,
-    },
-    searchRow: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    searchRowMobile: {
-        flexDirection: 'column',
+        paddingVertical: 16,
+        gap: 12,
     },
     inputContainer: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        borderRadius: 12,
-        borderWidth: 1,
+        paddingHorizontal: 12,
+        height: 48,
+        borderRadius: 14,
         gap: 10,
+    },
+    inputIconWrap: {
+        width: 30,
+        height: 30,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     input: {
         flex: 1,
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
-        letterSpacing: 0.5,
+        letterSpacing: 0.8,
         padding: 0,
-    },
-    searchBtn: {
-        borderRadius: 12,
-        overflow: 'hidden',
     },
     searchBtnGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
+        gap: 7,
+        height: 46,
+        borderRadius: 13,
         paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 12,
     },
     searchBtnText: {
         color: '#FFFFFF',
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '700',
     },
     body: {
@@ -699,43 +777,60 @@ const styles = StyleSheet.create({
     },
     bodyContent: {
         padding: 20,
-        paddingTop: 6,
+        paddingTop: 10,
+        paddingBottom: 40,
     },
     errorBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         padding: 14,
-        borderRadius: 12,
+        borderRadius: 14,
+    },
+    errorIconWrap: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     errorText: {
         flex: 1,
         fontSize: 13,
         fontWeight: '500',
+        lineHeight: 18,
     },
     emptyState: {
         alignItems: 'center',
-        paddingTop: 30,
-        paddingHorizontal: 20,
+        paddingTop: 36,
+        paddingHorizontal: 24,
     },
-    emptyIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 18,
+    emptyIconOuter: {
+        width: 80,
+        height: 80,
+        borderRadius: 24,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: 20,
+    },
+    emptyIconInner: {
+        width: 56,
+        height: 56,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     emptyTitle: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: '700',
-        marginBottom: 6,
+        marginBottom: 8,
+        letterSpacing: -0.2,
     },
     emptySubtitle: {
-        fontSize: 13,
+        fontSize: 14,
         textAlign: 'center',
-        fontWeight: '500',
-        lineHeight: 19,
+        fontWeight: '400',
+        lineHeight: 20,
     },
     resultContainer: {
         gap: 14,
@@ -750,15 +845,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         paddingHorizontal: 12,
-        paddingVertical: 6,
+        paddingVertical: 7,
         borderRadius: 20,
+        borderWidth: 1,
     },
     statusText: {
         fontSize: 12,
         fontWeight: '700',
     },
     resultCard: {
-        borderRadius: 14,
+        borderRadius: 16,
         borderWidth: 1,
         padding: 18,
     },
@@ -768,16 +864,11 @@ const styles = StyleSheet.create({
         gap: 14,
     },
     resultAvatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: 46,
+        height: 46,
+        borderRadius: 13,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    resultAvatarText: {
-        color: '#FFFFFF',
-        fontSize: 20,
-        fontWeight: '800',
     },
     resultHeaderInfo: {
         flex: 1,
@@ -785,38 +876,43 @@ const styles = StyleSheet.create({
     resultName: {
         fontSize: 16,
         fontWeight: '700',
-        lineHeight: 22,
+        lineHeight: 21,
+        letterSpacing: -0.2,
+    },
+    rfcRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 3,
     },
     resultRfc: {
         fontSize: 13,
         fontWeight: '600',
-        marginTop: 2,
         letterSpacing: 0.5,
     },
     sectionTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 1,
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.2,
         marginTop: 6,
         marginBottom: -4,
     },
     fieldsGrid: {
-        gap: 8,
+        gap: 6,
     },
     field: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        padding: 14,
-        borderRadius: 12,
+        padding: 13,
+        borderRadius: 13,
     },
     fieldIcon: {
-        width: 32,
-        height: 32,
+        width: 30,
+        height: 30,
         borderRadius: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(92,118,178,0.1)',
     },
     fieldContent: {
         flex: 1,
@@ -832,36 +928,40 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
     },
-    siguienteBtn: {
-        marginTop: 8,
-        borderRadius: 12,
-        overflow: 'hidden',
-    },
-    siguienteBtnGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 14,
-        borderRadius: 12,
-    },
-    siguienteBtnText: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '700',
-    },
-    volverBtn: {
+    sectionHeaderRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        marginBottom: 8,
+        marginTop: 6,
     },
-    volverText: {
+    downloadLinksContainer: {
+        alignItems: 'center',
+        marginTop: 8,
+        gap: 10,
+    },
+    downloadTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    downloadLinksRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    downloadLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    downloadLinkText: {
         fontSize: 13,
         fontWeight: '600',
     },
     formField: {
-        borderRadius: 12,
+        borderRadius: 13,
         borderWidth: 1,
         padding: 12,
     },
@@ -885,7 +985,7 @@ const styles = StyleSheet.create({
     },
     whatsappBtn: {
         marginTop: 8,
-        borderRadius: 12,
+        borderRadius: 14,
         overflow: 'hidden',
     },
     whatsappBtnGradient: {
@@ -893,8 +993,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        paddingVertical: 14,
-        borderRadius: 12,
+        height: 50,
+        borderRadius: 14,
     },
     whatsappBtnText: {
         color: '#FFFFFF',

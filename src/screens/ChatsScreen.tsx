@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { api, Chat, User, ChatLabel, UnclaimedUserInfo } from '../api';
 import { RootStackParamList } from '../types';
+import { RfcSearchModal } from '../components/dashboard/RfcSearchModal';
 
 type ChatsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Main'>;
 
@@ -307,6 +308,7 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
     const [showNewLabelForm, setShowNewLabelForm] = useState(false);
     const [newLabelName, setNewLabelName] = useState('');
     const [newLabelColor, setNewLabelColor] = useState('#6B7AED');
+    const [rfcSearchVisible, setRfcSearchVisible] = useState(false);
     const [isCreatingLabel, setIsCreatingLabel] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterLabels, setFilterLabels] = useState<string[]>([]);
@@ -932,20 +934,34 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                 {/* Search Bar - Solo consultores */}
                 {isConsultor && isSearching && (
                     <View style={styles.searchContainer}>
-                        <View style={[styles.searchInputContainer, { backgroundColor: colors.surface }]}>
-                            <Ionicons name="search" size={20} color={colors.textMuted} />
-                            <TextInput
-                                style={[styles.searchInput, { color: colors.textPrimary }]}
-                                placeholder="Buscar conversaciones..."
-                                placeholderTextColor={colors.textMuted}
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                    <Ionicons name="close-circle" size={20} color={colors.textMuted} />
-                                </TouchableOpacity>
-                            )}
+                        <View style={styles.searchRow}>
+                            <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, flex: 1 }]}>
+                                <Ionicons name="search" size={20} color={colors.textMuted} />
+                                <TextInput
+                                    style={[styles.searchInput, { color: colors.textPrimary }]}
+                                    placeholder="Buscar conversaciones..."
+                                    placeholderTextColor={colors.textMuted}
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
+                                />
+                                {searchQuery.length > 0 && (
+                                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                        <Ionicons name="close-circle" size={20} color={colors.textMuted} />
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setRfcSearchVisible(true)}
+                                activeOpacity={0.7}
+                            >
+                                <LinearGradient
+                                    colors={['#5C76B2', '#7A93C8'] as [string, string]}
+                                    style={styles.rfcSearchBtnGradient}
+                                >
+                                    <Ionicons name="search" size={14} color="#FFFFFF" />
+                                    <Text style={styles.rfcSearchBtnText}>Buscar RFC</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 )}
@@ -1368,6 +1384,12 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                     </Animated.View>
                 </Pressable>
             </Modal>
+
+            {/* RFC Search Modal */}
+            <RfcSearchModal
+                visible={rfcSearchVisible}
+                onClose={() => setRfcSearchVisible(false)}
+            />
         </View>
     );
 };
@@ -1407,6 +1429,24 @@ const styles = StyleSheet.create({
     },
     searchContainer: {
         marginTop: 16,
+    },
+    searchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    rfcSearchBtnGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        height: 44,
+        borderRadius: 12,
+    },
+    rfcSearchBtnText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '600',
     },
     searchInputContainer: {
         flexDirection: 'row',
