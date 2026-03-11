@@ -207,7 +207,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
         if (comentarios) msg += `\n*Comentarios:* ${comentarios}\n`;
         msg += '\n---\n';
-        msg += 'Descarga la app Yakoob:\n';
+        msg += 'Descarga la app Yaakob:\n';
         msg += 'iOS: https://apps.apple.com/mx/app/yakoob/id6758861392\n';
         msg += 'Android: https://play.google.com/store/apps/details?id=com.yakoob.app';
 
@@ -622,7 +622,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                                     {/* App download links */}
                                     <View style={styles.downloadLinksContainer}>
-                                        <Text style={[styles.downloadTitle, { color: colors.textMuted }]}>Descarga la app Yakoob</Text>
+                                        <Text style={[styles.downloadTitle, { color: colors.textMuted }]}>Descarga la app Yaakob</Text>
                                         <View style={styles.downloadLinksRow}>
                                             <TouchableOpacity
                                                 onPress={() => Linking.openURL('https://apps.apple.com/mx/app/yakoob/id6758861392')}

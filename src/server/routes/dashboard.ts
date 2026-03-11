@@ -174,7 +174,7 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'terminoBusqueda es requerido' });
         }
 
-        const CHECKID_API_KEY = 'ewXxGI3XHrCJn41umWcaCGQLXTFn/sbk/EMeptuIuCI=';
+        const CHECKID_API_KEY = 'htQ6wNqfy33zIcYfVin6DXT54b0lg2ITR+lk5F3oGcU=';
         const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
 
         const controller = new AbortController();

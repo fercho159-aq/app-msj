@@ -924,7 +924,7 @@ class ApiClient {
     // ==================== CHECKID API (direct - mobile only) ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {
-        const CHECKID_API_KEY = 'ewXxGI3XHrCJn41umWcaCGQLXTFn/sbk/EMeptuIuCI=';
+        const CHECKID_API_KEY = 'htQ6wNqfy33zIcYfVin6DXT54b0lg2ITR+lk5F3oGcU=';
         const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
 
         try {
