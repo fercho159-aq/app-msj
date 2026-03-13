@@ -152,6 +152,45 @@ router.post('/ai-chat', async (req: Request, res: Response) => {
     }
 });
 
+// Funcion auxiliar para llamar a CheckID API
+async function fetchCheckIdData(rfcNorm: string) {
+    const CHECKID_API_KEY = 'htQ6wNqfy33zIcYfVin6DXT54b0lg2ITR+lk5F3oGcU=';
+    const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const [checkIdResponse, syntageResult] = await Promise.all([
+        (async () => {
+            const resp = await fetch(CHECKID_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ApiKey: CHECKID_API_KEY,
+                    TerminoBusqueda: rfcNorm,
+                    ObtenerRFC: true,
+                    ObtenerCURP: true,
+                    ObtenerCP: true,
+                    ObtenerRegimenFiscal: true,
+                    ObtenerNSS: true,
+                    Obtener69o69B: true,
+                }),
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            return resp.json();
+        })(),
+        consultarDatosFiscales(rfcNorm).catch(() => null),
+    ]);
+
+    const tipoPersona = rfcNorm.length === 12 ? 'moral' : 'fisica';
+    const checkIdObj = checkIdResponse as Record<string, any>;
+    checkIdObj.tipoPersona = tipoPersona;
+    checkIdObj.entidadFederativa = syntageResult?.data?.estado || null;
+
+    return checkIdObj;
+}
+
 // POST /api/dashboard/search-rfc
 router.post('/search-rfc', async (req: Request, res: Response) => {
     try {
@@ -174,45 +213,81 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'terminoBusqueda es requerido' });
         }
 
-        const CHECKID_API_KEY = 'htQ6wNqfy33zIcYfVin6DXT54b0lg2ITR+lk5F3oGcU=';
-        const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        // Call CheckID and Syntage in parallel
         const rfcNorm = terminoBusqueda.toUpperCase().trim();
 
-        const [checkIdResponse, syntageResult] = await Promise.all([
-            (async () => {
-                const resp = await fetch(CHECKID_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ApiKey: CHECKID_API_KEY,
-                        TerminoBusqueda: rfcNorm,
-                        ObtenerRFC: true,
-                        ObtenerCURP: true,
-                        ObtenerCP: true,
-                        ObtenerRegimenFiscal: true,
-                        ObtenerNSS: true,
-                        Obtener69o69B: true,
-                    }),
-                    signal: controller.signal,
-                });
-                clearTimeout(timeoutId);
-                return resp.json();
-            })(),
-            consultarDatosFiscales(rfcNorm).catch(() => null),
-        ]);
+        // 1. Buscar en cache
+        const cached = await queryOne<{
+            response_data: any;
+            consulted_at: string;
+        }>(
+            `SELECT response_data, consulted_at FROM checkid_cache WHERE rfc = $1`,
+            [rfcNorm]
+        );
 
-        // Merge Syntage data into response
-        const tipoPersona = rfcNorm.length === 12 ? 'moral' : 'fisica';
-        const checkIdObj = checkIdResponse as Record<string, any>;
-        checkIdObj.tipoPersona = tipoPersona;
-        checkIdObj.entidadFederativa = syntageResult?.data?.estado || null;
+        if (cached) {
+            const consultedAt = new Date(cached.consulted_at);
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-        res.json(checkIdObj);
+            // 2. Si tiene menos de 3 meses, devolver cache
+            if (consultedAt > threeMonthsAgo) {
+                console.log(`📦 Cache hit para RFC ${rfcNorm} (consultado: ${consultedAt.toISOString()})`);
+                return res.json(cached.response_data);
+            }
+
+            // 3. Si tiene mas de 3 meses, consultar API y actualizar
+            console.log(`🔄 Cache expirado para RFC ${rfcNorm}, actualizando...`);
+            const freshData = await fetchCheckIdData(rfcNorm);
+
+            if (freshData.exitoso) {
+                await query(
+                    `UPDATE checkid_cache SET
+                        response_data = $1,
+                        razon_social = $2,
+                        tipo_persona = $3,
+                        entidad_federativa = $4,
+                        consulted_at = NOW()
+                    WHERE rfc = $5`,
+                    [
+                        JSON.stringify(freshData),
+                        freshData.resultado?.rfc?.razonSocial || null,
+                        freshData.tipoPersona || 'fisica',
+                        freshData.entidadFederativa || null,
+                        rfcNorm,
+                    ]
+                );
+                console.log(`✅ Cache actualizado para RFC ${rfcNorm}`);
+            }
+
+            return res.json(freshData);
+        }
+
+        // 4. No existe en cache, consultar API y guardar
+        console.log(`🌐 RFC ${rfcNorm} no encontrado en cache, consultando API...`);
+        const data = await fetchCheckIdData(rfcNorm);
+
+        if (data.exitoso) {
+            await query(
+                `INSERT INTO checkid_cache (rfc, tipo_persona, razon_social, response_data, entidad_federativa)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (rfc) DO UPDATE SET
+                    response_data = $4,
+                    razon_social = $3,
+                    tipo_persona = $2,
+                    entidad_federativa = $5,
+                    consulted_at = NOW()`,
+                [
+                    rfcNorm,
+                    data.tipoPersona || 'fisica',
+                    data.resultado?.rfc?.razonSocial || null,
+                    JSON.stringify(data),
+                    data.entidadFederativa || null,
+                ]
+            );
+            console.log(`💾 RFC ${rfcNorm} guardado en cache`);
+        }
+
+        res.json(data);
     } catch (error: any) {
         console.error('Error en search-rfc:', error);
         if (error.name === 'AbortError') {

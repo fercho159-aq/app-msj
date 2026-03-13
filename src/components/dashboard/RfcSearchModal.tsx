@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
     ActivityIndicator, StyleSheet, Modal, Platform, useWindowDimensions, Linking,
-    Animated, KeyboardAvoidingView,
+    Animated, Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,6 +27,7 @@ interface ResultData {
     razonSocial: string;
     valido: boolean;
     tipoPersona: 'fisica' | 'moral';
+    situacion: string | null;
     validoHasta: string | null;
     rfcRepresentante: string | null;
     curpRepresentante: string | null;
@@ -59,6 +60,8 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const slideAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const inputRef = useRef<TextInput>(null);
+    const scrollViewRef = useRef<ScrollView>(null);
+    const focusedField = useRef<'celular' | 'comentarios' | null>(null);
 
     useEffect(() => {
         if (visible) {
@@ -82,6 +85,22 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
             fadeAnim.setValue(0);
         }
     }, [visible]);
+
+    useEffect(() => {
+        const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+        const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+        const showSub = Keyboard.addListener(showEvent, () => {
+            if (focusedField.current) {
+                setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 100);
+            }
+        });
+        const hideSub = Keyboard.addListener(hideEvent, () => {
+            focusedField.current = null;
+        });
+        return () => { showSub.remove(); hideSub.remove(); };
+    }, []);
 
     const handleAnimatedClose = () => {
         Animated.parallel([
@@ -130,6 +149,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                 razonSocial: r.rfc?.razonSocial || 'No disponible',
                 valido: r.rfc?.valido ?? false,
                 tipoPersona: data.tipoPersona || (term.length === 12 ? 'moral' : 'fisica'),
+                situacion: e69?.detalles?.situacionContribuyente || null,
                 validoHasta: r.rfc?.validoHastaText || r.rfc?.validoHasta || null,
                 rfcRepresentante: r.rfc?.rfcRepresentante || null,
                 curpRepresentante: r.rfc?.curpRepresentante || null,
@@ -246,14 +266,10 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     });
 
     return (
-        <Modal visible={visible} transparent animationType="none" onRequestClose={handleAnimatedClose}>
+        <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={handleAnimatedClose}>
             <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
                 <TouchableOpacity style={styles.overlayTouch} activeOpacity={1} onPress={handleAnimatedClose} />
 
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={styles.keyboardView}
-                >
                     <Animated.View style={[
                         styles.modal,
                         {
@@ -344,6 +360,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                         {/* Results */}
                         <ScrollView
+                            ref={scrollViewRef}
                             style={styles.body}
                             contentContainerStyle={styles.bodyContent}
                             showsVerticalScrollIndicator={false}
@@ -379,44 +396,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
 
                             {result && (
                                 <View style={styles.resultContainer}>
-                                    {/* Status badges */}
-                                    <View style={styles.badgesRow}>
-                                        <View style={[
-                                            styles.statusBadge,
-                                            {
-                                                backgroundColor: result.valido
-                                                    ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
-                                                    : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
-                                                borderColor: result.valido
-                                                    ? (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)')
-                                                    : (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)'),
-                                            },
-                                        ]}>
-                                            <Ionicons
-                                                name={result.valido ? 'checkmark-circle' : 'close-circle'}
-                                                size={15}
-                                                color={result.valido ? '#10B981' : '#EF4444'}
-                                            />
-                                            <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
-                                                RFC {result.valido ? 'Valido' : 'No valido'}
-                                            </Text>
-                                        </View>
-                                        <View style={[styles.statusBadge, {
-                                            backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.08)',
-                                            borderColor: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)',
-                                        }]}>
-                                            <Ionicons
-                                                name={result.tipoPersona === 'moral' ? 'business' : 'person'}
-                                                size={15}
-                                                color="#8B5CF6"
-                                            />
-                                            <Text style={[styles.statusText, { color: '#8B5CF6' }]}>
-                                                Persona {result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Main info card */}
+                                    {/* Main info card - Razón social + RFC primero */}
                                     <View style={[styles.resultCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
                                         <View style={styles.resultHeader}>
                                             <LinearGradient
@@ -441,6 +421,67 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                                     </Text>
                                                 </View>
                                             </View>
+                                        </View>
+                                    </View>
+
+                                    {/* Status badges debajo del nombre */}
+                                    <View style={styles.badgesRow}>
+                                        {/* Estado RFC */}
+                                        <View style={[
+                                            styles.statusBadge,
+                                            {
+                                                backgroundColor: result.valido
+                                                    ? (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)')
+                                                    : (isDark ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.08)'),
+                                                borderColor: result.valido
+                                                    ? (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)')
+                                                    : (isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.15)'),
+                                            },
+                                        ]}>
+                                            <Ionicons
+                                                name={result.valido ? 'checkmark-circle' : 'close-circle'}
+                                                size={15}
+                                                color={result.valido ? '#10B981' : '#EF4444'}
+                                            />
+                                            <Text style={[styles.statusText, { color: result.valido ? '#10B981' : '#EF4444' }]}>
+                                                RFC {result.valido ? 'Valido' : 'No valido'}
+                                            </Text>
+                                        </View>
+                                        {/* Situación */}
+                                        {result.situacion && (
+                                            <View style={[styles.statusBadge, {
+                                                backgroundColor: result.situacion.toLowerCase() === 'irregular'
+                                                    ? (isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.08)')
+                                                    : (isDark ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.08)'),
+                                                borderColor: result.situacion.toLowerCase() === 'irregular'
+                                                    ? (isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)')
+                                                    : (isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.15)'),
+                                            }]}>
+                                                <Ionicons
+                                                    name={result.situacion.toLowerCase() === 'irregular' ? 'warning' : 'checkmark-circle'}
+                                                    size={15}
+                                                    color={result.situacion.toLowerCase() === 'irregular' ? '#F59E0B' : '#10B981'}
+                                                />
+                                                <Text style={[styles.statusText, {
+                                                    color: result.situacion.toLowerCase() === 'irregular' ? '#F59E0B' : '#10B981',
+                                                }]}>
+                                                    {result.situacion}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        {/* Tipo de persona */}
+                                        <View style={[styles.statusBadge, {
+                                            backgroundColor: isDark ? 'rgba(139,92,246,0.12)' : 'rgba(139,92,246,0.08)',
+                                            borderColor: isDark ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.15)',
+                                        }]}>
+                                            <Ionicons
+                                                name={result.tipoPersona === 'moral' ? 'business' : 'person'}
+                                                size={15}
+                                                color="#8B5CF6"
+                                            />
+                                            <Text style={[styles.statusText, { color: '#8B5CF6' }]}>
+                                                Persona {result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}
+                                            </Text>
                                         </View>
                                     </View>
 
@@ -581,6 +622,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                                 placeholder="Proceso de revision profunda"
                                                 placeholderTextColor={colors.textMuted}
                                                 multiline
+                                                onFocus={() => { focusedField.current = 'comentarios'; }}
                                             />
                                         </View>
                                     </View>
@@ -604,6 +646,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType="phone-pad"
                                             maxLength={10}
+                                            onFocus={() => { focusedField.current = 'celular'; }}
                                         />
                                     </View>
 
@@ -644,7 +687,6 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                             )}
                         </ScrollView>
                     </Animated.View>
-                </KeyboardAvoidingView>
             </Animated.View>
         </Modal>
     );
@@ -778,7 +820,7 @@ const styles = StyleSheet.create({
     bodyContent: {
         padding: 20,
         paddingTop: 10,
-        paddingBottom: 40,
+        paddingBottom: 300,
     },
     errorBox: {
         flexDirection: 'row',

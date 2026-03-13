@@ -5,23 +5,27 @@ import Constants from 'expo-constants';
 
 // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
 // Para llamadas, mostrar alerta persistente; para mensajes, normal
-Notifications.setNotificationHandler({
-    handleNotification: async (notification) => {
-        const data = notification.request.content.data as NotificationData;
-        const isCall = data?.type === 'call' || data?.pendingCall === true;
+try {
+    Notifications.setNotificationHandler({
+        handleNotification: async (notification) => {
+            const data = notification.request.content.data as NotificationData;
+            const isCall = data?.type === 'call' || data?.pendingCall === true;
 
-        if (isCall) {
-            // Para llamadas: activar vibración continua
-            Vibration.vibrate([0, 500, 300, 500, 300, 500, 300, 500, 300, 500], true);
-        }
+            if (isCall) {
+                // Para llamadas: activar vibración continua
+                Vibration.vibrate([0, 500, 300, 500, 300, 500, 300, 500, 300, 500], true);
+            }
 
-        return {
-            shouldShowAlert: true,
-            shouldPlaySound: true,
-            shouldSetBadge: !isCall,
-        };
-    },
-});
+            return {
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: !isCall,
+            };
+        },
+    });
+} catch (e) {
+    console.warn('⚠️ expo-notifications no disponible:', e);
+}
 
 export interface NotificationData {
     type: 'message' | 'call' | 'missed_call';
