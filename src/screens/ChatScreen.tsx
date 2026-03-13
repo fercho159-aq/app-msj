@@ -1126,122 +1126,108 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                 />
             </View>
 
-            {/* Bottom sheet - acciones de mensaje */}
+            {/* WhatsApp-style context menu */}
             <Modal
                 visible={showMessageActions}
                 transparent
-                animationType="slide"
+                animationType="fade"
                 statusBarTranslucent
                 onRequestClose={() => { setShowMessageActions(false); setSelectedMessage(null); }}
             >
                 <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }}
                     activeOpacity={1}
                     onPress={() => { setShowMessageActions(false); setSelectedMessage(null); }}
-                />
-                <View style={{
-                    backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                    borderTopLeftRadius: 20,
-                    borderTopRightRadius: 20,
-                    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-                    ...(Platform.OS === 'web' ? { boxShadow: '0 -4px 30px rgba(0,0,0,0.15)' } as any : {
-                        shadowColor: '#000', shadowOffset: { width: 0, height: -3 },
-                        shadowOpacity: 0.12, shadowRadius: 12, elevation: 16,
-                    }),
-                }}>
-                    {/* Drag handle */}
-                    <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-                        <View style={{
-                            width: 36, height: 4, borderRadius: 2,
-                            backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-                        }} />
-                    </View>
-
-                    {/* Preview del mensaje seleccionado */}
+                >
                     {selectedMessage && (
-                        <View style={{
-                            marginHorizontal: 16, marginBottom: 12, padding: 12,
-                            borderRadius: 12,
-                            backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                            borderLeftWidth: 3,
-                            borderLeftColor: selectedMessage.senderId === user?.id ? (colors.messageSent || '#4A63A0') : '#8B5CF6',
-                        }}>
-                            <Text style={{ color: colors.textMuted, fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>
-                                {selectedMessage.senderId === user?.id ? 'Tu mensaje' : 'Mensaje'}
-                            </Text>
-                            <Text style={{ color: colors.textPrimary, fontSize: 14 }} numberOfLines={2}>
-                                {selectedMessage.type === 'image' ? '📷 Imagen' :
-                                 selectedMessage.type === 'audio' ? '🎵 Audio' :
-                                 selectedMessage.type === 'file' ? '📎 Archivo' :
-                                 selectedMessage.text}
-                            </Text>
+                        <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
+                            {/* Mensaje flotante */}
+                            <View style={{
+                                alignSelf: selectedMessage.senderId === user?.id ? 'flex-end' : 'flex-start',
+                                maxWidth: '80%', marginBottom: 8,
+                            }}>
+                                <View style={{
+                                    backgroundColor: selectedMessage.senderId === user?.id
+                                        ? (colors.messageSent || '#005C4B') : (isDark ? '#1F2C34' : '#FFFFFF'),
+                                    borderRadius: 12, paddingHorizontal: 14, paddingTop: 8, paddingBottom: 6,
+                                    ...(Platform.OS === 'web' ? { boxShadow: '0 4px 20px rgba(0,0,0,0.3)' } as any : {
+                                        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+                                        shadowOpacity: 0.25, shadowRadius: 12, elevation: 8,
+                                    }),
+                                }}>
+                                    <Text style={{
+                                        color: selectedMessage.senderId === user?.id ? '#FFFFFF' : colors.textPrimary,
+                                        fontSize: 15,
+                                    }}>
+                                        {selectedMessage.type === 'image' ? '📷 Imagen' :
+                                         selectedMessage.type === 'audio' ? '🎵 Audio' :
+                                         selectedMessage.type === 'file' ? '📎 Archivo' :
+                                         selectedMessage.text}
+                                    </Text>
+                                    <Text style={{
+                                        color: selectedMessage.senderId === user?.id
+                                            ? 'rgba(255,255,255,0.55)' : colors.textMuted,
+                                        fontSize: 11, textAlign: 'right', marginTop: 2,
+                                    }}>
+                                        {(() => { try { return format(parseISO(selectedMessage.timestamp), 'HH:mm'); } catch { return ''; } })()}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Menu contextual */}
+                            <View style={{
+                                alignSelf: selectedMessage.senderId === user?.id ? 'flex-end' : 'flex-start',
+                                backgroundColor: isDark ? '#233138' : '#FFFFFF',
+                                borderRadius: 14, overflow: 'hidden', width: 220,
+                                ...(Platform.OS === 'web' ? { boxShadow: '0 8px 30px rgba(0,0,0,0.35)' } as any : {
+                                    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
+                                    shadowOpacity: 0.3, shadowRadius: 16, elevation: 12,
+                                }),
+                            }}>
+                                {/* Copiar */}
+                                {selectedMessage.type === 'text' && (
+                                    <TouchableOpacity
+                                        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 }}
+                                        activeOpacity={0.6}
+                                        onPress={handleCopyMessage}
+                                    >
+                                        <Text style={{ color: colors.textPrimary, fontSize: 16 }}>Copiar</Text>
+                                        <Ionicons name="copy-outline" size={19} color={colors.textMuted} />
+                                    </TouchableOpacity>
+                                )}
+
+                                {/* Editar */}
+                                {selectedMessage.type === 'text' && (
+                                    <>
+                                        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }} />
+                                        <TouchableOpacity
+                                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 }}
+                                            activeOpacity={0.6}
+                                            onPress={handleEditMessage}
+                                        >
+                                            <Text style={{ color: colors.textPrimary, fontSize: 16 }}>Editar</Text>
+                                            <Ionicons name="pencil-outline" size={19} color={colors.textMuted} />
+                                        </TouchableOpacity>
+                                    </>
+                                )}
+
+                                {/* Eliminar */}
+                                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }} />
+                                <TouchableOpacity
+                                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 18 }}
+                                    activeOpacity={0.6}
+                                    onPress={handleDeleteMessage}
+                                >
+                                    <Text style={{ color: '#E74C3C', fontSize: 16 }}>Eliminar</Text>
+                                    <Ionicons name="trash-outline" size={19} color="#E74C3C" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     )}
-
-                    {/* Acciones */}
-                    <View style={{ paddingHorizontal: 8 }}>
-                        {/* Copiar - solo texto */}
-                        {selectedMessage?.type === 'text' && (
-                            <TouchableOpacity
-                                style={{
-                                    flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16,
-                                    borderRadius: 12, marginHorizontal: 4, marginBottom: 2,
-                                }}
-                                activeOpacity={0.6}
-                                onPress={handleCopyMessage}
-                            >
-                                <View style={{
-                                    width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                                    backgroundColor: isDark ? 'rgba(96,165,250,0.12)' : 'rgba(74,99,160,0.08)',
-                                }}>
-                                    <Ionicons name="copy-outline" size={18} color={isDark ? '#60A5FA' : '#4A63A0'} />
-                                </View>
-                                <Text style={{ color: colors.textPrimary, fontSize: 16, marginLeft: 14, fontWeight: '400' }}>Copiar texto</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* Editar - solo texto */}
-                        {selectedMessage?.type === 'text' && (
-                            <TouchableOpacity
-                                style={{
-                                    flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16,
-                                    borderRadius: 12, marginHorizontal: 4, marginBottom: 2,
-                                }}
-                                activeOpacity={0.6}
-                                onPress={handleEditMessage}
-                            >
-                                <View style={{
-                                    width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                                    backgroundColor: isDark ? 'rgba(251,191,36,0.12)' : 'rgba(245,158,11,0.08)',
-                                }}>
-                                    <Ionicons name="pencil-outline" size={18} color={isDark ? '#FBBF24' : '#D97706'} />
-                                </View>
-                                <Text style={{ color: colors.textPrimary, fontSize: 16, marginLeft: 14, fontWeight: '400' }}>Editar</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        {/* Eliminar */}
-                        <TouchableOpacity
-                            style={{
-                                flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16,
-                                borderRadius: 12, marginHorizontal: 4,
-                            }}
-                            activeOpacity={0.6}
-                            onPress={handleDeleteMessage}
-                        >
-                            <View style={{
-                                width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                                backgroundColor: 'rgba(239,68,68,0.1)',
-                            }}>
-                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                            </View>
-                            <Text style={{ color: '#EF4444', fontSize: 16, marginLeft: 14, fontWeight: '400' }}>Eliminar para todos</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                </TouchableOpacity>
             </Modal>
 
-            {/* Bottom sheet - editar mensaje */}
+            {/* Editar mensaje - inline bar */}
             <Modal
                 visible={!!editingMessage}
                 transparent
@@ -1254,108 +1240,66 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 >
                     <TouchableOpacity
-                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+                        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
                         activeOpacity={1}
                         onPress={() => setEditingMessage(null)}
                     />
                     <View style={{
-                        backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                        borderTopLeftRadius: 20, borderTopRightRadius: 20,
-                        paddingBottom: Platform.OS === 'ios' ? 34 : 16,
-                        ...(Platform.OS === 'web' ? { boxShadow: '0 -4px 30px rgba(0,0,0,0.15)' } as any : {
-                            shadowColor: '#000', shadowOffset: { width: 0, height: -3 },
-                            shadowOpacity: 0.12, shadowRadius: 12, elevation: 16,
-                        }),
+                        backgroundColor: isDark ? '#1A2027' : '#FFFFFF',
+                        paddingBottom: Platform.OS === 'ios' ? 34 : 12,
                     }}>
-                        {/* Drag handle */}
-                        <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 2 }}>
-                            <View style={{
-                                width: 36, height: 4, borderRadius: 2,
-                                backgroundColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-                            }} />
-                        </View>
-
-                        {/* Header */}
+                        {/* Edit indicator bar */}
                         <View style={{
-                            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-                            paddingHorizontal: 20, paddingVertical: 12,
+                            flexDirection: 'row', alignItems: 'center',
+                            paddingHorizontal: 16, paddingVertical: 10,
+                            borderBottomWidth: StyleSheet.hairlineWidth,
+                            borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
                         }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                <View style={{
-                                    width: 32, height: 32, borderRadius: 8,
-                                    backgroundColor: isDark ? 'rgba(251,191,36,0.12)' : 'rgba(245,158,11,0.08)',
-                                    alignItems: 'center', justifyContent: 'center',
-                                }}>
-                                    <Ionicons name="pencil" size={16} color={isDark ? '#FBBF24' : '#D97706'} />
-                                </View>
-                                <Text style={{ color: colors.textPrimary, fontSize: 17, fontWeight: '600' }}>Editar mensaje</Text>
+                            <View style={{ width: 3, height: 32, borderRadius: 2, backgroundColor: '#00A884', marginRight: 12 }} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#00A884', fontSize: 13, fontWeight: '600', marginBottom: 2 }}>Editando</Text>
+                                <Text style={{ color: colors.textMuted, fontSize: 14 }} numberOfLines={1}>
+                                    {editingMessage?.text}
+                                </Text>
                             </View>
-                            <TouchableOpacity
-                                onPress={() => setEditingMessage(null)}
-                                style={{
-                                    width: 32, height: 32, borderRadius: 16,
-                                    backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                                    alignItems: 'center', justifyContent: 'center',
-                                }}
-                            >
-                                <Ionicons name="close" size={18} color={colors.textMuted} />
+                            <TouchableOpacity onPress={() => setEditingMessage(null)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Ionicons name="close" size={22} color={colors.textMuted} />
                             </TouchableOpacity>
                         </View>
 
-                        {/* Input */}
-                        <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
-                            <TextInput
-                                style={{
-                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                                    borderWidth: 1.5,
-                                    borderColor: isDark ? 'rgba(251,191,36,0.2)' : 'rgba(245,158,11,0.2)',
-                                    borderRadius: 14,
-                                    paddingHorizontal: 16, paddingVertical: 14,
-                                    color: colors.textPrimary,
-                                    fontSize: 16,
-                                    minHeight: 80,
-                                    textAlignVertical: 'top',
-                                }}
-                                value={editText}
-                                onChangeText={setEditText}
-                                multiline
-                                autoFocus
-                                placeholder="Escribe el nuevo mensaje..."
-                                placeholderTextColor={colors.textMuted}
-                            />
-                        </View>
-
-                        {/* Actions */}
+                        {/* Input row */}
                         <View style={{
-                            flexDirection: 'row', paddingHorizontal: 16, gap: 10,
+                            flexDirection: 'row', alignItems: 'flex-end',
+                            paddingHorizontal: 8, paddingTop: 8, gap: 8,
                         }}>
-                            <TouchableOpacity
-                                onPress={() => setEditingMessage(null)}
-                                style={{
-                                    flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
-                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                                }}
-                            >
-                                <Text style={{ color: colors.textMuted, fontSize: 15, fontWeight: '600' }}>Cancelar</Text>
-                            </TouchableOpacity>
+                            <View style={{
+                                flex: 1, borderRadius: 22,
+                                backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#F0F2F5',
+                                paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+                                minHeight: 44, maxHeight: 120, justifyContent: 'center',
+                            }}>
+                                <TextInput
+                                    style={{
+                                        color: colors.textPrimary, fontSize: 16,
+                                        maxHeight: 100, textAlignVertical: 'center',
+                                    }}
+                                    value={editText}
+                                    onChangeText={setEditText}
+                                    multiline
+                                    autoFocus
+                                />
+                            </View>
                             <TouchableOpacity
                                 onPress={handleSaveEdit}
                                 disabled={!editText.trim() || editText.trim() === editingMessage?.text}
                                 style={{
-                                    flex: 2, paddingVertical: 14, borderRadius: 12, alignItems: 'center',
-                                    flexDirection: 'row', justifyContent: 'center', gap: 8,
+                                    width: 44, height: 44, borderRadius: 22,
                                     backgroundColor: (editText.trim() && editText.trim() !== editingMessage?.text)
-                                        ? (isDark ? '#FBBF24' : '#D97706')
-                                        : (isDark ? 'rgba(251,191,36,0.15)' : 'rgba(245,158,11,0.12)'),
+                                        ? '#00A884' : (isDark ? 'rgba(0,168,132,0.3)' : 'rgba(0,168,132,0.2)'),
+                                    alignItems: 'center', justifyContent: 'center',
                                 }}
                             >
-                                <Ionicons name="checkmark" size={18} color={
-                                    (editText.trim() && editText.trim() !== editingMessage?.text) ? '#FFF' : colors.textMuted
-                                } />
-                                <Text style={{
-                                    fontSize: 15, fontWeight: '600',
-                                    color: (editText.trim() && editText.trim() !== editingMessage?.text) ? '#FFF' : colors.textMuted,
-                                }}>Guardar</Text>
+                                <Ionicons name="checkmark" size={22} color="#FFFFFF" />
                             </TouchableOpacity>
                         </View>
                     </View>
