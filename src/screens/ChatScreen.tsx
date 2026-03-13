@@ -32,6 +32,7 @@ import { useCall } from '../context/CallContext';
 import { api, Message, Chat, User } from '../api';
 import { RootStackParamList } from '../types';
 import { getAbsoluteMediaUrl } from '../utils/urlHelper';
+import { socketService } from '../services/socketService';
 
 /**
  * Genera barras de waveform pseudo-aleatorias determinísticas a partir de un ID.
@@ -78,12 +79,12 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail, onMediaPress, colors }) => {
-    const getStatusIcon = () => {
+    const getStatusIcon = (): { icon: string; color: string } => {
         switch (message.status) {
-            case 'sent': return '✓';
-            case 'delivered': return '✓✓';
-            case 'read': return '✓✓';
-            default: return '🕒';
+            case 'sent': return { icon: '✓', color: 'rgba(255,255,255,0.5)' };
+            case 'delivered': return { icon: '✓✓', color: 'rgba(255,255,255,0.5)' };
+            case 'read': return { icon: '✓✓', color: '#60A5FA' };
+            default: return { icon: '🕒', color: 'rgba(255,255,255,0.5)' };
         }
     };
 
@@ -319,11 +320,14 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
                     <Text style={[styles.messageTime, { color: isOwn ? 'rgba(255,255,255,0.7)' : colors.textMuted }]}>
                         {formatTime(message.timestamp)}
                     </Text>
-                    {isOwn && (
-                        <Text style={[styles.messageStatus, message.status === 'read' && styles.readStatus]}>
-                            {getStatusIcon()}
-                        </Text>
-                    )}
+                    {isOwn && (() => {
+                        const status = getStatusIcon();
+                        return (
+                            <Text style={[styles.messageStatus, { color: status.color }]}>
+                                {status.icon}
+                            </Text>
+                        );
+                    })()}
                 </View>
             </View>
         </View>
@@ -415,19 +419,65 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         }
     };
 
-    // Efecto para carga inicial y configurar polling
+    // Efecto para carga inicial y configurar socket + polling de respaldo
     useEffect(() => {
         loadMessages(true);
         loadChatInfo();
         markAsRead();
 
-        // Configurar polling cada 5 segundos
+        // Notificar via socket que abrimos este chat (marca como entregados + leidos)
+        socketService.emitChatOpened(chatId);
+        socketService.emitMessagesRead(chatId);
+
+        // Escuchar nuevos mensajes en tiempo real
+        const onNewMessage = (data: { chatId: string; message: any }) => {
+            if (data.chatId === chatId) {
+                setMessages(prev => {
+                    // Evitar duplicados
+                    if (prev.some(m => m.id === data.message.id)) return prev;
+                    return [...prev, data.message];
+                });
+                // Marcar como leido inmediatamente ya que estamos en el chat
+                socketService.emitMessagesRead(chatId);
+                api.markChatAsRead(chatId);
+            }
+        };
+
+        // Escuchar cuando nuestros mensajes son entregados
+        const onDelivered = (data: { chatId: string; messageIds: string[] }) => {
+            if (data.chatId === chatId) {
+                setMessages(prev => prev.map(msg =>
+                    data.messageIds.includes(msg.id) && msg.status === 'sent'
+                        ? { ...msg, status: 'delivered' as const }
+                        : msg
+                ));
+            }
+        };
+
+        // Escuchar cuando nuestros mensajes son leidos
+        const onRead = (data: { chatId: string; messageIds: string[] }) => {
+            if (data.chatId === chatId) {
+                setMessages(prev => prev.map(msg =>
+                    data.messageIds.includes(msg.id) && msg.status !== 'read'
+                        ? { ...msg, status: 'read' as const }
+                        : msg
+                ));
+            }
+        };
+
+        socketService.on('new-message', onNewMessage);
+        socketService.on('messages-delivered', onDelivered);
+        socketService.on('messages-read', onRead);
+
+        // Polling de respaldo cada 15 segundos (en vez de 5)
         pollingRef.current = setInterval(() => {
             loadMessages(false);
-        }, 5000);
+        }, 15000);
 
-        // Limpiar intervalo al desmontar
         return () => {
+            socketService.off('new-message', onNewMessage);
+            socketService.off('messages-delivered', onDelivered);
+            socketService.off('messages-read', onRead);
             if (pollingRef.current) {
                 clearInterval(pollingRef.current);
                 pollingRef.current = null;
@@ -454,15 +504,17 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
 
         setMessages((prev) => [...prev, tempMessage]);
 
-
         const result = await api.sendMessage(chatId, text, type, mediaUrl);
 
         if (result.data?.message) {
+            const sentMessage = result.data.message;
             setMessages((prev) =>
                 prev.map((msg) =>
-                    msg.id === tempMessage.id ? result.data!.message : msg
+                    msg.id === tempMessage.id ? sentMessage : msg
                 )
             );
+            // Notificar a otros usuarios via socket
+            socketService.emitNewMessage(chatId, sentMessage);
         }
     };
 

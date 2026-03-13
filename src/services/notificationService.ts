@@ -1,18 +1,19 @@
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform, Vibration } from 'react-native';
 import Constants from 'expo-constants';
 
-// Configurar cómo se muestran las notificaciones cuando la app está en primer plano
-// Para llamadas, mostrar alerta persistente; para mensajes, normal
+let Notifications: any = null;
+let Device: any = null;
+
 try {
+    Notifications = require('expo-notifications');
+    Device = require('expo-device');
+
     Notifications.setNotificationHandler({
-        handleNotification: async (notification) => {
+        handleNotification: async (notification: any) => {
             const data = notification.request.content.data as NotificationData;
             const isCall = data?.type === 'call' || data?.pendingCall === true;
 
             if (isCall) {
-                // Para llamadas: activar vibración continua
                 Vibration.vibrate([0, 500, 300, 500, 300, 500, 300, 500, 300, 500], true);
             }
 
@@ -42,31 +43,34 @@ export interface NotificationData {
 class NotificationService {
     private pushToken: string | null = null;
     private onNotificationTap: ((data: NotificationData) => void) | null = null;
-    private notificationListener: Notifications.EventSubscription | null = null;
-    private responseListener: Notifications.EventSubscription | null = null;
+    private notificationListener: any = null;
+    private responseListener: any = null;
 
     async initialize(): Promise<string | null> {
+        if (!Notifications || !Device) {
+            console.warn('⚠️ expo-notifications no disponible, saltando inicializacion');
+            return null;
+        }
+
         if (!Device.isDevice) {
             console.log('⚠️ Las notificaciones push requieren un dispositivo físico');
             return null;
         }
 
-        // Pedir permisos
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('⚠️ Permisos de notificación no otorgados');
-            return null;
-        }
-
-        // Obtener el push token
         try {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                console.log('⚠️ Permisos de notificación no otorgados');
+                return null;
+            }
+
             const projectId = Constants.expoConfig?.extra?.eas?.projectId;
             const tokenData = await Notifications.getExpoPushTokenAsync({
                 projectId,
@@ -78,34 +82,34 @@ class NotificationService {
             return null;
         }
 
-        // Configurar canal de Android
         if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync('messages', {
-                name: 'Mensajes',
-                importance: Notifications.AndroidImportance.HIGH,
-                sound: 'default',
-                vibrationPattern: [0, 250, 250, 250],
-            });
+            try {
+                await Notifications.setNotificationChannelAsync('messages', {
+                    name: 'Mensajes',
+                    importance: Notifications.AndroidImportance.HIGH,
+                    sound: 'default',
+                    vibrationPattern: [0, 250, 250, 250],
+                });
 
-            await Notifications.setNotificationChannelAsync('calls', {
-                name: 'Llamadas',
-                importance: Notifications.AndroidImportance.MAX,
-                sound: 'ringtone.wav',
-                vibrationPattern: [0, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500],
-                enableVibrate: true,
-                lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-            });
+                await Notifications.setNotificationChannelAsync('calls', {
+                    name: 'Llamadas',
+                    importance: Notifications.AndroidImportance.MAX,
+                    sound: 'ringtone.wav',
+                    vibrationPattern: [0, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500, 300, 500],
+                    enableVibrate: true,
+                    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+                });
+            } catch (e) {
+                console.warn('⚠️ Error configurando canales de Android:', e);
+            }
         }
 
-        // Escuchar notificaciones recibidas (app en primer plano)
-        this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
+        this.notificationListener = Notifications.addNotificationReceivedListener((notification: any) => {
             console.log('📩 Notificación recibida:', notification);
         });
 
-        // Escuchar cuando el usuario toca una notificación
-        this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+        this.responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
             const data = response.notification.request.content.data as NotificationData;
-            // Detener vibración si era una notificación de llamada
             if (data?.type === 'call' || data?.pendingCall) {
                 Vibration.cancel();
             }
@@ -150,6 +154,7 @@ class NotificationService {
         body: string,
         data?: NotificationData
     ): Promise<void> {
+        if (!Notifications) return;
         await Notifications.scheduleNotificationAsync({
             content: {
                 title,
@@ -162,10 +167,12 @@ class NotificationService {
     }
 
     async clearBadge(): Promise<void> {
+        if (!Notifications) return;
         await Notifications.setBadgeCountAsync(0);
     }
 
     async incrementBadge(): Promise<void> {
+        if (!Notifications) return;
         const current = await Notifications.getBadgeCountAsync();
         await Notifications.setBadgeCountAsync(current + 1);
     }
@@ -175,11 +182,13 @@ class NotificationService {
     }
 
     cleanup(): void {
-        if (this.notificationListener) {
-            Notifications.removeNotificationSubscription(this.notificationListener);
-        }
-        if (this.responseListener) {
-            Notifications.removeNotificationSubscription(this.responseListener);
+        if (Notifications) {
+            if (this.notificationListener) {
+                Notifications.removeNotificationSubscription(this.notificationListener);
+            }
+            if (this.responseListener) {
+                Notifications.removeNotificationSubscription(this.responseListener);
+            }
         }
     }
 }

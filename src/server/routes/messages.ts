@@ -142,9 +142,9 @@ router.post('/mark-delivered', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'chatId y userId son requeridos' });
         }
 
-        await markMessagesAsDelivered(chatId, userId);
+        const updatedIds = await markMessagesAsDelivered(chatId, userId);
 
-        res.json({ success: true });
+        res.json({ success: true, updatedIds });
 
     } catch (error: any) {
         console.error('Error:', error);
@@ -161,9 +161,9 @@ router.post('/mark-read', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'chatId y userId son requeridos' });
         }
 
-        await markMessagesAsRead(chatId, userId);
+        const updatedIds = await markMessagesAsRead(chatId, userId);
 
-        res.json({ success: true });
+        res.json({ success: true, updatedIds });
 
     } catch (error: any) {
         console.error('Error:', error);

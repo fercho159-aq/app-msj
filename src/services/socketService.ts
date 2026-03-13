@@ -130,6 +130,19 @@ class SocketService extends EventEmitter {
                 this.emit('call-ringing', data);
             });
 
+            // Eventos de mensajería
+            this.socket.on('new-message', (data: { chatId: string; message: any }) => {
+                this.emit('new-message', data);
+            });
+
+            this.socket.on('messages-delivered', (data: { chatId: string; messageIds: string[] }) => {
+                this.emit('messages-delivered', data);
+            });
+
+            this.socket.on('messages-read', (data: { chatId: string; messageIds: string[] }) => {
+                this.emit('messages-read', data);
+            });
+
             // Timeout de conexión
             setTimeout(() => {
                 if (!this.socket?.connected) {
@@ -250,6 +263,36 @@ class SocketService extends EventEmitter {
     sendCallStillWaiting(targetUserId: string): void {
         if (!this.socket || !this.currentUser) return;
         this.socket.emit('call-still-waiting', { to: targetUserId });
+    }
+
+    // ===== MENSAJERÍA =====
+
+    // Notificar nuevo mensaje enviado
+    emitNewMessage(chatId: string, message: any): void {
+        if (!this.socket || !this.currentUser) return;
+        this.socket.emit('new-message', {
+            chatId,
+            message,
+            senderId: this.currentUser.id,
+        });
+    }
+
+    // Notificar que el usuario abrio un chat (marca como entregados)
+    emitChatOpened(chatId: string): void {
+        if (!this.socket || !this.currentUser) return;
+        this.socket.emit('chat-opened', {
+            chatId,
+            userId: this.currentUser.id,
+        });
+    }
+
+    // Notificar que el usuario leyo los mensajes del chat
+    emitMessagesRead(chatId: string): void {
+        if (!this.socket || !this.currentUser) return;
+        this.socket.emit('messages-read', {
+            chatId,
+            userId: this.currentUser.id,
+        });
     }
 
     // Enviar ICE candidate

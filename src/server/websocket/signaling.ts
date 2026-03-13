@@ -94,7 +94,7 @@ export function initializeWebSocket(httpServer: HttpServer) {
         console.log(`Usuario conectado: ${socket.id}`);
 
         // Registro de usuario
-        socket.on('register', (data: { userId: string; name: string }) => {
+        socket.on('register', async (data: { userId: string; name: string }) => {
             const user: User = {
                 id: data.userId,
                 odmaUserId: data.userId,
@@ -112,6 +112,37 @@ export function initializeWebSocket(httpServer: HttpServer) {
                 userId: u.odmaUserId,
                 name: u.name
             })));
+
+            // Marcar todos los mensajes pendientes como entregados al conectarse
+            try {
+                const { markMessagesAsDelivered } = await import('../../services/messageService');
+                const chats = await query<{ chat_id: string }>(
+                    `SELECT chat_id FROM chat_participants WHERE user_id = $1`,
+                    [data.userId]
+                );
+                for (const chat of chats) {
+                    const deliveredIds = await markMessagesAsDelivered(chat.chat_id, data.userId);
+                    if (deliveredIds.length > 0) {
+                        // Notificar a los remitentes
+                        const msgs = await query<{ id: string; sender_id: string }>(
+                            `SELECT id, sender_id FROM messages WHERE id = ANY($1)`,
+                            [deliveredIds]
+                        );
+                        const senderIds = [...new Set(msgs.map(m => m.sender_id))];
+                        for (const senderId of senderIds) {
+                            const sender = connectedUsers.get(senderId);
+                            if (sender) {
+                                io.to(sender.socketId).emit('messages-delivered', {
+                                    chatId: chat.chat_id,
+                                    messageIds: msgs.filter(m => m.sender_id === senderId).map(m => m.id),
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error marcando mensajes como entregados al conectar:', err);
+            }
         });
 
         // Verificar llamadas pendientes (callee emite esto al conectarse)
@@ -312,6 +343,78 @@ export function initializeWebSocket(httpServer: HttpServer) {
                     from: data.from,
                     candidate: data.candidate
                 });
+            }
+        });
+
+        // ===== EVENTOS DE MENSAJERÍA =====
+
+        // Nuevo mensaje enviado - notificar a los participantes del chat
+        socket.on('new-message', (data: { chatId: string; message: any; senderId: string }) => {
+            // Buscar participantes del chat que estan conectados y enviarles el mensaje
+            for (const [userId, connUser] of connectedUsers.entries()) {
+                if (userId !== data.senderId) {
+                    io.to(connUser.socketId).emit('new-message', {
+                        chatId: data.chatId,
+                        message: data.message,
+                    });
+                }
+            }
+        });
+
+        // Usuario entro al chat - marcar mensajes como entregados
+        socket.on('chat-opened', async (data: { chatId: string; userId: string }) => {
+            try {
+                const { markMessagesAsDelivered } = await import('../../services/messageService');
+                await markMessagesAsDelivered(data.chatId, data.userId);
+
+                // Notificar al remitente que sus mensajes fueron entregados
+                const updatedMessages = await query<{ id: string; sender_id: string }>(
+                    `SELECT id, sender_id FROM messages WHERE chat_id = $1 AND sender_id != $2 AND status = 'delivered'`,
+                    [data.chatId, data.userId]
+                );
+
+                // Agrupar por sender y notificar
+                const senderIds = [...new Set(updatedMessages.map(m => m.sender_id))];
+                for (const senderId of senderIds) {
+                    const sender = connectedUsers.get(senderId);
+                    if (sender) {
+                        io.to(sender.socketId).emit('messages-delivered', {
+                            chatId: data.chatId,
+                            messageIds: updatedMessages.filter(m => m.sender_id === senderId).map(m => m.id),
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Error en chat-opened:', err);
+            }
+        });
+
+        // Usuario leyó mensajes del chat
+        socket.on('messages-read', async (data: { chatId: string; userId: string }) => {
+            try {
+                const { markMessagesAsRead } = await import('../../services/messageService');
+
+                // Obtener mensajes que se van a marcar como leidos ANTES de marcarlos
+                const toMark = await query<{ id: string; sender_id: string }>(
+                    `SELECT id, sender_id FROM messages WHERE chat_id = $1 AND sender_id != $2 AND status IN ('sent', 'delivered')`,
+                    [data.chatId, data.userId]
+                );
+
+                await markMessagesAsRead(data.chatId, data.userId);
+
+                // Notificar a los remitentes que sus mensajes fueron leidos
+                const senderIds = [...new Set(toMark.map(m => m.sender_id))];
+                for (const senderId of senderIds) {
+                    const sender = connectedUsers.get(senderId);
+                    if (sender) {
+                        io.to(sender.socketId).emit('messages-read', {
+                            chatId: data.chatId,
+                            messageIds: toMark.filter(m => m.sender_id === senderId).map(m => m.id),
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error('Error en messages-read:', err);
             }
         });
 

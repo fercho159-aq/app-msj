@@ -86,38 +86,45 @@ export async function updateMessageStatus(
 }
 
 // Marcar mensajes como entregados
-export async function markMessagesAsDelivered(chatId: string, userId: string): Promise<void> {
-    await query(`
-    UPDATE messages 
-    SET status = 'delivered' 
-    WHERE chat_id = $1 
-    AND sender_id != $2 
+export async function markMessagesAsDelivered(chatId: string, userId: string): Promise<string[]> {
+    const updated = await query<{ id: string }>(`
+    UPDATE messages
+    SET status = 'delivered'
+    WHERE chat_id = $1
+    AND sender_id != $2
     AND status = 'sent'
+    RETURNING id
   `, [chatId, userId]);
+    return updated.map(m => m.id);
 }
 
 // Marcar mensajes como leídos
-export async function markMessagesAsRead(chatId: string, userId: string): Promise<void> {
-    await query(`
-    UPDATE messages 
-    SET status = 'read' 
-    WHERE chat_id = $1 
-    AND sender_id != $2 
+export async function markMessagesAsRead(chatId: string, userId: string): Promise<string[]> {
+    const updated = await query<{ id: string }>(`
+    UPDATE messages
+    SET status = 'read'
+    WHERE chat_id = $1
+    AND sender_id != $2
     AND status IN ('sent', 'delivered')
+    RETURNING id
   `, [chatId, userId]);
 
     // También registrar en message_reads
-    await query(`
-    INSERT INTO message_reads (message_id, user_id)
-    SELECT m.id, $2
-    FROM messages m
-    WHERE m.chat_id = $1 
-    AND m.sender_id != $2
-    AND NOT EXISTS (
-      SELECT 1 FROM message_reads mr 
-      WHERE mr.message_id = m.id AND mr.user_id = $2
-    )
-  `, [chatId, userId]);
+    if (updated.length > 0) {
+        await query(`
+        INSERT INTO message_reads (message_id, user_id)
+        SELECT m.id, $2
+        FROM messages m
+        WHERE m.chat_id = $1
+        AND m.sender_id != $2
+        AND NOT EXISTS (
+          SELECT 1 FROM message_reads mr
+          WHERE mr.message_id = m.id AND mr.user_id = $2
+        )
+      `, [chatId, userId]);
+    }
+
+    return updated.map(m => m.id);
 }
 
 // Buscar mensajes en un chat
