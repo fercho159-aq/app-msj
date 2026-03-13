@@ -143,6 +143,14 @@ class SocketService extends EventEmitter {
                 this.emit('messages-read', data);
             });
 
+            this.socket.on('message-deleted', (data: { chatId: string; messageId: string }) => {
+                this.emit('message-deleted', data);
+            });
+
+            this.socket.on('message-edited', (data: { chatId: string; messageId: string; newText: string }) => {
+                this.emit('message-edited', data);
+            });
+
             // Timeout de conexión
             setTimeout(() => {
                 if (!this.socket?.connected) {

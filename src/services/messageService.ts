@@ -56,7 +56,7 @@ export async function getChatMessages(
     offset: number = 0
 ): Promise<MessageWithSender[]> {
     return query<MessageWithSender>(`
-    SELECT 
+    SELECT
       m.*,
       json_build_object(
         'id', u.id,
@@ -66,7 +66,7 @@ export async function getChatMessages(
       ) as sender
     FROM messages m
     JOIN users u ON m.sender_id = u.id
-    WHERE m.chat_id = $1
+    WHERE m.chat_id = $1 AND m.deleted_at IS NULL
     ORDER BY m.created_at ASC
     LIMIT $2 OFFSET $3
   `, [chatId, limit, offset]);
@@ -137,12 +137,43 @@ export async function searchMessages(chatId: string, searchTerm: string): Promis
   `, [chatId, `%${searchTerm}%`]);
 }
 
-// Eliminar un mensaje (soft delete podría implementarse)
-export async function deleteMessage(messageId: string, userId: string): Promise<boolean> {
-    const result = await query(
-        'DELETE FROM messages WHERE id = $1 AND sender_id = $2 RETURNING id',
-        [messageId, userId]
-    );
+// Soft delete: consultores pueden eliminar cualquier mensaje del chat, usuarios solo los suyos
+export async function deleteMessage(messageId: string, userId: string, isConsultor: boolean = false): Promise<boolean> {
+    let result;
+    if (isConsultor) {
+        // Consultores pueden eliminar cualquier mensaje
+        result = await query(
+            `UPDATE messages SET deleted_at = NOW(), deleted_by = $2, text = 'Mensaje eliminado'
+             WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+            [messageId, userId]
+        );
+    } else {
+        // Usuarios solo pueden eliminar sus propios mensajes
+        result = await query(
+            `UPDATE messages SET deleted_at = NOW(), deleted_by = $2, text = 'Mensaje eliminado'
+             WHERE id = $1 AND sender_id = $2 AND deleted_at IS NULL RETURNING id`,
+            [messageId, userId]
+        );
+    }
+    return result.length > 0;
+}
+
+// Editar mensaje: consultores pueden editar cualquier mensaje, usuarios solo los suyos
+export async function editMessage(messageId: string, userId: string, newText: string, isConsultor: boolean = false): Promise<boolean> {
+    let result;
+    if (isConsultor) {
+        result = await query(
+            `UPDATE messages SET text = $2, edited_at = NOW()
+             WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+            [messageId, newText]
+        );
+    } else {
+        result = await query(
+            `UPDATE messages SET text = $2, edited_at = NOW()
+             WHERE id = $1 AND sender_id = $3 AND deleted_at IS NULL RETURNING id`,
+            [messageId, newText, userId]
+        );
+    }
     return result.length > 0;
 }
 

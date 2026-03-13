@@ -497,6 +497,15 @@ class ApiClient {
         });
     }
 
+    async editMessage(messageId: string, text: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+
+        return this.request(`/messages/${messageId}/edit`, {
+            method: 'PUT',
+            body: JSON.stringify({ userId: this.userId, text }),
+        });
+    }
+
     // ==================== CALL REQUESTS ====================
 
     async createCallRequest(name: string, phone: string, emergency: string) {

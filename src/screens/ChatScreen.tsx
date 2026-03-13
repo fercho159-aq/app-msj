@@ -349,6 +349,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const pollingRef = useRef<NodeJS.Timeout | null>(null);
     const isPollingRef = useRef(false);
 
+    // Message action state
+    const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+    const [showMessageActions, setShowMessageActions] = useState(false);
+    const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+    const [editText, setEditText] = useState('');
+
     // Call request modal state
     const [showCallModal, setShowCallModal] = useState(false);
     const [callName, setCallName] = useState(user?.name || '');
@@ -460,9 +466,27 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             }
         };
 
+        // Escuchar cuando un mensaje es eliminado
+        const onDeleted = (data: { chatId: string; messageId: string }) => {
+            if (data.chatId === chatId) {
+                setMessages(prev => prev.filter(msg => msg.id !== data.messageId));
+            }
+        };
+
+        // Escuchar cuando un mensaje es editado
+        const onEdited = (data: { chatId: string; messageId: string; newText: string }) => {
+            if (data.chatId === chatId) {
+                setMessages(prev => prev.map(msg =>
+                    msg.id === data.messageId ? { ...msg, text: data.newText } : msg
+                ));
+            }
+        };
+
         socketService.on('new-message', onNewMessage);
         socketService.on('messages-delivered', onDelivered);
         socketService.on('messages-read', onRead);
+        socketService.on('message-deleted', onDeleted);
+        socketService.on('message-edited', onEdited);
 
         // Polling de respaldo cada 10 segundos
         pollingRef.current = setInterval(() => {
@@ -475,6 +499,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
             socketService.off('new-message', onNewMessage);
             socketService.off('messages-delivered', onDelivered);
             socketService.off('messages-read', onRead);
+            socketService.off('message-deleted', onDeleted);
+            socketService.off('message-edited', onEdited);
             if (pollingRef.current) {
                 clearInterval(pollingRef.current);
                 pollingRef.current = null;
@@ -485,6 +511,62 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
     const markAsRead = async () => {
         await api.markMessagesAsRead(chatId);
         await api.markChatAsRead(chatId);
+    };
+
+    const isConsultor = user?.rfc === 'ADMIN000CONS' || user?.role === 'consultor';
+
+    const handleMessageLongPress = (message: Message) => {
+        // Consultores pueden eliminar/editar cualquier mensaje
+        // Usuarios solo sus propios mensajes
+        const isOwnMessage = message.senderId === user?.id;
+        if (!isConsultor && !isOwnMessage) return;
+
+        setSelectedMessage(message);
+        setShowMessageActions(true);
+    };
+
+    const handleDeleteMessage = async () => {
+        if (!selectedMessage) return;
+        setShowMessageActions(false);
+
+        Alert.alert(
+            'Eliminar mensaje',
+            'Este mensaje se eliminara para todos.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Eliminar',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const result = await api.deleteMessage(selectedMessage.id);
+                        if (!result.error) {
+                            setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
+                        }
+                        setSelectedMessage(null);
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleEditMessage = () => {
+        if (!selectedMessage) return;
+        setShowMessageActions(false);
+        setEditingMessage(selectedMessage);
+        setEditText(selectedMessage.text);
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingMessage || !editText.trim()) return;
+
+        const result = await api.editMessage(editingMessage.id, editText.trim());
+        if (!result.error) {
+            setMessages(prev => prev.map(m =>
+                m.id === editingMessage.id ? { ...m, text: editText.trim() } : m
+            ));
+        }
+        setEditingMessage(null);
+        setEditText('');
     };
 
     const handleSendMessage = async (text: string, type: 'text' | 'image' | 'file' | 'audio' = 'text', mediaUrl?: string) => {
@@ -996,7 +1078,16 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                             const isOwn = item.senderId === user?.id;
                             const previousMessage = messages[index - 1];
                             const showTail = !previousMessage || previousMessage.senderId !== item.senderId;
-                            return <MessageBubble message={item} isOwn={isOwn} showTail={showTail} onMediaPress={handleMediaPreview} colors={colors} />;
+                            const canAct = isConsultor || isOwn;
+                            return (
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onLongPress={() => canAct && handleMessageLongPress(item)}
+                                    delayLongPress={400}
+                                >
+                                    <MessageBubble message={item} isOwn={isOwn} showTail={showTail} onMediaPress={handleMediaPreview} colors={colors} />
+                                </TouchableOpacity>
+                            );
                         }}
                         contentContainerStyle={styles.messagesContent}
                         showsVerticalScrollIndicator={false}
@@ -1021,6 +1112,96 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                     recordingDuration={recordingDuration}
                 />
             </View>
+
+            {/* Modal de acciones de mensaje */}
+            <Modal
+                visible={showMessageActions}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowMessageActions(false)}
+            >
+                <TouchableOpacity
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' }}
+                    activeOpacity={1}
+                    onPress={() => setShowMessageActions(false)}
+                >
+                    <View style={{ backgroundColor: colors.background, borderRadius: 16, width: '75%', overflow: 'hidden' }}>
+                        {selectedMessage?.type === 'text' && (
+                            <TouchableOpacity
+                                style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
+                                onPress={handleEditMessage}
+                            >
+                                <Ionicons name="pencil" size={20} color={colors.textPrimary} />
+                                <Text style={{ color: colors.textPrimary, fontSize: 16 }}>Editar mensaje</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 }}
+                            onPress={handleDeleteMessage}
+                        >
+                            <Ionicons name="trash" size={20} color="#EF4444" />
+                            <Text style={{ color: '#EF4444', fontSize: 16 }}>Eliminar mensaje</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}
+                            onPress={() => setShowMessageActions(false)}
+                        >
+                            <Ionicons name="close" size={20} color={colors.textMuted} />
+                            <Text style={{ color: colors.textMuted, fontSize: 16 }}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            {/* Modal de editar mensaje */}
+            <Modal
+                visible={!!editingMessage}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setEditingMessage(null)}
+            >
+                <KeyboardAvoidingView
+                    style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                >
+                    <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                            <Text style={{ color: colors.textPrimary, fontSize: 16, fontWeight: '600' }}>Editar mensaje</Text>
+                            <TouchableOpacity onPress={() => setEditingMessage(null)}>
+                                <Ionicons name="close" size={24} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput
+                            style={{
+                                backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                                borderRadius: 12,
+                                padding: 12,
+                                color: colors.textPrimary,
+                                fontSize: 16,
+                                minHeight: 60,
+                                textAlignVertical: 'top',
+                            }}
+                            value={editText}
+                            onChangeText={setEditText}
+                            multiline
+                            autoFocus
+                        />
+                        <TouchableOpacity
+                            onPress={handleSaveEdit}
+                            disabled={!editText.trim()}
+                            style={{
+                                backgroundColor: editText.trim() ? '#4A63A0' : 'rgba(74,99,160,0.3)',
+                                borderRadius: 12,
+                                padding: 14,
+                                alignItems: 'center',
+                                marginTop: 12,
+                            }}
+                        >
+                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Guardar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
 
             {/* Modal de solicitud de llamada */}
             <Modal

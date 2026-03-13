@@ -5,7 +5,8 @@ import {
     updateMessageStatus,
     markMessagesAsRead,
     markMessagesAsDelivered,
-    deleteMessage
+    deleteMessage,
+    editMessage
 } from '../../services/messageService';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { query } from '../../database/config';
@@ -213,7 +214,7 @@ router.post('/mark-read', async (req: Request, res: Response) => {
     }
 });
 
-// DELETE /api/messages/:id - Eliminar mensaje
+// DELETE /api/messages/:id - Eliminar mensaje (soft delete)
 router.delete('/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -223,7 +224,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        const deleted = await deleteMessage(id as string, userId);
+        // Verificar si es consultor
+        const userRow = await query<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+        const isConsultor = userRow[0]?.role === 'consultor';
+
+        // Obtener el chat_id antes de eliminar para notificar
+        const msg = await getMessageById(id as string);
+
+        const deleted = await deleteMessage(id as string, userId, isConsultor);
 
         if (!deleted) {
             return res.status(404).json({
@@ -231,10 +242,87 @@ router.delete('/:id', async (req: Request, res: Response) => {
             });
         }
 
-        res.json({ success: true, message: 'Mensaje eliminado' });
+        // Notificar via socket a los participantes del chat
+        if (msg) {
+            const io = getIO();
+            if (io) {
+                const participants = await query<{ user_id: string }>(
+                    `SELECT user_id FROM chat_participants WHERE chat_id = $1`,
+                    [msg.chat_id]
+                );
+                for (const p of participants) {
+                    const connUser = connectedUsers.get(p.user_id);
+                    if (connUser) {
+                        io.to(connUser.socketId).emit('message-deleted', {
+                            chatId: msg.chat_id,
+                            messageId: id,
+                        });
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true });
 
     } catch (error: any) {
         console.error('Error al eliminar mensaje:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/messages/:id/edit - Editar mensaje
+router.put('/:id/edit', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const { userId, text } = req.body;
+
+        if (!userId || !text) {
+            return res.status(400).json({ error: 'userId y text son requeridos' });
+        }
+
+        // Verificar si es consultor
+        const userRow = await query<{ role: string }>(
+            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
+            [userId]
+        );
+        const isConsultor = userRow[0]?.role === 'consultor';
+
+        // Obtener el chat_id antes de editar para notificar
+        const msg = await getMessageById(id as string);
+
+        const edited = await editMessage(id as string, userId, text, isConsultor);
+
+        if (!edited) {
+            return res.status(404).json({
+                error: 'Mensaje no encontrado o no tienes permiso para editarlo'
+            });
+        }
+
+        // Notificar via socket
+        if (msg) {
+            const io = getIO();
+            if (io) {
+                const participants = await query<{ user_id: string }>(
+                    `SELECT user_id FROM chat_participants WHERE chat_id = $1`,
+                    [msg.chat_id]
+                );
+                for (const p of participants) {
+                    const connUser = connectedUsers.get(p.user_id);
+                    if (connUser) {
+                        io.to(connUser.socketId).emit('message-edited', {
+                            chatId: msg.chat_id,
+                            messageId: id,
+                            newText: text,
+                        });
+                    }
+                }
+            }
+        }
+
+        res.json({ success: true });
+
+    } catch (error: any) {
+        console.error('Error al editar mensaje:', error);
         res.status(500).json({ error: error.message });
     }
 });
