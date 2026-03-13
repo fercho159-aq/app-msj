@@ -445,7 +445,17 @@ export function initializeWebSocket(httpServer: HttpServer) {
     });
 
     console.log('WebSocket de señalización inicializado');
+
+    // Guardar referencia global para usar en rutas REST
+    ioInstance = io;
+
     return io;
+}
+
+let ioInstance: Server | null = null;
+
+export function getIO(): Server | null {
+    return ioInstance;
 }
 
 export { connectedUsers };

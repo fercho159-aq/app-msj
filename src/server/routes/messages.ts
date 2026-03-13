@@ -9,8 +9,33 @@ import {
 } from '../../services/messageService';
 import { pushNotificationService } from '../services/pushNotificationService';
 import { query } from '../../database/config';
+import { getIO, connectedUsers } from '../websocket/signaling';
 
 const router = Router();
+
+// Helper: notificar a remitentes via socket que sus mensajes cambiaron de estado
+function notifyStatusChange(chatId: string, updatedIds: string[], newStatus: 'delivered' | 'read') {
+    const io = getIO();
+    if (!io || updatedIds.length === 0) return;
+
+    // Buscar los sender_ids de los mensajes actualizados
+    query<{ id: string; sender_id: string }>(
+        `SELECT id, sender_id FROM messages WHERE id = ANY($1)`,
+        [updatedIds]
+    ).then(msgs => {
+        const senderIds = [...new Set(msgs.map(m => m.sender_id))];
+        for (const senderId of senderIds) {
+            const sender = connectedUsers.get(senderId);
+            if (sender) {
+                const eventName = newStatus === 'delivered' ? 'messages-delivered' : 'messages-read';
+                io.to(sender.socketId).emit(eventName, {
+                    chatId,
+                    messageIds: msgs.filter(m => m.sender_id === senderId).map(m => m.id),
+                });
+            }
+        }
+    }).catch(err => console.error('Error notificando status change:', err));
+}
 
 // POST /api/messages - Enviar un mensaje
 router.post('/', async (req: Request, res: Response) => {
@@ -23,7 +48,6 @@ router.post('/', async (req: Request, res: Response) => {
             });
         }
 
-        // Debe haber texto o mediaUrl
         if (!text && !mediaUrl) {
             return res.status(400).json({
                 error: 'Se requiere texto o un archivo adjunto'
@@ -38,29 +62,54 @@ router.post('/', async (req: Request, res: Response) => {
             media_url: mediaUrl,
         });
 
-        // Enviar notificación push a los demás participantes del chat
+        const sentMessage = {
+            id: message.id,
+            chatId: message.chat_id,
+            senderId: message.sender_id,
+            text: message.text,
+            type: message.message_type,
+            mediaUrl: message.media_url,
+            status: message.status,
+            timestamp: message.created_at,
+        };
+
+        // Notificar via socket a los participantes del chat
+        const io = getIO();
+        if (io) {
+            const participants = await query<{ user_id: string }>(
+                `SELECT user_id FROM chat_participants WHERE chat_id = $1 AND user_id != $2`,
+                [chatId, senderId]
+            );
+            for (const p of participants) {
+                const connUser = connectedUsers.get(p.user_id);
+                if (connUser) {
+                    io.to(connUser.socketId).emit('new-message', {
+                        chatId,
+                        message: sentMessage,
+                    });
+                }
+            }
+        }
+
+        // Enviar notificación push
         try {
-            // Obtener info del remitente
             const senderResult = await query<{ name: string | null; rfc: string }>(
                 `SELECT name, rfc FROM users WHERE id = $1`,
                 [senderId]
             );
             const senderName = senderResult[0]?.name || senderResult[0]?.rfc || 'Usuario';
 
-            // Obtener otros participantes del chat
             const participants = await query<{ user_id: string }>(
                 `SELECT user_id FROM chat_participants WHERE chat_id = $1 AND user_id != $2`,
                 [chatId, senderId]
             );
 
-            // Determinar el texto de la notificación
             let notificationText = text || '';
             if (type === 'image') notificationText = '📷 Imagen';
             else if (type === 'audio') notificationText = '🎵 Audio';
             else if (type === 'video') notificationText = '🎬 Video';
             else if (type === 'file') notificationText = '📎 Archivo';
 
-            // Enviar notificación a cada participante
             for (const participant of participants) {
                 await pushNotificationService.sendMessageNotification(
                     participant.user_id,
@@ -71,23 +120,10 @@ router.post('/', async (req: Request, res: Response) => {
                 );
             }
         } catch (notifError) {
-            // No fallar el mensaje si la notificación falla
             console.error('Error al enviar notificación:', notifError);
         }
 
-        res.status(201).json({
-            message: {
-                id: message.id,
-                chatId: message.chat_id,
-                senderId: message.sender_id,
-                text: message.text,
-                type: message.message_type,
-                mediaUrl: message.media_url,
-                status: message.status,
-                timestamp: message.created_at,
-            },
-            success: true
-        });
+        res.status(201).json({ message: sentMessage, success: true });
 
     } catch (error: any) {
         console.error('Error al enviar mensaje:', error);
@@ -144,6 +180,9 @@ router.post('/mark-delivered', async (req: Request, res: Response) => {
 
         const updatedIds = await markMessagesAsDelivered(chatId, userId);
 
+        // Notificar a remitentes via socket
+        notifyStatusChange(chatId, updatedIds, 'delivered');
+
         res.json({ success: true, updatedIds });
 
     } catch (error: any) {
@@ -162,6 +201,9 @@ router.post('/mark-read', async (req: Request, res: Response) => {
         }
 
         const updatedIds = await markMessagesAsRead(chatId, userId);
+
+        // Notificar a remitentes via socket
+        notifyStatusChange(chatId, updatedIds, 'read');
 
         res.json({ success: true, updatedIds });
 
