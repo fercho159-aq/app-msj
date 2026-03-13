@@ -33,7 +33,7 @@ export interface SendMessageInput {
 export async function sendMessage(input: SendMessageInput): Promise<Message> {
     const result = await query<Message>(`
     INSERT INTO messages (chat_id, sender_id, text, message_type, media_url, status)
-    VALUES ($1, $2, $3, $4, $5, 'sent')
+    VALUES ($1, $2, $3, $4, $5, 'delivered')
     RETURNING *
   `, [
         input.chat_id,
