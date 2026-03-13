@@ -425,20 +425,15 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         loadChatInfo();
         markAsRead();
 
-        // Notificar via socket que abrimos este chat (marca como entregados + leidos)
-        socketService.emitChatOpened(chatId);
-        socketService.emitMessagesRead(chatId);
-
         // Escuchar nuevos mensajes en tiempo real
         const onNewMessage = (data: { chatId: string; message: any }) => {
             if (data.chatId === chatId) {
                 setMessages(prev => {
-                    // Evitar duplicados
                     if (prev.some(m => m.id === data.message.id)) return prev;
                     return [...prev, data.message];
                 });
-                // Marcar como leido inmediatamente ya que estamos en el chat
-                socketService.emitMessagesRead(chatId);
+                // Marcar como leido INMEDIATAMENTE via REST (esto notifica al sender por socket)
+                api.markMessagesAsRead(chatId);
                 api.markChatAsRead(chatId);
             }
         };
@@ -469,10 +464,12 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
         socketService.on('messages-delivered', onDelivered);
         socketService.on('messages-read', onRead);
 
-        // Polling de respaldo cada 15 segundos (en vez de 5)
+        // Polling de respaldo cada 10 segundos
         pollingRef.current = setInterval(() => {
             loadMessages(false);
-        }, 15000);
+            // Cada vez que cargamos mensajes, marcamos como leidos
+            api.markMessagesAsRead(chatId);
+        }, 10000);
 
         return () => {
             socketService.off('new-message', onNewMessage);
