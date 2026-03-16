@@ -102,6 +102,13 @@ async function migrate() {
             `);
             console.log('✅ Created table: phase_checklist_items');
 
+            // 6b. Phase dependencies column
+            await client.query(`
+                ALTER TABLE project_phases
+                ADD COLUMN IF NOT EXISTS depends_on_phase_id UUID REFERENCES project_phases(id) ON DELETE SET NULL;
+            `);
+            console.log('✅ Added depends_on_phase_id to project_phases');
+
             // 7. Indexes
             await client.query(`
                 CREATE INDEX IF NOT EXISTS idx_projects_client_id ON projects(client_id);

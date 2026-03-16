@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, Modal,
     StyleSheet, ActivityIndicator, ScrollView,
@@ -18,15 +18,23 @@ const SERVICE_TYPES = [
     'Otro',
 ];
 
+interface EditProjectData {
+    id: string;
+    name: string;
+    serviceType: string;
+    description: string | null;
+}
+
 interface CreateProjectModalProps {
     visible: boolean;
     clientId: string;
+    editProject?: EditProjectData | null;
     onClose: () => void;
     onCreated: () => void;
 }
 
 export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
-    visible, clientId, onClose, onCreated,
+    visible, clientId, editProject, onClose, onCreated,
 }) => {
     const { colors, isDark } = useTheme();
     const [name, setName] = useState('');
@@ -34,24 +42,47 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
     const [description, setDescription] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
+    const isEditMode = !!editProject;
+
+    useEffect(() => {
+        if (visible && editProject) {
+            setName(editProject.name);
+            setServiceType(editProject.serviceType);
+            setDescription(editProject.description || '');
+        } else if (visible && !editProject) {
+            setName('');
+            setServiceType('');
+            setDescription('');
+        }
+    }, [visible, editProject]);
+
     const handleCreate = async () => {
         if (!name.trim() || !serviceType) return;
         setIsCreating(true);
         try {
-            const result = await api.createProject({
-                clientId,
-                name: name.trim(),
-                serviceType,
-                description: description.trim() || undefined,
-            });
-            if (result.data) {
-                setName('');
-                setServiceType('');
-                setDescription('');
+            if (isEditMode && editProject) {
+                await api.updateProjectData(editProject.id, {
+                    name: name.trim(),
+                    serviceType,
+                    description: description.trim() || undefined,
+                });
                 onCreated();
+            } else {
+                const result = await api.createProject({
+                    clientId,
+                    name: name.trim(),
+                    serviceType,
+                    description: description.trim() || undefined,
+                });
+                if (result.data) {
+                    setName('');
+                    setServiceType('');
+                    setDescription('');
+                    onCreated();
+                }
             }
         } catch (error) {
-            console.error('Error creating project:', error);
+            console.error('Error creating/updating project:', error);
         } finally {
             setIsCreating(false);
         }
@@ -67,7 +98,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                 <View style={[styles.modal, { backgroundColor: modalBg }]}>
                     <View style={styles.modalHeader}>
                         <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                            Nuevo Proyecto
+                            {isEditMode ? 'Editar Proyecto' : 'Nuevo Proyecto'}
                         </Text>
                         <TouchableOpacity onPress={onClose}>
                             <Ionicons name="close" size={22} color={colors.textMuted} />
@@ -136,7 +167,7 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                             {isCreating ? (
                                 <ActivityIndicator size="small" color="#fff" />
                             ) : (
-                                <Text style={styles.createText}>Crear Proyecto</Text>
+                                <Text style={styles.createText}>{isEditMode ? 'Guardar' : 'Crear Proyecto'}</Text>
                             )}
                         </TouchableOpacity>
                     </View>

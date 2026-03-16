@@ -201,11 +201,11 @@ router.put('/:projectId', requireConsultor, async (req: Request, res: Response) 
 // POST /api/projects/:projectId/phases?userId=xxx
 router.post('/:projectId/phases', requireConsultor, async (req: Request, res: Response) => {
     try {
-        const { name, description, executorId, deadline } = req.body;
+        const { name, description, executorId, deadline, dependsOnPhaseId } = req.body;
         if (!name) return res.status(400).json({ error: 'name es requerido' });
 
         const phase = await createPhase({
-            projectId: req.params.projectId as string, name, description, executorId, deadline,
+            projectId: req.params.projectId as string, name, description, executorId, deadline, dependsOnPhaseId,
         });
         res.status(201).json({ phase });
     } catch (error: any) {
@@ -217,13 +217,17 @@ router.post('/:projectId/phases', requireConsultor, async (req: Request, res: Re
 // PUT /api/projects/:projectId/phases/:phaseId?userId=xxx
 router.put('/:projectId/phases/:phaseId', requireConsultor, async (req: Request, res: Response) => {
     try {
-        const { name, description, status, executorId, deadline } = req.body;
+        const { name, description, status, executorId, deadline, dependsOnPhaseId } = req.body;
         const phase = await updatePhase(req.params.phaseId as string, {
             name, description, status, executorId, deadline,
+            dependsOnPhaseId: dependsOnPhaseId !== undefined ? dependsOnPhaseId : undefined,
         });
         if (!phase) return res.status(404).json({ error: 'Fase no encontrada' });
         res.json({ phase });
     } catch (error: any) {
+        if (error.message?.includes('No se puede avanzar')) {
+            return res.status(400).json({ error: error.message });
+        }
         console.error('Error al actualizar fase:', error);
         res.status(500).json({ error: error.message });
     }

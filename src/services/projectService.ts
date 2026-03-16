@@ -244,6 +244,7 @@ export async function getProjectById(projectId: string): Promise<ProjectDetail |
             pp.id, pp.project_id, pp.name, pp.description, pp.status,
             pp.executor_id, eu.name as executor_name,
             pp.sort_order, pp.deadline::text,
+            pp.depends_on_phase_id, dep.name as depends_on_phase_name,
             pp.started_at::text, pp.completed_at::text,
             pp.created_at::text, pp.updated_at::text,
             COALESCE(d.cnt, 0)::int as docs_count,
@@ -251,6 +252,7 @@ export async function getProjectById(projectId: string): Promise<ProjectDetail |
             COALESCE(c.done, 0)::int as checklist_done
         FROM project_phases pp
         LEFT JOIN users eu ON eu.id = pp.executor_id
+        LEFT JOIN project_phases dep ON dep.id = pp.depends_on_phase_id
         LEFT JOIN (SELECT phase_id, COUNT(*)::int as cnt FROM phase_documents GROUP BY phase_id) d ON d.phase_id = pp.id
         LEFT JOIN (
             SELECT phase_id, COUNT(*)::int as cnt,
@@ -312,6 +314,8 @@ export interface PhaseRow {
     executor_name: string | null;
     sort_order: number;
     deadline: string | null;
+    depends_on_phase_id: string | null;
+    depends_on_phase_name: string | null;
     started_at: string | null;
     completed_at: string | null;
     created_at: string;
@@ -327,6 +331,7 @@ export async function createPhase(data: {
     description?: string;
     executorId?: string;
     deadline?: string;
+    dependsOnPhaseId?: string;
 }): Promise<PhaseRow> {
     const maxOrder = await queryOne<{ max_order: number }>(
         `SELECT COALESCE(MAX(sort_order), -1)::int + 1 as max_order FROM project_phases WHERE project_id = $1`,
@@ -334,20 +339,22 @@ export async function createPhase(data: {
     );
 
     const result = await queryOne<{ id: string }>(`
-        INSERT INTO project_phases (project_id, name, description, executor_id, deadline, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO project_phases (project_id, name, description, executor_id, deadline, sort_order, depends_on_phase_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
-    `, [data.projectId, data.name, data.description || null, data.executorId || null, data.deadline || null, maxOrder?.max_order || 0]);
+    `, [data.projectId, data.name, data.description || null, data.executorId || null, data.deadline || null, maxOrder?.max_order || 0, data.dependsOnPhaseId || null]);
 
     const phases = await query<PhaseRow>(`
         SELECT pp.id, pp.project_id, pp.name, pp.description, pp.status,
                pp.executor_id, eu.name as executor_name,
                pp.sort_order, pp.deadline::text,
+               pp.depends_on_phase_id, dep.name as depends_on_phase_name,
                pp.started_at::text, pp.completed_at::text,
                pp.created_at::text, pp.updated_at::text,
                0 as docs_count, 0 as checklist_total, 0 as checklist_done
         FROM project_phases pp
         LEFT JOIN users eu ON eu.id = pp.executor_id
+        LEFT JOIN project_phases dep ON dep.id = pp.depends_on_phase_id
         WHERE pp.id = $1
     `, [result!.id]);
 
@@ -356,8 +363,23 @@ export async function createPhase(data: {
 
 export async function updatePhase(
     phaseId: string,
-    data: { name?: string; description?: string; status?: string; executorId?: string; deadline?: string }
+    data: { name?: string; description?: string; status?: string; executorId?: string; deadline?: string; dependsOnPhaseId?: string | null }
 ): Promise<PhaseRow | null> {
+    // If trying to start or complete, check dependency
+    if (data.status === 'en_curso' || data.status === 'completado') {
+        const currentPhase = await queryOne<{ depends_on_phase_id: string | null }>(
+            'SELECT depends_on_phase_id FROM project_phases WHERE id = $1', [phaseId]
+        );
+        if (currentPhase?.depends_on_phase_id) {
+            const depPhase = await queryOne<{ status: string; name: string }>(
+                'SELECT status, name FROM project_phases WHERE id = $1', [currentPhase.depends_on_phase_id]
+            );
+            if (depPhase && depPhase.status !== 'completado') {
+                throw new Error(`No se puede avanzar esta fase. La fase "${depPhase.name}" debe completarse primero.`);
+            }
+        }
+    }
+
     const sets: string[] = [];
     const params: any[] = [];
     let idx = 1;
@@ -375,6 +397,7 @@ export async function updatePhase(
     }
     if (data.executorId !== undefined) { sets.push(`executor_id = $${idx++}`); params.push(data.executorId || null); }
     if (data.deadline !== undefined) { sets.push(`deadline = $${idx++}`); params.push(data.deadline || null); }
+    if (data.dependsOnPhaseId !== undefined) { sets.push(`depends_on_phase_id = $${idx++}`); params.push(data.dependsOnPhaseId || null); }
 
     if (sets.length === 0) return null;
 
@@ -385,6 +408,7 @@ export async function updatePhase(
         SELECT pp.id, pp.project_id, pp.name, pp.description, pp.status,
                pp.executor_id, eu.name as executor_name,
                pp.sort_order, pp.deadline::text,
+               pp.depends_on_phase_id, dep.name as depends_on_phase_name,
                pp.started_at::text, pp.completed_at::text,
                pp.created_at::text, pp.updated_at::text,
                COALESCE(d.cnt, 0)::int as docs_count,
@@ -392,6 +416,7 @@ export async function updatePhase(
                COALESCE(c.done, 0)::int as checklist_done
         FROM project_phases pp
         LEFT JOIN users eu ON eu.id = pp.executor_id
+        LEFT JOIN project_phases dep ON dep.id = pp.depends_on_phase_id
         LEFT JOIN (SELECT phase_id, COUNT(*)::int as cnt FROM phase_documents GROUP BY phase_id) d ON d.phase_id = pp.id
         LEFT JOIN (
             SELECT phase_id, COUNT(*)::int as cnt,
@@ -433,6 +458,7 @@ export async function getPhaseDetail(phaseId: string): Promise<PhaseDetail | nul
         SELECT pp.id, pp.project_id, pp.name, pp.description, pp.status,
                pp.executor_id, eu.name as executor_name,
                pp.sort_order, pp.deadline::text,
+               pp.depends_on_phase_id, dep.name as depends_on_phase_name,
                pp.started_at::text, pp.completed_at::text,
                pp.created_at::text, pp.updated_at::text,
                COALESCE(d.cnt, 0)::int as docs_count,
@@ -440,6 +466,7 @@ export async function getPhaseDetail(phaseId: string): Promise<PhaseDetail | nul
                COALESCE(c.done, 0)::int as checklist_done
         FROM project_phases pp
         LEFT JOIN users eu ON eu.id = pp.executor_id
+        LEFT JOIN project_phases dep ON dep.id = pp.depends_on_phase_id
         LEFT JOIN (SELECT phase_id, COUNT(*)::int as cnt FROM phase_documents GROUP BY phase_id) d ON d.phase_id = pp.id
         LEFT JOIN (
             SELECT phase_id, COUNT(*)::int as cnt,

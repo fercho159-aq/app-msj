@@ -194,6 +194,8 @@ export interface PhaseRow {
     executor_name: string | null;
     sort_order: number;
     deadline: string | null;
+    depends_on_phase_id: string | null;
+    depends_on_phase_name: string | null;
     started_at: string | null;
     completed_at: string | null;
     created_at: string;

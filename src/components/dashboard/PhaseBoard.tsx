@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 import { PhaseCard } from './PhaseCard';
 import { CreatePhaseModal } from './CreatePhaseModal';
+import { CreateProjectModal } from './CreateProjectModal';
 import { StatusBadge } from './StatusBadge';
 import type { ProjectDetail, PhaseRow } from '../../types';
 
@@ -25,6 +26,7 @@ export const PhaseBoard: React.FC<PhaseBoardProps> = ({
     const [project, setProject] = useState<ProjectDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showEditProjectModal, setShowEditProjectModal] = useState(false);
 
     const loadProject = useCallback(async () => {
         setIsLoading(true);
@@ -65,7 +67,12 @@ export const PhaseBoard: React.FC<PhaseBoardProps> = ({
                         <Text style={[styles.projectName, { color: colors.textPrimary }]}>
                             {project.name}
                         </Text>
-                        <StatusBadge status={project.status as any} small />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <StatusBadge status={project.status as any} small />
+                            <TouchableOpacity onPress={() => setShowEditProjectModal(true)}>
+                                <Ionicons name="pencil-outline" size={16} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     <Text style={[styles.projectService, { color: colors.textMuted }]}>
                         {project.service_type}
@@ -120,6 +127,24 @@ export const PhaseBoard: React.FC<PhaseBoardProps> = ({
                     loadProject();
                 }}
             />
+
+            {project && (
+                <CreateProjectModal
+                    visible={showEditProjectModal}
+                    clientId={project.client_id}
+                    editProject={{
+                        id: project.id,
+                        name: project.name,
+                        serviceType: project.service_type,
+                        description: project.description,
+                    }}
+                    onClose={() => setShowEditProjectModal(false)}
+                    onCreated={() => {
+                        setShowEditProjectModal(false);
+                        loadProject();
+                    }}
+                />
+            )}
         </View>
     );
 };

@@ -799,7 +799,7 @@ class ApiClient {
         );
     }
 
-    async createPhase(projectId: string, data: { name: string; description?: string; executorId?: string; deadline?: string }) {
+    async createPhase(projectId: string, data: { name: string; description?: string; executorId?: string; deadline?: string; dependsOnPhaseId?: string }) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         return this.request<{ phase: import('../types').PhaseRow }>(
             `/projects/${projectId}/phases?userId=${this.userId}`,
@@ -807,7 +807,7 @@ class ApiClient {
         );
     }
 
-    async updatePhase(projectId: string, phaseId: string, data: { name?: string; description?: string; status?: string; executorId?: string; deadline?: string }) {
+    async updatePhase(projectId: string, phaseId: string, data: { name?: string; description?: string; status?: string; executorId?: string; deadline?: string; dependsOnPhaseId?: string | null }) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         return this.request<{ phase: import('../types').PhaseRow }>(
             `/projects/${projectId}/phases/${phaseId}?userId=${this.userId}`,

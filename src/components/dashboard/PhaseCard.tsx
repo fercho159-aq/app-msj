@@ -67,6 +67,14 @@ export const PhaseCard: React.FC<PhaseCardProps> = ({ phase, isSelected, onPress
             </View>
 
             <View style={styles.counters}>
+                {phase.depends_on_phase_name && (
+                    <View style={styles.counter}>
+                        <Ionicons name="link-outline" size={12} color="#FBBF24" />
+                        <Text style={[styles.counterText, { color: colors.textMuted }]} numberOfLines={1}>
+                            {phase.depends_on_phase_name}
+                        </Text>
+                    </View>
+                )}
                 {phase.docs_count > 0 && (
                     <View style={styles.counter}>
                         <Ionicons name="document-outline" size={12} color={colors.textMuted} />

@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
-import type { ConsultorRow } from '../../types';
+import type { ConsultorRow, PhaseRow } from '../../types';
 
 interface CreatePhaseModalProps {
     visible: boolean;
@@ -24,6 +24,8 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
     const [deadline, setDeadline] = useState('');
     const [executorId, setExecutorId] = useState('');
     const [consultors, setConsultors] = useState<ConsultorRow[]>([]);
+    const [dependsOnPhaseId, setDependsOnPhaseId] = useState('');
+    const [siblingPhases, setSiblingPhases] = useState<PhaseRow[]>([]);
     const [isCreating, setIsCreating] = useState(false);
 
     useEffect(() => {
@@ -31,8 +33,11 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
             api.getConsultors().then(r => {
                 if (r.data) setConsultors(r.data.consultors);
             });
+            api.getProject(projectId).then(r => {
+                if (r.data) setSiblingPhases(r.data.project.phases);
+            });
         }
-    }, [visible]);
+    }, [visible, projectId]);
 
     const handleCreate = async () => {
         if (!name.trim()) return;
@@ -43,12 +48,14 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
                 description: description.trim() || undefined,
                 deadline: deadline || undefined,
                 executorId: executorId || undefined,
+                dependsOnPhaseId: dependsOnPhaseId || undefined,
             });
             if (result.data) {
                 setName('');
                 setDescription('');
                 setDeadline('');
                 setExecutorId('');
+                setDependsOnPhaseId('');
                 onCreated();
             }
         } catch (error) {
@@ -151,6 +158,39 @@ export const CreatePhaseModal: React.FC<CreatePhaseModalProps> = ({
                                 </TouchableOpacity>
                             ))}
                         </View>
+
+                        {siblingPhases.length > 0 && (
+                            <>
+                                <Text style={[styles.label, { color: colors.textMuted }]}>Depende de</Text>
+                                <View style={styles.consultorGrid}>
+                                    <TouchableOpacity
+                                        style={[styles.consultorChip, {
+                                            backgroundColor: !dependsOnPhaseId ? `${colors.primary}15` : inputBg,
+                                            borderColor: !dependsOnPhaseId ? colors.primary : inputBorder,
+                                        }]}
+                                        onPress={() => setDependsOnPhaseId('')}
+                                    >
+                                        <Text style={[styles.consultorChipText, {
+                                            color: !dependsOnPhaseId ? colors.primary : colors.textSecondary,
+                                        }]}>Ninguna</Text>
+                                    </TouchableOpacity>
+                                    {siblingPhases.map(p => (
+                                        <TouchableOpacity
+                                            key={p.id}
+                                            style={[styles.consultorChip, {
+                                                backgroundColor: dependsOnPhaseId === p.id ? `${colors.primary}15` : inputBg,
+                                                borderColor: dependsOnPhaseId === p.id ? colors.primary : inputBorder,
+                                            }]}
+                                            onPress={() => setDependsOnPhaseId(p.id)}
+                                        >
+                                            <Text style={[styles.consultorChipText, {
+                                                color: dependsOnPhaseId === p.id ? colors.primary : colors.textSecondary,
+                                            }]}>{p.name}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </>
+                        )}
                     </ScrollView>
 
                     <View style={styles.modalFooter}>
