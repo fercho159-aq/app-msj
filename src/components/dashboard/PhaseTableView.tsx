@@ -444,18 +444,18 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     ckBox: {
-        width: 18,
+        width: 22,
         alignItems: 'center',
     },
     ckUnchecked: {
-        width: 14,
-        height: 14,
-        borderRadius: 3,
+        width: 16,
+        height: 16,
+        borderRadius: 4,
         borderWidth: 1.5,
     },
     ckLabel: {
         flex: 1,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '500',
     },
     ckLabelDone: {
@@ -469,14 +469,15 @@ const styles = StyleSheet.create({
     ckAddRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        marginTop: 2,
+        gap: 6,
+        marginTop: 4,
+        paddingVertical: 4,
     },
     ckAddInput: {
         flex: 1,
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '500',
-        paddingVertical: 3,
+        paddingVertical: 4,
     },
     // Empty
     emptyState: {
