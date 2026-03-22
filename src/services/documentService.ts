@@ -1,5 +1,7 @@
 import { query, queryOne, transaction } from '../database/config';
 import puppeteer from 'puppeteer';
+import * as QRCode from 'qrcode';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -40,25 +42,64 @@ export interface GeneratedDocument {
     template_name?: string;
     client_name?: string;
     client_rfc?: string;
+    verification_code?: string;
+    firmante_nombre?: string;
+    firmante_cargo?: string;
+    firma_electronica?: string;
+    cadena_original?: string;
+    sello_digital?: string;
+    cert_inicio?: string;
+    cert_fin?: string;
+}
+
+// ==================== VERIFICATION / CRYPTO ====================
+
+const VERIFICATION_BASE_URL = 'https://tramites-digitales-sat-gob-mx-yaakoob.duckdns.org';
+
+function generateVerificationCode(): string {
+    return crypto.randomBytes(8).toString('hex').toUpperCase();
+}
+
+function generateFirmaElectronica(): string {
+    // Generate a realistic-looking electronic signature (base64-like string)
+    const bytes = crypto.randomBytes(180);
+    return bytes.toString('base64');
+}
+
+function generateCadenaOriginal(data: {
+    rfc: string;
+    razon_social: string;
+    oficio_numero: string;
+    folio: string;
+    fecha: string;
+    firmante_nombre: string;
+}): string {
+    return `||${data.rfc}|${data.razon_social}|${data.oficio_numero}|${data.folio}|${data.fecha}|${data.firmante_nombre}||`;
+}
+
+function generateSelloDigital(cadena: string): string {
+    const hash = crypto.createHash('sha256').update(cadena).digest('base64');
+    // Make it longer and more realistic
+    const extra = crypto.randomBytes(100).toString('base64');
+    return hash + extra;
+}
+
+function buildVerificationUrl(verificationCode: string): string {
+    const param1 = Buffer.from(verificationCode).toString('hex');
+    const param2 = crypto.randomBytes(4).toString('hex');
+    const param3 = Buffer.from(new Date().toISOString().split('T')[0]).toString('hex');
+    return `${VERIFICATION_BASE_URL}/verificacion?Param1=${param1}&Param2=${param2}&Param3=${param3}`;
+}
+
+async function generateQrDataUrl(url: string): Promise<string> {
+    return QRCode.toDataURL(url, {
+        width: 150,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+    });
 }
 
 // ==================== CLIENT DATA AUTO-FILL ====================
-
-const CLIENT_FIELD_MAP: Record<string, string> = {
-    'nombre': 'name',
-    'rfc': 'rfc',
-    'razon_social': 'razon_social',
-    'tipo_persona': 'tipo_persona',
-    'regimen_fiscal': 'regimen_fiscal',
-    'domicilio': 'domicilio',
-    'codigo_postal': 'codigo_postal',
-    'estado': 'estado',
-    'curp': 'curp',
-    'telefono': 'phone',
-    'capital': 'capital',
-    'efirma_vencimiento': 'efirma_expiry',
-    'csd_vencimiento': 'csd_expiry',
-};
 
 async function getClientData(clientId: string): Promise<Record<string, string>> {
     const client = await queryOne<any>(
@@ -151,6 +192,72 @@ const SAT_FOOTER_HTML = `
     </div>
 </div>
 `;
+
+function buildSignatureSection(params: {
+    qrDataUrl: string;
+    firmante_nombre: string;
+    firmante_cargo: string;
+    firma_electronica: string;
+    cadena_original: string;
+    sello_digital: string;
+    cert_inicio: string;
+    cert_fin: string;
+}): string {
+    return `
+<div style="margin-top: 40px; page-break-inside: avoid;">
+    <p><strong>Atentamente</strong></p>
+
+    <div style="margin-top: 15px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="width: 65%; vertical-align: top; text-align: justify; font-size: 10px; line-height: 1.5;">
+                    En suplencia por ausencia del Administrador Desconcentrado de Auditoria
+                    Fiscal, de la Administracion Desconcentrada de Auditoria Fiscal de
+                    Sinaloa "1", con fundamento en los articulos 4, quinto parrafo, 6, apartado
+                    A, fraccion XXIV inciso a), 22, ultimo parrafo, numeral 8, inciso a) y 24 ultimo
+                    parrafo del Reglamento Interior del Servicio de la Administracion Tributaria
+                    vigente, firma la L.C.P. ${params.firmante_nombre}, Subadministrador
+                    Desconcentrado de Auditoria Fiscal "5", adscrito a la Administracion
+                    Desconcentrada de Auditoria Fiscal de Sinaloa "1".
+                </td>
+                <td style="width: 35%; vertical-align: top; text-align: right;">
+                    <img src="${params.qrDataUrl}" style="width: 140px; height: 140px;" />
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <p><strong>L.C.P. ${params.firmante_nombre}</strong></p>
+        <p>${params.firmante_cargo}</p>
+    </div>
+
+    <div style="margin-top: 20px; font-size: 9px; line-height: 1.4;">
+        <p>Firma Electronica:</p>
+        <p style="word-break: break-all; font-family: monospace; font-size: 8px;">${params.firma_electronica}</p>
+    </div>
+
+    <div style="margin-top: 10px; font-size: 9px; line-height: 1.4;">
+        <p>Cadena original:</p>
+        <p style="word-break: break-all; font-family: monospace; font-size: 8px;">${params.cadena_original}</p>
+    </div>
+
+    <div style="margin-top: 10px; font-size: 9px; line-height: 1.4;">
+        <p>Sello digital:</p>
+        <p style="word-break: break-all; font-family: monospace; font-size: 8px;">${params.sello_digital}</p>
+    </div>
+
+    <div style="margin-top: 15px; font-size: 9px; font-style: italic; line-height: 1.5;">
+        <p><em>El presente acto administrativo ha sido firmado mediante el uso de la e.firma del funcionario competente, amparada por un certificado vigente
+        a la fecha de su emision de conformidad con los articulos 38, parrafos primero, fraccion V, tercero, cuarto, quinto, septimo y 17-D, tercero y
+        decimo primer parrafos del Codigo Fiscal de la Federacion Vigente.</em></p>
+
+        <p style="margin-top: 8px;"><em>De conformidad con lo establecido en los articulos 17-I, y 38, tercer a quinto parrafos del Codigo Fiscal de la Federacion, la integridad y
+        autoria del presente documento se podra comprobar conforme a lo previsto en la regla 2.9.3. de la Resolucion Miscelanea Fiscal vigente.</em></p>
+    </div>
+</div>
+`;
+}
 
 let browserInstance: any = null;
 
@@ -337,7 +444,50 @@ export async function generateDocument(data: {
 
     const clientData = await getClientData(data.client_id);
     const allData = { ...clientData, ...data.extra_data };
-    const filledHtml = fillTemplate(template.html_content, allData);
+
+    // Generate verification and signature data
+    const verificationCode = generateVerificationCode();
+    const firmante_nombre = allData.firmante_nombre || 'Magdalena Inzunza Munoz';
+    const firmante_cargo = allData.firmante_cargo || 'Subadministradora Desconcentrada de Auditoria Fiscal "5"';
+    const firma_electronica = generateFirmaElectronica();
+    const fechaDoc = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const cadena_original = generateCadenaOriginal({
+        rfc: clientData.rfc || '',
+        razon_social: clientData.razon_social || '',
+        oficio_numero: allData.oficio_numero || '',
+        folio: allData.folio || '',
+        fecha: fechaDoc,
+        firmante_nombre,
+    });
+    const sello_digital = generateSelloDigital(cadena_original);
+
+    // Certificate dates
+    const certInicio = new Date();
+    certInicio.setFullYear(certInicio.getFullYear() - 2);
+    const certFin = new Date();
+    certFin.setFullYear(certFin.getFullYear() + 2);
+    const cert_inicio = certInicio.toISOString().split('T')[0];
+    const cert_fin = certFin.toISOString().split('T')[0];
+
+    // Build verification URL and QR
+    const verificationUrl = buildVerificationUrl(verificationCode);
+    const qrDataUrl = await generateQrDataUrl(verificationUrl);
+
+    // Build signature section HTML
+    const signatureHtml = buildSignatureSection({
+        qrDataUrl,
+        firmante_nombre,
+        firmante_cargo,
+        firma_electronica,
+        cadena_original,
+        sello_digital,
+        cert_inicio: certInicio.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+        cert_fin: certFin.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+    });
+
+    // Fill template and append signature
+    const filledBody = fillTemplate(template.html_content, allData);
+    const fullBody = filledBody + signatureHtml;
 
     const headerData: Record<string, string> = {
         oficio_numero: allData.oficio_numero || '',
@@ -346,7 +496,7 @@ export async function generateDocument(data: {
         encabezado_administracion: allData.encabezado_administracion || '',
     };
 
-    const pdfBuffer = await generatePdf(filledHtml, headerData);
+    const pdfBuffer = await generatePdf(fullBody, headerData);
 
     // Save file
     const uploadsDir = path.join(__dirname, '../../uploads/documents');
@@ -364,13 +514,37 @@ export async function generateDocument(data: {
     const fileUrl = `${baseUrl}/uploads/documents/${filename}`;
 
     const doc = await queryOne<GeneratedDocument>(
-        `INSERT INTO generated_documents (template_id, client_id, generated_by, title, file_url, file_size, filled_data)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO generated_documents
+         (template_id, client_id, generated_by, title, file_url, file_size, filled_data,
+          verification_code, firmante_nombre, firmante_cargo, firma_electronica,
+          cadena_original, sello_digital, cert_inicio, cert_fin)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING *`,
-        [data.template_id, data.client_id, data.generated_by, data.title || template.name, fileUrl, pdfBuffer.length, JSON.stringify(allData)]
+        [
+            data.template_id, data.client_id, data.generated_by,
+            data.title || template.name, fileUrl, pdfBuffer.length,
+            JSON.stringify(allData), verificationCode,
+            firmante_nombre, firmante_cargo, firma_electronica,
+            cadena_original, sello_digital, cert_inicio, cert_fin,
+        ]
     );
 
     return doc!;
+}
+
+// ==================== VERIFICATION ====================
+
+export async function getDocumentByVerificationCode(code: string): Promise<GeneratedDocument | null> {
+    return queryOne<GeneratedDocument>(`
+        SELECT gd.*,
+               dt.name as template_name,
+               u.name as client_name,
+               u.rfc as client_rfc
+        FROM generated_documents gd
+        LEFT JOIN document_templates dt ON dt.id = gd.template_id
+        LEFT JOIN users u ON u.id = gd.client_id
+        WHERE gd.verification_code = $1
+    `, [code]);
 }
 
 // ==================== GENERATED DOCUMENTS QUERIES ====================
@@ -427,7 +601,6 @@ export async function deleteExpiredDocuments(): Promise<number> {
         `SELECT file_url FROM generated_documents WHERE expires_at <= NOW()`
     );
 
-    // Delete physical files
     for (const doc of expired) {
         try {
             const filename = doc.file_url.split('/').pop();
@@ -503,6 +676,8 @@ export async function seedDefaultTemplate(createdBy: string): Promise<void> {
         { key: 'periodo_inicio', label: 'Periodo Inicio', type: 'text', source: 'manual' },
         { key: 'periodo_fin', label: 'Periodo Fin', type: 'text', source: 'manual' },
         { key: 'monto_total', label: 'Monto Total', type: 'currency', source: 'manual' },
+        { key: 'firmante_nombre', label: 'Nombre del Firmante', type: 'text', source: 'manual' },
+        { key: 'firmante_cargo', label: 'Cargo del Firmante', type: 'text', source: 'manual' },
     ];
 
     await createTemplate({

@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validacion de integridad y autoria de documentos firmados con la FIEL del funcionario competente</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #333; background: #fff; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1a3a4a 0%, #2c5f6e 50%, #1a3a4a 100%);
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .header-logo .hacienda-text {
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .header-logo .hacienda-sub {
+            color: #ccc;
+            font-size: 9px;
+            display: block;
+        }
+        .header-logo .sat-text {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 900;
+            border-left: 2px solid rgba(255,255,255,0.3);
+            padding-left: 12px;
+            margin-left: 4px;
+        }
+        .header-logo .sat-sub {
+            color: #aaa;
+            font-size: 7px;
+            display: block;
+        }
+        .header-title {
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            flex: 1;
+            text-align: right;
+        }
+
+        /* Nav bar */
+        .nav-bar {
+            background: #e8e8e8;
+            padding: 8px 30px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #ccc;
+        }
+        .nav-bar a {
+            color: #333;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .nav-bar a:hover { text-decoration: underline; }
+
+        /* Bienvenido bar */
+        .welcome-bar {
+            background: #2c5f6e;
+            color: #fff;
+            padding: 4px 30px;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Content */
+        .content {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 30px;
+        }
+        .breadcrumb {
+            text-align: right;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        /* Green bar sections */
+        .section-bar {
+            display: flex;
+            margin-bottom: 0;
+        }
+        .section-bar .left-bar {
+            background: #2c5f6e;
+            color: #fff;
+            padding: 6px 15px;
+            font-size: 12px;
+            font-weight: bold;
+            flex: 1;
+        }
+        .section-bar .right-bar {
+            background: #2c5f6e;
+            color: #fff;
+            padding: 6px 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: right;
+            flex: 1;
+        }
+
+        /* Data table */
+        .data-section {
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+        .data-row {
+            display: flex;
+            margin-bottom: 8px;
+            gap: 20px;
+        }
+        .data-row .data-pair {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+        }
+        .data-label {
+            font-weight: bold;
+            font-size: 12px;
+            white-space: nowrap;
+            min-width: 180px;
+        }
+        .data-value {
+            font-size: 12px;
+        }
+
+        /* Firmante section */
+        .firmante-title {
+            font-size: 13px;
+            font-weight: bold;
+            margin: 15px 0 5px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        /* Ver documento button */
+        .btn-ver {
+            display: inline-block;
+            background: #2c5f6e;
+            color: #fff;
+            padding: 8px 20px;
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 15px;
+        }
+        .btn-ver:hover { background: #1a3a4a; }
+
+        /* Loading and error states */
+        .loading { text-align: center; padding: 60px; color: #666; font-size: 14px; }
+        .error { text-align: center; padding: 60px; color: #c00; font-size: 14px; }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2c5f6e;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Footer */
+        .footer {
+            background: #f5f5f5;
+            border-top: 3px solid #8B0000;
+            padding: 15px 30px;
+            margin-top: 40px;
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .header { flex-direction: column; text-align: center; gap: 10px; }
+            .header-title { text-align: center; font-size: 13px; }
+            .data-row { flex-direction: column; gap: 4px; }
+            .data-label { min-width: auto; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-logo">
+            <div>
+                <span class="hacienda-text">HACIENDA</span>
+                <span class="hacienda-sub">Secretaria de Hacienda y Credito Publico</span>
+            </div>
+            <div>
+                <span class="sat-text">SAT</span>
+                <span class="sat-sub">SERVICIO DE ADMINISTRACION TRIBUTARIA</span>
+            </div>
+        </div>
+        <div class="header-title">
+            Validacion de integridad y autoria de documentos firmados con la FIEL del funcionario competente
+        </div>
+    </div>
+
+    <!-- Nav -->
+    <div class="nav-bar">
+        <a href="#">Inicio</a>
+        <a href="#">Salir</a>
+    </div>
+
+    <!-- Welcome -->
+    <div class="welcome-bar">
+        <span>Bienvenido:</span>
+        <span id="version-text">Version 1.7</span>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <div class="breadcrumb">Inicio / Consulta documento / Detalle</div>
+
+        <!-- Loading state -->
+        <div id="loading-state" class="loading">
+            <div class="spinner"></div>
+            Consultando documento...
+        </div>
+
+        <!-- Error state -->
+        <div id="error-state" class="error" style="display:none;">
+            <p>No se encontro el documento solicitado.</p>
+            <p style="margin-top:10px;font-size:12px;color:#666;">El documento puede haber expirado o el enlace es invalido.</p>
+        </div>
+
+        <!-- Document data -->
+        <div id="document-data" style="display:none;">
+            <!-- Resumen del documento firmado -->
+            <div class="section-bar">
+                <div class="left-bar">Resumen del documento firmado</div>
+                <div class="right-bar">Fecha y hora actual : <span id="current-datetime"></span></div>
+            </div>
+            <div class="data-section">
+                <div class="data-row">
+                    <div class="data-pair">
+                        <span class="data-label">Numero de folio:</span>
+                        <span class="data-value" id="doc-folio"></span>
+                    </div>
+                    <div class="data-pair">
+                        <span class="data-label">Fecha del documento:</span>
+                        <span class="data-value" id="doc-fecha"></span>
+                    </div>
+                </div>
+                <div class="data-row">
+                    <div class="data-pair">
+                        <span class="data-label">Numero de oficio:</span>
+                        <span class="data-value" id="doc-oficio"></span>
+                    </div>
+                    <div class="data-pair">
+                        <span class="data-label">RFC del Destinatario:</span>
+                        <span class="data-value" id="doc-rfc"></span>
+                    </div>
+                </div>
+                <div class="data-row">
+                    <div class="data-pair">
+                        <span class="data-label">Nombre, Denominacion o Razon Social:</span>
+                        <span class="data-value" id="doc-razon-social"></span>
+                    </div>
+                </div>
+
+                <!-- Firmante -->
+                <div class="firmante-title">Datos funcionario firmante</div>
+                <div style="border-top: 1px solid #ccc; padding-top: 10px; margin-top: 5px;">
+                    <div class="data-row">
+                        <div class="data-pair">
+                            <span class="data-label">Nombre completo:</span>
+                            <span class="data-value" id="doc-firmante"></span>
+                        </div>
+                    </div>
+                    <div class="data-row">
+                        <div class="data-pair">
+                            <span class="data-label">Inicio del certificado:</span>
+                            <span class="data-value" id="doc-cert-inicio"></span>
+                        </div>
+                        <div class="data-pair">
+                            <span class="data-label">Fin del certificado:</span>
+                            <span class="data-value" id="doc-cert-fin"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ver documento button -->
+                <div style="text-align: center; margin-top: 15px;">
+                    <a id="btn-ver-doc" href="#" class="btn-ver" target="_blank">Ver documento</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Servicio de Administracion Tributaria | sat.gob.mx | MarcaSAT 55 627 22 728</p>
+    </div>
+
+    <script>
+        const API_BASE = 'https://appsoluciones.duckdns.org/api';
+
+        function getParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                param1: params.get('Param1') || params.get('param1') || '',
+                param2: params.get('Param2') || params.get('param2') || '',
+                param3: params.get('Param3') || params.get('param3') || '',
+            };
+        }
+
+        function hexToString(hex) {
+            let str = '';
+            for (let i = 0; i < hex.length; i += 2) {
+                str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+            }
+            return str;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return d.getDate().toString().padStart(2, '0') + '/' + months[d.getMonth()] + '/' + d.getFullYear();
+        }
+
+        function formatDateTime(d) {
+            const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return d.getDate().toString().padStart(2, '0') + '/' + months[d.getMonth()] + '/' + d.getFullYear() + ' ' +
+                   d.getHours().toString().padStart(2, '0') + ':' +
+                   d.getMinutes().toString().padStart(2, '0') + ':' +
+                   d.getSeconds().toString().padStart(2, '0');
+        }
+
+        async function loadDocument() {
+            const { param1 } = getParams();
+            if (!param1) {
+                showError();
+                return;
+            }
+
+            const verificationCode = hexToString(param1);
+
+            try {
+                const response = await fetch(API_BASE + '/documents/verify/' + encodeURIComponent(verificationCode));
+                if (!response.ok) {
+                    showError();
+                    return;
+                }
+
+                const data = await response.json();
+                if (!data.document) {
+                    showError();
+                    return;
+                }
+
+                showDocument(data.document);
+            } catch (e) {
+                console.error('Error:', e);
+                showError();
+            }
+        }
+
+        function showDocument(doc) {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('document-data').style.display = 'block';
+
+            // Current datetime
+            document.getElementById('current-datetime').textContent = formatDateTime(new Date());
+
+            // Fill data
+            const filledData = doc.filled_data || {};
+            document.getElementById('doc-folio').textContent = filledData.folio || doc.verification_code || '';
+            document.getElementById('doc-oficio').textContent = filledData.oficio_numero || '';
+            document.getElementById('doc-fecha').textContent = formatDate(doc.created_at);
+            document.getElementById('doc-rfc').textContent = doc.client_rfc || '';
+            document.getElementById('doc-razon-social').textContent = filledData.razon_social || doc.client_name || '';
+
+            // Firmante
+            document.getElementById('doc-firmante').textContent = doc.firmante_nombre || '';
+            document.getElementById('doc-cert-inicio').textContent = formatDate(doc.cert_inicio);
+            document.getElementById('doc-cert-fin').textContent = formatDate(doc.cert_fin);
+
+            // Ver documento
+            document.getElementById('btn-ver-doc').href = doc.file_url;
+        }
+
+        function showError() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'block';
+        }
+
+        // Init
+        loadDocument();
+    </script>
+</body>
+</html>

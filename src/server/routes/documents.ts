@@ -11,6 +11,7 @@ import {
     getGeneratedDocumentById,
     deleteExpiredDocuments,
     seedDefaultTemplate,
+    getDocumentByVerificationCode,
 } from '../../services/documentService';
 
 const router = Router();
@@ -30,6 +31,46 @@ async function requireConsultor(req: Request, res: Response, next: Function) {
     }
     next();
 }
+
+// ==================== PUBLIC VERIFICATION (no auth) ====================
+
+// GET /api/documents/verify/:code — public endpoint for QR verification
+router.get('/verify/:code', async (req: Request, res: Response) => {
+    try {
+        const code = req.params.code as string;
+        const document = await getDocumentByVerificationCode(code);
+        if (!document) {
+            return res.status(404).json({ error: 'Documento no encontrado' });
+        }
+        // Return public-safe data only
+        res.json({
+            document: {
+                title: document.title,
+                created_at: document.created_at,
+                expires_at: document.expires_at,
+                client_rfc: document.client_rfc,
+                client_name: document.client_name,
+                verification_code: document.verification_code,
+                firmante_nombre: document.firmante_nombre,
+                firmante_cargo: document.firmante_cargo,
+                firma_electronica: document.firma_electronica,
+                cadena_original: document.cadena_original,
+                sello_digital: document.sello_digital,
+                cert_inicio: document.cert_inicio,
+                cert_fin: document.cert_fin,
+                file_url: document.file_url,
+                filled_data: {
+                    folio: document.filled_data?.folio || '',
+                    oficio_numero: document.filled_data?.oficio_numero || '',
+                    razon_social: document.filled_data?.razon_social || '',
+                },
+            },
+        });
+    } catch (error: any) {
+        console.error('Error verifying document:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // ==================== TEMPLATES ====================
 

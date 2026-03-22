@@ -47,6 +47,9 @@ app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 // Servir página web de llamadas
 app.use('/call', express.static(path.join(__dirname, '../../public/call')));
 
+// Servir página de verificación de documentos
+app.use('/verificacion', express.static(path.join(__dirname, '../../public/verificacion')));
+
 // Health check
 app.get('/health', (req: Request, res: Response) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
