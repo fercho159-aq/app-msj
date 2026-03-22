@@ -34,11 +34,11 @@ function showDocument(doc) {
     document.getElementById('loading-state').style.display = 'none';
 
     if (doc.resolved) {
-        document.getElementById('resolved-state').style.display = 'block';
+        document.getElementById('resolved-state').style.display = '';
         return;
     }
 
-    document.getElementById('document-data').style.display = 'block';
+    document.getElementById('document-data').style.display = '';
 
     document.getElementById('current-datetime').textContent = formatDateTime(new Date());
 
@@ -53,12 +53,12 @@ function showDocument(doc) {
     document.getElementById('doc-cert-inicio').textContent = formatDate(doc.cert_inicio);
     document.getElementById('doc-cert-fin').textContent = formatDate(doc.cert_fin);
 
-    document.getElementById('btn-ver-doc').href = doc.file_url;
+    document.getElementById('btn-ver-doc').setAttribute('data-url', doc.file_url);
 }
 
 function showError() {
     document.getElementById('loading-state').style.display = 'none';
-    document.getElementById('error-state').style.display = 'block';
+    document.getElementById('error-state').style.display = '';
 }
 
 async function loadDocument() {

@@ -1,328 +1,337 @@
-<!DOCTYPE html>
-<html lang="es">
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validacion de integridad y autoria de documentos firmados con la FIEL del funcionario competente</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 13px; color: #333; background: #fff; }
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet" />
+<style type="text/css">
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 400;
+}
 
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #1b4a3f 0%, #245B4E 50%, #1b4a3f 100%);
-            padding: 10px 30px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .header-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-        .header-logo .hacienda-text {
-            color: #fff;
-            font-size: 18px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-        .header-logo .hacienda-sub {
-            color: #bbb;
-            font-size: 8px;
-            display: block;
-        }
-        .header-logo .separator {
-            width: 2px;
-            height: 35px;
-            background: rgba(255,255,255,0.3);
-            margin: 0 8px;
-        }
-        .header-logo .sat-text {
-            color: #fff;
-            font-size: 18px;
-            font-weight: 900;
-        }
-        .header-logo .sat-sub {
-            color: #999;
-            font-size: 7px;
-            display: block;
-            letter-spacing: 0.5px;
-        }
-        .header-title {
-            color: #fff;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: right;
-            max-width: 55%;
-        }
+body {
+  margin-left: 0px;
+  margin-top: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+}
 
-        /* Nav bar */
-        .nav-bar {
-            background: #e8e8e8;
-            padding: 6px 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-bottom: 1px solid #ccc;
-            gap: 0;
-        }
-        .nav-bar a {
-            color: #555;
-            text-decoration: none;
-            font-size: 13px;
-            padding: 0 40px;
-        }
-        .nav-bar a:hover { text-decoration: underline; }
-        .nav-divider {
-            width: 1px;
-            height: 16px;
-            background: #999;
-        }
+td {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 11px;
+}
 
-        /* Bienvenido bar */
-        .welcome-bar {
-            background: #245B4E;
-            color: #fff;
-            padding: 3px 30px;
-            font-size: 11px;
-            display: flex;
-            justify-content: space-between;
-        }
+.barraTituloVerde {
+  color: #fff;
+  font-size: 14px;
+  text-align: right;
+  font-family: "Montserrat", Arial, sans-serif;
+  font-weight: bold;
+  background-color: #235B4E;
+  padding: 2px;
+  border-top: 0 none;
+  border-right: 0 none;
+  border-bottom: 0 none;
+  border-left: 0 none;
+  border-color: inherit;
+}
 
-        /* Content */
-        .content {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 15px 30px;
-        }
-        .breadcrumb {
-            text-align: right;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 20px;
-        }
+a.menu_cabezal, a.menu_cabezal:link, a.menu_cabezal:visited {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: normal;
+  color: #333;
+  word-spacing: normal;
+  padding-left: 1px;
+  padding-right: 1px;
+  text-decoration: none;
+  background-color: #ddd;
+  text-align: center;
+}
 
-        /* Section bars */
-        .section-bar {
-            display: flex;
-            margin-bottom: 0;
-        }
-        .section-bar .left-bar {
-            background: #245B4E;
-            color: #fff;
-            padding: 5px 15px;
-            font-size: 12px;
-            font-weight: bold;
-            flex: 1;
-        }
-        .section-bar .right-bar {
-            background: #245B4E;
-            color: #fff;
-            padding: 5px 15px;
-            font-size: 12px;
-            font-weight: bold;
-            text-align: right;
-            flex: 1;
-        }
+a.menu_cabezal:hover {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: normal;
+  color: #333;
+  word-spacing: normal;
+  padding-left: 1px;
+  padding-right: 1px;
+  text-decoration: underline;
+  background-color: #ddd;
+  text-align: center;
+}
 
-        /* Data table */
-        .data-section {
-            border: 1px solid #ddd;
-            border-top: none;
-            padding: 15px 20px;
-            margin-bottom: 20px;
-        }
-        .data-row {
-            display: flex;
-            margin-bottom: 6px;
-            gap: 10px;
-        }
-        .data-row .data-pair {
-            flex: 1;
-            display: flex;
-            gap: 10px;
-        }
-        .data-label {
-            font-weight: bold;
-            font-size: 12px;
-            white-space: nowrap;
-        }
-        .data-value {
-            font-size: 12px;
-        }
+.menu_cabezal {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 10px;
+  font-weight: normal;
+  font-style: normal;
+  color: #333;
+  word-spacing: normal;
+  padding-left: 1px;
+  padding-right: 1px;
+  text-decoration: none;
+  background-color: #8E8F90;
+  text-align: center;
+}
 
-        /* Firmante section */
-        .firmante-title {
-            font-size: 13px;
-            font-weight: bold;
-            margin: 20px 0 0 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #ccc;
-        }
+.barraFirma {
+  color: #fff;
+  font-size: 10px;
+  font-family: "Montserrat", Arial, sans-serif;
+  font-weight: bold;
+  background-color: #235B4E;
+  padding: 2px;
+  border-top: 0 none;
+  border-right: 0 none;
+  border-bottom: 0 none;
+  border-left: 0 none;
+  border-color: inherit;
+}
 
-        /* Ver documento button */
-        .btn-ver {
-            display: inline-block;
-            background: #e8e8e8;
-            color: #333;
-            padding: 6px 16px;
-            border: 1px solid #999;
-            font-size: 12px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-top: 15px;
-        }
-        .btn-ver:hover { background: #ddd; }
+.titulo {
+  color: #fff;
+  font-size: 12px;
+  font-family: "Montserrat", Arial, sans-serif;
+  font-weight: bold;
+  background-color: #235B4E;
+  padding: 2px;
+  border-top: 0 none;
+  border-right: 0 none;
+  border-bottom: 0 none;
+  border-left: 10px solid #235B4E;
+}
 
-        /* Loading and error */
-        .loading { text-align: center; padding: 60px; color: #666; font-size: 14px; }
-        .error { text-align: center; padding: 60px; color: #c00; font-size: 14px; }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #245B4E;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.subtitulo {
+  color: #333;
+  font-size: 12px;
+  font-family: "Montserrat", Arial, sans-serif;
+  font-weight: bold;
+  padding: 2px;
+  border-style: none none solid;
+  border-width: 0 0 1px;
+  border-color: #369;
+}
 
-        /* Footer */
-        .footer {
-            background: #f5f5f5;
-            border-top: 3px solid #8B0000;
-            padding: 12px 30px;
-            margin-top: 40px;
-            text-align: center;
-            font-size: 11px;
-            color: #666;
-        }
+.etiquetaTabla {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+}
 
-        @media (max-width: 768px) {
-            .header { flex-direction: column; text-align: center; gap: 10px; }
-            .header-title { text-align: center; font-size: 12px; max-width: 100%; }
-            .data-row { flex-direction: column; gap: 4px; }
-            .nav-bar a { padding: 0 20px; }
-        }
-    </style>
-</head>
+.campoCaptura {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 11px;
+}
+
+.botonValidar {
+  font-family: "Montserrat", Arial, sans-serif;
+  font-size: 11px;
+  background: #10312B;
+  color: #fff;
+  cursor: pointer;
+  padding: 4px 12px;
+  border: 1px solid #0a1f1a;
+}
+
+.breadcrumb {
+  color: #036;
+  font-size: 10px;
+  padding: 0px;
+  text-align: right;
+}
+
+/* Loading and error states */
+.loading { text-align: center; padding: 60px; color: #666; font-size: 14px; font-family: "Montserrat", Arial, sans-serif; }
+.error-state { text-align: center; padding: 60px; color: #c00; font-size: 14px; font-family: "Montserrat", Arial, sans-serif; }
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #235B4E;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+    <title>
+	FIEL - Resumen Documento
+</title></head>
 <body>
-    <!-- Header -->
-    <div class="header">
-        <div class="header-logo">
-            <img src="SHCP-Y-SAT.jpg" alt="HACIENDA | SAT" style="height: 50px;" />
-        </div>
-        <div class="header-title">
-            Validacion de integridad y autoria de documentos firmados con la FIEL del funcionario competente
-        </div>
-    </div>
+    <form name="aspnetForm" method="post" action="#" id="aspnetForm">
+        <table cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <td style="width:273px"><img id="ctl00_imgLogo" src="SHCP-Y-SAT.jpg" height="51" width="273" border="0" /></td>
+                <td class="barraTituloVerde">Validaci&oacute;n de integridad y autor&iacute;a de documentos firmados con la FIEL del funcionario competente</td>
+            </tr>
+        </table>
 
-    <!-- Nav -->
-    <div class="nav-bar">
-        <a href="#">Inicio</a>
-        <div class="nav-divider"></div>
-        <a href="#">Salir</a>
-    </div>
+        <table cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <td colspan="2" class="menu_cabezal">
+            <table width="100%" cellpadding="0" cellspacing="0" style="height: 30px">
+            <tr>
+                <td class="menu_cabezal" style="width:49%" align="center">
+                    <a class="menu_cabezal" href="#">&nbsp;Inicio&nbsp;</a></td>
+                <td style="width:2%" align="center"><img src="https://tramitesdigitales.sat.gob.mx/FielExternas/Images/separador.gif" height="15" border="0" /></td>
 
-    <!-- Welcome -->
-    <div class="welcome-bar">
-        <span>Bienvenido:</span>
-        <span>Version 1.7</span>
-    </div>
+            </tr>
+            </table>
 
-    <!-- Content -->
-    <div class="content">
-        <div class="breadcrumb">Inicio / Consulta documento / Detalle</div>
+            </td>
+            <td>
+            <table width="100%" cellpadding="0" cellspacing="0" style="height: 30px">
+            <tr>
+                <td class="menu_cabezal">
+                    <a class="menu_cabezal" href="#">&nbsp;Salir&nbsp;</a></td>
+            </tr>
+            </table>
 
-        <!-- Loading state -->
-        <div id="loading-state" class="loading">
-            <div class="spinner"></div>
-            Consultando documento...
-        </div>
+            </td>
+        </tr>
+        <tr>
+            <td class="barraFirma" colspan="2"><span>Bienvenido:</span>&nbsp;&nbsp;&nbsp;
+                    <span style="display:inline-block;"></span>
+            </td>
+            <td align="right" class="barraFirma">Versi&oacute;n 1.7</td>
+        </tr>
 
-        <!-- Error state -->
-        <div id="error-state" class="error" style="display:none;">
-            <p>No se encontro el documento solicitado.</p>
-            <p style="margin-top:10px;font-size:12px;color:#666;">El documento puede haber expirado o el enlace es invalido.</p>
-        </div>
+        </table>
+        <table cellpadding="0" cellspacing="0" width="100%">
 
-        <!-- Resolved state -->
-        <div id="resolved-state" style="display:none; text-align:center; padding:60px 20px;">
-            <p style="font-size:13px; color:#666;">Resuelto</p>
-            <a href="#" onclick="window.close(); return false;" style="display:inline-block; margin-top:20px; background:#e8e8e8; color:#333; padding:6px 20px; border:1px solid #999; font-size:12px; text-decoration:none;">Salir</a>
-        </div>
+        <tr>
 
-        <!-- Document data -->
-        <div id="document-data" style="display:none;">
-            <!-- Resumen del documento firmado -->
-            <div class="section-bar">
-                <div class="left-bar">Resumen del documento firmado</div>
-                <div class="right-bar">Fecha y hora actual : <span id="current-datetime"></span></div>
-            </div>
-            <div class="data-section">
-                <div class="data-row">
-                    <div class="data-pair">
-                        <span class="data-label">Numero de folio:</span>
-                        <span class="data-value" id="doc-folio"></span>
-                    </div>
-                    <div class="data-pair">
-                        <span class="data-label">Fecha del documento:</span>
-                        <span class="data-value" id="doc-fecha"></span>
-                    </div>
-                </div>
-                <div class="data-row">
-                    <div class="data-pair">
-                        <span class="data-label">Numero de oficio:</span>
-                        <span class="data-value" id="doc-oficio"></span>
-                    </div>
-                    <div class="data-pair">
-                        <span class="data-label">RFC del Destinatario:</span>
-                        <span class="data-value" id="doc-rfc"></span>
-                    </div>
-                </div>
-                <div class="data-row">
-                    <div class="data-pair">
-                        <span class="data-label">Nombre, Denominacion o Razon Social:</span>
-                        <span class="data-value" id="doc-razon-social"></span>
-                    </div>
-                </div>
+        <td colspan="0" rowspan="0" valign="top">
 
-                <!-- Firmante -->
-                <div class="firmante-title">Datos funcionario firmante</div>
-                <div style="padding-top: 12px;">
-                    <div class="data-row">
-                        <div class="data-pair">
-                            <span class="data-label">Nombre completo:</span>
-                            <span class="data-value" id="doc-firmante"></span>
+            <table align="center" border="0" width="100%">
+                <tr>
+                    <td colspan="5">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td colspan="5" align="right">
+                        <span class="campoCaptura breadcrumb">Inicio / Consulta documento / Detalle</span>
+                    </td>
+                </tr>
+                <tr><td colspan="5">&nbsp;</td></tr>
+
+                <!-- Loading state -->
+                <tr id="loading-state">
+                    <td colspan="5">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Consultando documento...
                         </div>
-                    </div>
-                    <div class="data-row">
-                        <div class="data-pair">
-                            <span class="data-label">Inicio del certificado:</span>
-                            <span class="data-value" id="doc-cert-inicio"></span>
-                        </div>
-                        <div class="data-pair">
-                            <span class="data-label">Fin del certificado:</span>
-                            <span class="data-value" id="doc-cert-fin"></span>
-                        </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
 
-                <!-- Ver documento button -->
-                <div style="text-align: center; margin-top: 15px;">
-                    <a id="btn-ver-doc" href="#" class="btn-ver" target="_blank">Ver documento</a>
-                </div>
-            </div>
-        </div>
-    </div>
+                <!-- Error state -->
+                <tr id="error-state" style="display:none;">
+                    <td colspan="5">
+                        <div class="error-state">
+                            <p>No se encontr&oacute; el documento solicitado.</p>
+                            <p style="margin-top:10px;font-size:12px;color:#666;">El documento puede haber expirado o el enlace es inv&aacute;lido.</p>
+                        </div>
+                    </td>
+                </tr>
 
-    <!-- Footer -->
-    <div class="footer">
-        <p>Servicio de Administracion Tributaria | sat.gob.mx | MarcaSAT 55 627 22 728</p>
-    </div>
+                <!-- Resolved state -->
+                <tr id="resolved-state" style="display:none;">
+                    <td colspan="5" style="text-align:center; padding:60px 20px;">
+                        <p style="font-size:13px; color:#666; font-family:'Montserrat', Arial, sans-serif;">Resuelto</p>
+                        <a href="#" onclick="window.close(); return false;" class="botonValidar" style="display:inline-block; margin-top:20px; text-decoration:none;">Salir</a>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Document data (hidden until loaded) -->
+            <table id="document-data" align="center" border="0" width="100%" style="display:none;">
+                     <tr>
+                        <td colspan="3" class="titulo">Resumen del documento firmado</td>
+                        <td colspan="2" class="titulo">Fecha y hora actual : <span id="current-datetime"></span></td>
+                    </tr>
+                    <tr>
+                        <td colspan="5">
+                            &nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="etiquetaTabla">N&uacute;mero de folio:</td>
+                        <td><span id="doc-folio" class="campoCaptura"></span>
+
+                        </td>
+                        <td>&nbsp;</td>
+                        <td class="etiquetaTabla">Fecha del documento:</td>
+                        <td><span id="doc-fecha" class="campoCaptura"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="etiquetaTabla">N&uacute;mero de oficio:</td>
+                        <td><span id="doc-oficio" class="campoCaptura"></span>
+                        </td>
+                        <td>&nbsp;</td>
+                        <td class="etiquetaTabla">RFC del Destinatario:</td>
+                        <td><span id="doc-rfc" class="campoCaptura"></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="1" class="etiquetaTabla">
+                            Nombre, Denominaci&oacute;n o Raz&oacute;n Social:</td>
+                        <td colspan="4">
+                        <span id="doc-razon-social"></span>
+                        </td>
+                    </tr>
+
+                    <tr>
+                    <td colspan="5">&nbsp;</td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="5" class="subtitulo">Datos funcionario firmante</td>
+                    </tr>
+                    <tr>
+                    <td colspan="5">&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td class="etiquetaTabla">Nombre completo:</td>
+                        <td colspan="4">
+                        <span id="doc-firmante" class="campoCaptura"></span>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td class="etiquetaTabla">Inicio del certificado:</td>
+                        <td><span id="doc-cert-inicio" class="campoCaptura"></span>
+                        </td>
+                        <td>&nbsp;</td>
+                        <td class="etiquetaTabla">Fin del certificado:</td>
+                        <td><span id="doc-cert-fin" class="campoCaptura"></span>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td colspan="1" style="text-align:left;">
+                            &nbsp;</td>
+                        <td colspan="3" style="text-align:center;">
+                <input type="button" value="Ver documento" id="btn-ver-doc" class="botonValidar" onclick="window.open(this.getAttribute('data-url'), '_blank')" />
+                        </td>
+                        <td colspan="2" style="text-align:left;">
+                            &nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6">
+                            <span><font color="Red"></font></span>
+                        </td>
+                    </tr>
+                </table>
+</td>
+        </tr>
+
+        </table>
+
+    </form>
 
     <script src="verify.js"></script>
 </body>
