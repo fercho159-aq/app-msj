@@ -986,43 +986,52 @@ class ApiClient {
     // ==================== DOCUMENTS ====================
 
     async getDocumentTemplates(category?: string) {
-        const params = new URLSearchParams();
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        const params = new URLSearchParams({ userId: this.userId });
         if (category) params.append('category', category);
         return this.request<{ templates: any[] }>(`/documents/templates?${params.toString()}`);
     }
 
     async getDocumentTemplate(id: string) {
-        return this.request<{ template: any }>(`/documents/templates/${id}`);
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ template: any }>(`/documents/templates/${id}?userId=${this.userId}`);
     }
 
     async createDocumentTemplate(data: { name: string; description?: string; category: string; html_content: string; placeholders: any[] }) {
-        return this.request<{ template: any }>('/documents/templates', { method: 'POST', body: JSON.stringify(data) });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ template: any }>(`/documents/templates?userId=${this.userId}`, { method: 'POST', body: JSON.stringify(data) });
     }
 
     async updateDocumentTemplate(id: string, data: any) {
-        return this.request<{ template: any }>(`/documents/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ template: any }>(`/documents/templates/${id}?userId=${this.userId}`, { method: 'PUT', body: JSON.stringify(data) });
     }
 
     async deleteDocumentTemplate(id: string) {
-        return this.request<{ success: boolean }>(`/documents/templates/${id}`, { method: 'DELETE' });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ success: boolean }>(`/documents/templates/${id}?userId=${this.userId}`, { method: 'DELETE' });
     }
 
     async seedDocumentTemplates() {
-        return this.request<{ success: boolean }>('/documents/templates/seed', { method: 'POST' });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ success: boolean }>(`/documents/templates/seed?userId=${this.userId}`, { method: 'POST' });
     }
 
     async generateDocument(data: { template_id: string; client_id: string; extra_data?: Record<string, string>; title?: string }) {
-        return this.request<{ document: any }>('/documents/generate', { method: 'POST', body: JSON.stringify(data) });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ document: any }>(`/documents/generate?userId=${this.userId}`, { method: 'POST', body: JSON.stringify(data) });
     }
 
     async getGeneratedDocuments(clientId?: string, page: number = 1, limit: number = 20) {
-        const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        const params = new URLSearchParams({ userId: this.userId, page: String(page), limit: String(limit) });
         if (clientId) params.append('clientId', clientId);
         return this.request<{ documents: any[]; total: number }>(`/documents?${params.toString()}`);
     }
 
     async getGeneratedDocument(id: string) {
-        return this.request<{ document: any }>(`/documents/${id}`);
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ document: any }>(`/documents/${id}?userId=${this.userId}`);
     }
 }
 
