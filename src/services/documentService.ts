@@ -1,5 +1,5 @@
 import { query, queryOne, transaction } from '../database/config';
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -299,6 +299,7 @@ async function getBrowser() {
     if (!browserInstance || !browserInstance.isConnected()) {
         browserInstance = await puppeteer.launch({
             headless: true,
+            executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
             args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
         });
     }
