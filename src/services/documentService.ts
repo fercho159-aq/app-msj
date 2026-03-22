@@ -24,8 +24,10 @@ export interface PlaceholderDef {
     key: string;
     label: string;
     type: 'text' | 'date' | 'number' | 'currency';
-    source?: 'client' | 'manual';
+    source?: 'client' | 'manual' | 'auto';
     client_field?: string;
+    default_value?: string;
+    auto_generator?: 'oficio_numero' | 'folio';
 }
 
 export interface GeneratedDocument {
@@ -97,6 +99,38 @@ async function generateQrDataUrl(url: string): Promise<string> {
         margin: 1,
         color: { dark: '#000000', light: '#ffffff' },
     });
+}
+
+// ==================== AUTO GENERATORS ====================
+
+function generateOficioNumero(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const seq = Math.floor(Math.random() * 90000) + 10000;
+    return `500-51-00-05-02-${year}-${seq.toString().padStart(5, '0')}`;
+}
+
+function generateFolio(): string {
+    return Math.floor(Math.random() * 9000000 + 1000000).toString();
+}
+
+function applyAutoValues(
+    placeholders: PlaceholderDef[],
+    existingData: Record<string, string>
+): Record<string, string> {
+    const result = { ...existingData };
+    for (const p of placeholders) {
+        // Skip if already has a value
+        if (result[p.key] && result[p.key].trim() !== '') continue;
+
+        if (p.source === 'auto' && p.auto_generator) {
+            if (p.auto_generator === 'oficio_numero') result[p.key] = generateOficioNumero();
+            if (p.auto_generator === 'folio') result[p.key] = generateFolio();
+        } else if (p.default_value && (!result[p.key] || result[p.key].trim() === '')) {
+            result[p.key] = p.default_value;
+        }
+    }
+    return result;
 }
 
 // ==================== CLIENT DATA AUTO-FILL ====================
@@ -443,7 +477,8 @@ export async function generateDocument(data: {
     if (!template) throw new Error('Plantilla no encontrada');
 
     const clientData = await getClientData(data.client_id);
-    const allData = { ...clientData, ...data.extra_data };
+    const mergedData = { ...clientData, ...data.extra_data };
+    const allData = applyAutoValues(template.placeholders, mergedData);
 
     // Generate verification and signature data
     const verificationCode = generateVerificationCode();

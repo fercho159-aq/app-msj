@@ -25,8 +25,10 @@ interface PlaceholderDef {
     key: string;
     label: string;
     type: 'text' | 'date' | 'number' | 'currency';
-    source?: 'client' | 'manual';
+    source?: 'client' | 'manual' | 'auto';
     client_field?: string;
+    default_value?: string;
+    auto_generator?: string;
 }
 
 interface GeneratedDoc {
@@ -190,7 +192,9 @@ export const DocumentsView: React.FC = () => {
         setDocTitle('');
         setSuccessDoc(null);
         const initialData: Record<string, string> = {};
-        t.placeholders.filter(p => p.source === 'manual').forEach(p => { initialData[p.key] = ''; });
+        t.placeholders.filter(p => p.source === 'manual').forEach(p => {
+            initialData[p.key] = (p as any).default_value || '';
+        });
         setExtraData(initialData);
         setView('generate');
     };
@@ -233,6 +237,7 @@ export const DocumentsView: React.FC = () => {
     // ==================== GENERATE VIEW ====================
     if (view === 'generate' && selectedTemplate) {
         const manualPlaceholders = selectedTemplate.placeholders.filter(p => p.source === 'manual');
+        const autoPlaceholders = selectedTemplate.placeholders.filter(p => p.source === 'auto');
 
         return (
             <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent}>
@@ -326,12 +331,22 @@ export const DocumentsView: React.FC = () => {
                             onChangeText={setDocTitle}
                         />
 
+                        {/* Auto-generated fields info */}
+                        {autoPlaceholders.length > 0 && (
+                            <View style={[styles.autoFieldsBox, { backgroundColor: isDark ? '#0d2818' : '#f0fdf4', borderColor: isDark ? '#166534' : '#bbf7d0', marginTop: 20 }]}>
+                                <Ionicons name="flash" size={16} color="#10B981" />
+                                <Text style={[styles.autoFieldsText, { color: isDark ? '#86efac' : '#166534' }]}>
+                                    {autoPlaceholders.map(p => p.label).join(', ')} se generan automaticamente
+                                </Text>
+                            </View>
+                        )}
+
                         {/* Manual placeholders */}
                         {manualPlaceholders.length > 0 && (
                             <>
                                 <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginTop: 24 }]}>Datos adicionales</Text>
                                 <Text style={[styles.sectionDesc, { color: colors.textMuted }]}>
-                                    Los datos del cliente se llenan automaticamente. Complete los campos manuales:
+                                    Los datos del cliente y campos auto se llenan automaticamente. Modifique solo si es necesario:
                                 </Text>
                                 {manualPlaceholders.map(p => (
                                     <View key={p.key} style={{ marginTop: 12 }}>
@@ -727,4 +742,6 @@ const styles = StyleSheet.create({
     cellText: { fontSize: 12 },
     cellSubtext: { fontSize: 10, marginTop: 2 },
     downloadBtn: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    autoFieldsBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 10, borderWidth: 1 },
+    autoFieldsText: { fontSize: 12, fontWeight: '600', flex: 1 },
 });
