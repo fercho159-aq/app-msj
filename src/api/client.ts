@@ -1039,6 +1039,14 @@ class ApiClient {
         return this.request<{ success: boolean }>(`/documents/${id}?userId=${this.userId}`, { method: 'DELETE' });
     }
 
+    async findOrCreateClient(data: { rfc: string; razon_social?: string; tipo_persona?: string; regimen_fiscal?: string; domicilio?: string; codigo_postal?: string; estado?: string; curp?: string; name?: string }) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ client: { id: string; rfc: string; name: string; razon_social: string } }>(
+            `/documents/find-or-create-client?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
     async resolveDocument(id: string) {
         if (!this.userId) return { error: 'No hay sesión activa' };
         return this.request<{ success: boolean }>(`/documents/resolve/${id}?userId=${this.userId}`, { method: 'POST' });

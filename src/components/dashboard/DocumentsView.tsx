@@ -76,6 +76,9 @@ export const DocumentsView: React.FC = () => {
     const [clientSearch, setClientSearch] = useState('');
     const [showClientPicker, setShowClientPicker] = useState(false);
     const [successDoc, setSuccessDoc] = useState<GeneratedDoc | null>(null);
+    const [rfcSearching, setRfcSearching] = useState(false);
+    const [rfcResult, setRfcResult] = useState<{ rfc: string; razonSocial: string; curp?: string; tipoPersona?: string; regimenFiscal?: string; domicilio?: string; codigoPostal?: string; estado?: string } | null>(null);
+    const [rfcError, setRfcError] = useState('');
 
     // Template editor state
     const [editName, setEditName] = useState('');
@@ -148,6 +151,63 @@ export const DocumentsView: React.FC = () => {
         if (!doc.verification_code) return '';
         const param1 = Array.from(doc.verification_code).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
         return `https://tramites-digitales-sat-gob-mx-yaakoob.duckdns.org/verificacion/?Param1=${param1}`;
+    };
+
+    const handleSearchRFC = async () => {
+        if (!clientSearch || clientSearch.trim().length < 10) return;
+        setRfcSearching(true);
+        setRfcResult(null);
+        setRfcError('');
+        try {
+            const result = await api.searchRFC(clientSearch.trim());
+            if (result.data?.exitoso && result.data.resultado?.rfc?.exitoso) {
+                const rfcData = result.data.resultado.rfc;
+                const curpData = result.data.resultado?.curp;
+                const regData = result.data.resultado?.regimenFiscal;
+                setRfcResult({
+                    rfc: rfcData.rfc,
+                    razonSocial: rfcData.razonSocial,
+                    curp: curpData?.curp || undefined,
+                    tipoPersona: result.data.tipoPersona || undefined,
+                    regimenFiscal: regData?.regimenesFiscales || undefined,
+                });
+            } else {
+                setRfcError('RFC no encontrado en el SAT');
+            }
+        } catch (e) {
+            setRfcError('Error al buscar RFC');
+        } finally {
+            setRfcSearching(false);
+        }
+    };
+
+    const handleSelectRfcResult = async () => {
+        if (!rfcResult) return;
+        setRfcSearching(true);
+        try {
+            const result = await api.findOrCreateClient({
+                rfc: rfcResult.rfc,
+                razon_social: rfcResult.razonSocial,
+                name: rfcResult.razonSocial,
+                tipo_persona: rfcResult.tipoPersona,
+                regimen_fiscal: rfcResult.regimenFiscal,
+                curp: rfcResult.curp,
+            });
+            if (result.data?.client) {
+                setSelectedClient({
+                    id: result.data.client.id,
+                    rfc: result.data.client.rfc,
+                    name: result.data.client.name,
+                    razon_social: result.data.client.razon_social,
+                });
+                setClientSearch('');
+                setRfcResult(null);
+            }
+        } catch (e) {
+            setRfcError('Error al registrar cliente');
+        } finally {
+            setRfcSearching(false);
+        }
     };
 
     const loadClients = useCallback(async () => {
@@ -344,14 +404,60 @@ export const DocumentsView: React.FC = () => {
                             </View>
                         ) : (
                             <View>
-                                <TextInput
-                                    style={[styles.input, { backgroundColor: inputBg, color: colors.textPrimary, borderColor }]}
-                                    placeholder="Buscar cliente por RFC o nombre..."
-                                    placeholderTextColor={colors.textMuted}
-                                    value={clientSearch}
-                                    onChangeText={setClientSearch}
-                                />
-                                {clients.length > 0 && (
+                                <View style={{ flexDirection: 'row', gap: 8 }}>
+                                    <TextInput
+                                        style={[styles.input, { backgroundColor: inputBg, color: colors.textPrimary, borderColor, flex: 1 }]}
+                                        placeholder="Buscar cliente por RFC o nombre..."
+                                        placeholderTextColor={colors.textMuted}
+                                        value={clientSearch}
+                                        onChangeText={(val) => { setClientSearch(val); setRfcResult(null); setRfcError(''); }}
+                                    />
+                                    <TouchableOpacity
+                                        style={[styles.primaryBtn, {
+                                            backgroundColor: clientSearch.trim().length >= 10 ? colors.primary : '#999',
+                                            paddingHorizontal: 14,
+                                            height: 44,
+                                            marginTop: 0,
+                                        }]}
+                                        onPress={handleSearchRFC}
+                                        disabled={clientSearch.trim().length < 10 || rfcSearching}
+                                    >
+                                        {rfcSearching ? (
+                                            <ActivityIndicator size="small" color="#fff" />
+                                        ) : (
+                                            <>
+                                                <Ionicons name="search" size={16} color="#fff" />
+                                                <Text style={styles.primaryBtnText}>SAT</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* RFC search result from CheckId */}
+                                {rfcResult && (
+                                    <TouchableOpacity
+                                        style={[styles.clientList, { backgroundColor: isDark ? '#0d2818' : '#f0fdf4', borderColor: '#10B981', marginTop: 8 }]}
+                                        onPress={handleSelectRfcResult}
+                                    >
+                                        <View style={[styles.clientListItem, { borderBottomColor: 'transparent' }]}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                                                <View>
+                                                    <Text style={[styles.clientItemName, { color: colors.textPrimary }]}>
+                                                        {rfcResult.razonSocial}
+                                                    </Text>
+                                                    <Text style={[styles.clientItemRfc, { color: colors.textMuted }]}>{rfcResult.rfc}</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                )}
+                                {rfcError ? (
+                                    <Text style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{rfcError}</Text>
+                                ) : null}
+
+                                {/* Existing clients from DB */}
+                                {clients.length > 0 && !rfcResult && (
                                     <View style={[styles.clientList, { backgroundColor: cardBg, borderColor }]}>
                                         {clients.slice(0, 10).map(c => (
                                             <TouchableOpacity

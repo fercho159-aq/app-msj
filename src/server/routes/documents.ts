@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { queryOne } from '../../database/config';
+import { query, queryOne } from '../../database/config';
 import {
     getTemplates,
     getTemplateById,
@@ -85,6 +85,36 @@ router.post('/resolve/:id', requireConsultor, async (req: Request, res: Response
         res.json({ success: true });
     } catch (error: any) {
         console.error('Error resolving document:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/documents/find-or-create-client?userId=xxx — find or create client from CheckId data
+router.post('/find-or-create-client', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const { rfc, razon_social, tipo_persona, regimen_fiscal, domicilio, codigo_postal, estado, curp, name } = req.body;
+        if (!rfc) return res.status(400).json({ error: 'RFC es requerido' });
+
+        // Check if user exists by RFC
+        let client = await queryOne<{ id: string; rfc: string; name: string; razon_social: string }>(
+            `SELECT id, rfc, name, razon_social FROM users WHERE rfc = $1`, [rfc.toUpperCase()]
+        );
+
+        if (!client) {
+            // Create new user with RFC data
+            const bcrypt = require('bcrypt');
+            const password = await bcrypt.hash(rfc.toUpperCase(), 10);
+            client = await queryOne<{ id: string; rfc: string; name: string; razon_social: string }>(
+                `INSERT INTO users (rfc, name, razon_social, tipo_persona, regimen_fiscal, domicilio, codigo_postal, estado, curp, password, role)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'cliente')
+                 RETURNING id, rfc, name, razon_social`,
+                [rfc.toUpperCase(), name || razon_social || rfc, razon_social || null, tipo_persona || null, regimen_fiscal || null, domicilio || null, codigo_postal || null, estado || null, curp || null, password]
+            );
+        }
+
+        res.json({ client: { id: client!.id, rfc: client!.rfc, name: client!.name, razon_social: client!.razon_social } });
+    } catch (error: any) {
+        console.error('Error find-or-create client:', error);
         res.status(500).json({ error: error.message });
     }
 });
