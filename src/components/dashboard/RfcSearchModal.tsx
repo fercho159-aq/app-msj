@@ -229,7 +229,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         msg += '\n---\n';
         msg += 'Descarga la app Yaakob:\n';
         msg += 'iOS: https://apps.apple.com/mx/app/yakoob/id6758861392\n';
-        msg += 'Android: https://play.google.com/store/apps/details?id=com.yakoob.app';
+        msg += 'Android: https://play.google.com/store/apps/details?id=com.fernandotrejo.consultora';
 
         const encoded = encodeURIComponent(msg);
         const url = celular
@@ -675,7 +675,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                                 <Text style={[styles.downloadLinkText, { color: colors.textPrimary }]}>App Store</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
-                                                onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.yakoob.app')}
+                                                onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.fernandotrejo.consultora')}
                                                 style={[styles.downloadLink, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: cardBorder }]}
                                             >
                                                 <Ionicons name="logo-google-playstore" size={18} color={colors.textPrimary} />

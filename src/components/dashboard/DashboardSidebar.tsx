@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
-export type DashboardView = 'dashboard' | 'gestion';
+export type DashboardView = 'dashboard' | 'gestion' | 'documentos';
 
 interface SidebarProps {
     activeView: DashboardView;
@@ -15,6 +15,7 @@ interface SidebarProps {
 const NAV_ITEMS: { key: DashboardView; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'dashboard', label: 'Dashboard', icon: 'analytics-outline' },
     { key: 'gestion', label: 'Gestion de Clientes', icon: 'briefcase-outline' },
+    { key: 'documentos', label: 'Documentos', icon: 'document-text-outline' },
 ];
 
 const SECONDARY_NAV: { key: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [

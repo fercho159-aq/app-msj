@@ -25,6 +25,7 @@ import { AiChatPanel } from '../components/dashboard/AiChatPanel';
 import { DashboardLayout } from '../components/dashboard/DashboardLayout';
 import { GestionView } from '../components/dashboard/GestionView';
 import { RfcSearchModal } from '../components/dashboard/RfcSearchModal';
+import { DocumentsView } from '../components/dashboard/DocumentsView';
 import type { DashboardView } from '../components/dashboard/DashboardSidebar';
 import type { DashboardSummary, DashboardActivity } from '../types';
 
@@ -168,7 +169,9 @@ export const DashboardScreen: React.FC = () => {
         <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
             <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-            {activeView === 'gestion' ? (
+            {activeView === 'documentos' ? (
+                <DocumentsView />
+            ) : activeView === 'gestion' ? (
                 <GestionView />
             ) : isLoading ? (
                 <View style={styles.loadingContainer}>

@@ -17,6 +17,7 @@ import { ocrRoutes } from './routes/ocr';
 import { moderationRoutes } from './routes/moderation';
 import { dashboardRoutes } from './routes/dashboard';
 import { projectRoutes } from './routes/projects';
+import { documentRoutes } from './routes/documents';
 import { initializeWebSocket } from './websocket/signaling';
 
 const app = express();
@@ -65,6 +66,7 @@ app.use('/api/ocr', ocrRoutes);
 app.use('/api/moderation', moderationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/documents', documentRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
