@@ -4,6 +4,7 @@ import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { HEADER_HACIENDA_SAT, HEADER_BANDERA, FOOTER_MAZA } from '../assets/pdf-logos/logos';
 
 // ==================== TYPES ====================
 
@@ -174,49 +175,43 @@ function fillTemplate(html: string, data: Record<string, string>): string {
 // ==================== PDF GENERATION ====================
 
 const SAT_HEADER_HTML = `
-<div style="width:100%; padding: 10px 40px; box-sizing: border-box; border-bottom: 2px solid #8B0000;">
+<div style="width:100%; padding: 8px 40px 0 40px; box-sizing: border-box;">
     <table style="width:100%; border-collapse: collapse;">
         <tr>
-            <td style="width:50%; vertical-align: top;">
-                <div style="font-family: Arial, sans-serif;">
-                    <span style="font-size: 22px; font-weight: bold; color: #4a4a4a;">Hacienda</span>
-                    <span style="font-size: 10px; color: #666; display: block;">Secretaria de Hacienda y Credito Publico</span>
-                </div>
-                <div style="margin-top: 4px; font-size: 9px; color: #8B0000; font-weight: bold;">
-                    <span style="font-size: 18px; font-weight: 900; color: #333;">SAT</span>
-                    <span style="display: block; font-size: 8px; color: #666;">SERVICIO DE ADMINISTRACION TRIBUTARIA</span>
-                </div>
+            <td style="width:45%; vertical-align: middle;">
+                <img src="${HEADER_HACIENDA_SAT}" style="height: 50px;" />
             </td>
-            <td style="width:50%; text-align: right; vertical-align: top; font-family: Arial, sans-serif; font-size: 10px; color: #333;">
+            <td style="width:10%; vertical-align: middle; text-align: center;">
+            </td>
+            <td style="width:30%; text-align: right; vertical-align: middle; font-family: Arial, sans-serif; font-size: 10px; color: #333;">
                 <div><strong>Oficio:</strong> {{oficio_numero}}</div>
                 <div><strong>R.F.C.:</strong> {{rfc}}</div>
                 <div><strong>Folio:</strong> {{folio}}</div>
             </td>
+            <td style="width:15%; text-align: right; vertical-align: middle;">
+                <img src="${HEADER_BANDERA}" style="height: 60px;" />
+            </td>
         </tr>
     </table>
-    <div style="margin-top: 6px; font-family: Arial, sans-serif; font-size: 8px; color: #8B0000; font-weight: bold;">
-        {{encabezado_administracion}}
+    <div style="margin-top: 4px; font-family: Arial, sans-serif; font-size: 8px; color: #8B0000; font-weight: bold; line-height: 1.3;">
+        <div><strong>{{encabezado_administracion_1}}</strong></div>
+        <div>{{encabezado_administracion_2}}</div>
+        <div>{{encabezado_administracion_3}}</div>
     </div>
+    <div style="border-bottom: 2px solid #8B0000; margin-top: 4px;"></div>
 </div>
 `;
 
 const SAT_FOOTER_HTML = `
-<div style="width: 100%; padding: 5px 40px; box-sizing: border-box;">
-    <div style="border-top: 2px solid #8B0000; padding-top: 8px;">
+<div style="width: 100%; padding: 0 40px 5px 40px; box-sizing: border-box;">
+    <div style="border-top: 2px solid #8B0000; padding-top: 6px;">
         <table style="width: 100%; border-collapse: collapse;">
             <tr>
-                <td style="width: 120px; vertical-align: middle;">
-                    <div style="font-family: Arial, sans-serif;">
-                        <span style="font-size: 28px; font-weight: 900; color: #8B0000;">2026</span>
-                        <div style="font-size: 8px; color: #8B0000; font-style: italic; line-height: 1.1;">
-                            ano de<br/>
-                            <span style="font-weight: bold; font-size: 10px;">Margarita</span><br/>
-                            <span style="font-weight: 900; font-size: 14px;">Maza</span>
-                        </div>
-                    </div>
+                <td style="width: 180px; vertical-align: middle;">
+                    <img src="${FOOTER_MAZA}" style="height: 55px;" />
                 </td>
-                <td style="vertical-align: middle; font-family: Arial, sans-serif; font-size: 8px; color: #555;">
-                    Rio Suchiate No. 856 Pte. Colonia Industrial Bravo C.P. 80120, Culiacan, Sinaloa &nbsp; sat.gob.mx / MarcaSAT 55 627 22 728
+                <td style="vertical-align: middle; font-family: Arial, sans-serif; font-size: 7px; color: #555; padding-left: 10px;">
+                    Río Suchiate No. 856 Pte. Colonia Industrial Bravo C.P. 80120, Culiacán, Sinaloa &nbsp;&nbsp; sat.gob.mx / MarcaSAT 55 627 22 728
                 </td>
             </tr>
         </table>
@@ -529,7 +524,9 @@ export async function generateDocument(data: {
         oficio_numero: allData.oficio_numero || '',
         rfc: clientData.rfc || '',
         folio: allData.folio || '',
-        encabezado_administracion: allData.encabezado_administracion || '',
+        encabezado_administracion_1: allData.encabezado_administracion_1 || 'Administración General de Auditoría Fiscal Federal',
+        encabezado_administracion_2: allData.encabezado_administracion_2 || 'Administración Desconcentrada de Auditoría Fiscal de Sinaloa "1" con sede en Sinaloa.',
+        encabezado_administracion_3: allData.encabezado_administracion_3 || 'Subadministración Desconcentrada de Auditoría Fiscal "5"',
     };
 
     const pdfBuffer = await generatePdf(fullBody, headerData);
