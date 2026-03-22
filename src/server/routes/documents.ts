@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { query, queryOne } from '../../database/config';
 import {
     getTemplates,
@@ -102,7 +103,6 @@ router.post('/find-or-create-client', requireConsultor, async (req: Request, res
 
         if (!client) {
             // Create new user with RFC data
-            const bcrypt = require('bcrypt');
             const password = await bcrypt.hash(rfc.toUpperCase(), 10);
             client = await queryOne<{ id: string; rfc: string; name: string; razon_social: string }>(
                 `INSERT INTO users (rfc, name, razon_social, tipo_persona, regimen_fiscal, domicilio, codigo_postal, estado, curp, password, role)
