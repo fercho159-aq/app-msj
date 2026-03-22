@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TouchableOpacity, ScrollView, TextInput,
     ActivityIndicator, StyleSheet, useWindowDimensions, Platform,
-    Modal,
+    Modal, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -99,6 +99,26 @@ export const DocumentsView: React.FC = () => {
             const result = await api.getGeneratedDocuments();
             if (result.data) setDocuments(result.data.documents);
         } catch (e) { console.error(e); }
+    }, []);
+
+    const handleDeleteDocument = useCallback(async (docId: string, title: string) => {
+        const doDelete = async () => {
+            try {
+                const result = await api.deleteGeneratedDocument(docId);
+                if (result.data?.success) {
+                    setDocuments(prev => prev.filter(d => d.id !== docId));
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Eliminar "${title}"?`)) doDelete();
+        } else {
+            Alert.alert('Eliminar documento', `¿Eliminar "${title}"?`, [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Eliminar', style: 'destructive', onPress: doDelete },
+            ]);
+        }
     }, []);
 
     const loadClients = useCallback(async () => {
@@ -556,12 +576,18 @@ export const DocumentsView: React.FC = () => {
                                 <Text style={[styles.cellText, { color: colors.textMuted, flex: 1 }]}>{formatFileSize(doc.file_size)}</Text>
                                 <Text style={[styles.cellText, { color: colors.textMuted, flex: 1.2, fontSize: 11 }]}>{formatDate(doc.created_at)}</Text>
                                 <Text style={[styles.cellText, { color: colors.textMuted, flex: 1, fontSize: 11 }]}>{formatDate(doc.expires_at)}</Text>
-                                <View style={{ width: 80, alignItems: 'center' }}>
+                                <View style={{ width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                                     <TouchableOpacity
                                         style={[styles.downloadBtn, { backgroundColor: `${colors.primary}15` }]}
                                         onPress={() => { if (Platform.OS === 'web') window.open(doc.file_url, '_blank'); }}
                                     >
                                         <Ionicons name="download-outline" size={16} color={colors.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.downloadBtn, { backgroundColor: 'rgba(220,38,38,0.1)' }]}
+                                        onPress={() => handleDeleteDocument(doc.id, doc.title)}
+                                    >
+                                        <Ionicons name="trash-outline" size={16} color="#dc2626" />
                                     </TouchableOpacity>
                                 </View>
                             </View>

@@ -10,6 +10,7 @@ import {
     getGeneratedDocuments,
     getGeneratedDocumentById,
     deleteExpiredDocuments,
+    deleteGeneratedDocument,
     seedDefaultTemplate,
     getDocumentByVerificationCode,
 } from '../../services/documentService';
@@ -209,6 +210,18 @@ router.get('/:id', requireConsultor, async (req: Request, res: Response) => {
         res.json({ document });
     } catch (error: any) {
         console.error('Error getting document:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/documents/:id?userId=xxx — delete a generated document
+router.delete('/:id', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const deleted = await deleteGeneratedDocument(req.params.id as string);
+        if (!deleted) return res.status(404).json({ error: 'Documento no encontrado' });
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error deleting document:', error);
         res.status(500).json({ error: error.message });
     }
 });

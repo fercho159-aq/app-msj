@@ -656,6 +656,30 @@ export async function deleteExpiredDocuments(): Promise<number> {
     return parseInt(result[0]?.count || '0');
 }
 
+export async function deleteGeneratedDocument(id: string): Promise<boolean> {
+    const doc = await queryOne<{ file_url: string }>(
+        `SELECT file_url FROM generated_documents WHERE id = $1`, [id]
+    );
+    if (!doc) return false;
+
+    try {
+        const filename = doc.file_url.split('/').pop();
+        if (filename) {
+            const filePath = path.join(__dirname, '../../uploads/documents', filename);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+    } catch (e) {
+        console.error('Error deleting file:', e);
+    }
+
+    const result = await queryOne<{ id: string }>(
+        `DELETE FROM generated_documents WHERE id = $1 RETURNING id`, [id]
+    );
+    return !!result;
+}
+
 // ==================== DEFAULT TEMPLATE ====================
 
 export async function seedDefaultTemplate(createdBy: string): Promise<void> {
