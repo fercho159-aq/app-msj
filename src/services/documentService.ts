@@ -204,19 +204,17 @@ const SAT_HEADER_HTML = `
 
 const SAT_FOOTER_HTML = `
 <div style="width: 100%; padding: 0 40px 5px 40px; box-sizing: border-box;">
-    <div style="border-top: 2px solid #8B0000; padding-top: 6px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="width: 180px; vertical-align: middle;">
-                    <img src="${FOOTER_MAZA}" style="height: 55px;" />
-                </td>
-                <td style="vertical-align: middle; font-family: Arial, sans-serif; font-size: 7px; color: #555; padding-left: 10px;">
-                    Río Suchiate No. 856 Pte. Colonia Industrial Bravo C.P. 80120, Culiacán, Sinaloa &nbsp;&nbsp; sat.gob.mx / MarcaSAT 55 627 22 728
-                </td>
-            </tr>
-        </table>
-    </div>
-    <div style="text-align: center; font-family: Arial, sans-serif; font-size: 10px; color: #333; margin-top: 4px;">
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td style="width: 200px; vertical-align: bottom;">
+                <img src="${FOOTER_MAZA}" style="height: 65px;" />
+            </td>
+            <td style="vertical-align: bottom; font-family: Arial, sans-serif; font-size: 7px; color: #555; padding-left: 8px; padding-bottom: 8px;">
+                Río Suchiate No. 856 Pte. Colonia Industrial Bravo C.P. 80120, Culiacán, Sinaloa &nbsp;&nbsp; sat.gob.mx / MarcaSAT 55 627 22 728
+            </td>
+        </tr>
+    </table>
+    <div style="text-align: center; font-family: Arial, sans-serif; font-size: 10px; color: #8B0000; margin-top: 4px;">
         <span class="pageNumber"></span> / <span class="totalPages"></span>
     </div>
 </div>
