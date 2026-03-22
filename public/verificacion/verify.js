@@ -32,6 +32,12 @@ function formatDateTime(d) {
 
 function showDocument(doc) {
     document.getElementById('loading-state').style.display = 'none';
+
+    if (doc.resolved) {
+        document.getElementById('resolved-state').style.display = 'block';
+        return;
+    }
+
     document.getElementById('document-data').style.display = 'block';
 
     document.getElementById('current-datetime').textContent = formatDateTime(new Date());

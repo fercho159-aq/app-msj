@@ -13,6 +13,7 @@ import {
     deleteGeneratedDocument,
     seedDefaultTemplate,
     getDocumentByVerificationCode,
+    resolveDocument,
 } from '../../services/documentService';
 
 const router = Router();
@@ -60,6 +61,8 @@ router.get('/verify/:code', async (req: Request, res: Response) => {
                 cert_inicio: document.cert_inicio,
                 cert_fin: document.cert_fin,
                 file_url: document.file_url,
+                resolved: document.resolved || false,
+                resolved_at: document.resolved_at || null,
                 filled_data: {
                     folio: document.filled_data?.folio || '',
                     oficio_numero: document.filled_data?.oficio_numero || '',
@@ -69,6 +72,19 @@ router.get('/verify/:code', async (req: Request, res: Response) => {
         });
     } catch (error: any) {
         console.error('Error verifying document:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/documents/resolve/:id?userId=xxx — mark document as resolved
+router.post('/resolve/:id', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const userId = req.query.userId as string;
+        const success = await resolveDocument(req.params.id as string, userId);
+        if (!success) return res.status(404).json({ error: 'Documento no encontrado' });
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error resolving document:', error);
         res.status(500).json({ error: error.message });
     }
 });

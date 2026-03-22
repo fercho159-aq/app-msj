@@ -10,7 +10,7 @@
 
         /* Header */
         .header {
-            background: linear-gradient(135deg, #1a3a4a 0%, #2c5f6e 50%, #1a3a4a 100%);
+            background: linear-gradient(135deg, #1b4a3f 0%, #245B4E 50%, #1b4a3f 100%);
             padding: 10px 30px;
             display: flex;
             align-items: center;
@@ -83,7 +83,7 @@
 
         /* Bienvenido bar */
         .welcome-bar {
-            background: #2c5f6e;
+            background: #245B4E;
             color: #fff;
             padding: 3px 30px;
             font-size: 11px;
@@ -110,7 +110,7 @@
             margin-bottom: 0;
         }
         .section-bar .left-bar {
-            background: #2c5f6e;
+            background: #245B4E;
             color: #fff;
             padding: 5px 15px;
             font-size: 12px;
@@ -118,7 +118,7 @@
             flex: 1;
         }
         .section-bar .right-bar {
-            background: #2c5f6e;
+            background: #245B4E;
             color: #fff;
             padding: 5px 15px;
             font-size: 12px;
@@ -181,7 +181,7 @@
         .error { text-align: center; padding: 60px; color: #c00; font-size: 14px; }
         .spinner {
             border: 3px solid #f3f3f3;
-            border-top: 3px solid #2c5f6e;
+            border-top: 3px solid #245B4E;
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -247,6 +247,12 @@
         <div id="error-state" class="error" style="display:none;">
             <p>No se encontro el documento solicitado.</p>
             <p style="margin-top:10px;font-size:12px;color:#666;">El documento puede haber expirado o el enlace es invalido.</p>
+        </div>
+
+        <!-- Resolved state -->
+        <div id="resolved-state" style="display:none; text-align:center; padding:60px 20px;">
+            <p style="font-size:13px; color:#666;">Resuelto</p>
+            <a href="#" onclick="window.close(); return false;" style="display:inline-block; margin-top:20px; background:#e8e8e8; color:#333; padding:6px 20px; border:1px solid #999; font-size:12px; text-decoration:none;">Salir</a>
         </div>
 
         <!-- Document data -->

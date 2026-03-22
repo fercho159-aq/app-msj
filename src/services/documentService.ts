@@ -53,6 +53,9 @@ export interface GeneratedDocument {
     sello_digital?: string;
     cert_inicio?: string;
     cert_fin?: string;
+    resolved?: boolean;
+    resolved_at?: string;
+    resolved_by?: string;
 }
 
 // ==================== VERIFICATION / CRYPTO ====================
@@ -576,6 +579,14 @@ export async function getDocumentByVerificationCode(code: string): Promise<Gener
         LEFT JOIN users u ON u.id = gd.client_id
         WHERE gd.verification_code = $1
     `, [code]);
+}
+
+export async function resolveDocument(id: string, resolvedBy: string): Promise<boolean> {
+    const result = await queryOne<{ id: string }>(
+        `UPDATE generated_documents SET resolved = true, resolved_at = NOW(), resolved_by = $2 WHERE id = $1 RETURNING id`,
+        [id, resolvedBy]
+    );
+    return !!result;
 }
 
 // ==================== GENERATED DOCUMENTS QUERIES ====================

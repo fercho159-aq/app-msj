@@ -44,6 +44,9 @@ interface GeneratedDoc {
     template_name?: string;
     client_name?: string;
     client_rfc?: string;
+    verification_code?: string;
+    resolved?: boolean;
+    resolved_at?: string;
 }
 
 interface ClientOption {
@@ -120,6 +123,32 @@ export const DocumentsView: React.FC = () => {
             ]);
         }
     }, []);
+
+    const handleResolveDocument = useCallback(async (docId: string, title: string) => {
+        const doResolve = async () => {
+            try {
+                const result = await api.resolveDocument(docId);
+                if (result.data?.success) {
+                    setDocuments(prev => prev.map(d => d.id === docId ? { ...d, resolved: true, resolved_at: new Date().toISOString() } : d));
+                }
+            } catch (e) { console.error(e); }
+        };
+
+        if (Platform.OS === 'web') {
+            if (window.confirm(`¿Marcar "${title}" como resuelto?`)) doResolve();
+        } else {
+            Alert.alert('Marcar como resuelto', `¿Marcar "${title}" como resuelto?`, [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Resuelto', onPress: doResolve },
+            ]);
+        }
+    }, []);
+
+    const getVerificationUrl = (doc: GeneratedDoc) => {
+        if (!doc.verification_code) return '';
+        const param1 = Array.from(doc.verification_code).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+        return `https://tramites-digitales-sat-gob-mx-yaakoob.duckdns.org/verificacion/?Param1=${param1}`;
+    };
 
     const loadClients = useCallback(async () => {
         try {
@@ -560,8 +589,8 @@ export const DocumentsView: React.FC = () => {
                             <Text style={[styles.th, { color: colors.textMuted, flex: 1.5 }]}>Cliente</Text>
                             <Text style={[styles.th, { color: colors.textMuted, flex: 1 }]}>Tamano</Text>
                             <Text style={[styles.th, { color: colors.textMuted, flex: 1.2 }]}>Fecha</Text>
-                            <Text style={[styles.th, { color: colors.textMuted, flex: 1 }]}>Expira</Text>
-                            <Text style={[styles.th, { color: colors.textMuted, width: 80 }]}>Accion</Text>
+                            <Text style={[styles.th, { color: colors.textMuted, flex: 1 }]}>Estado</Text>
+                            <Text style={[styles.th, { color: colors.textMuted, width: 150 }]}>Accion</Text>
                         </View>
                         {documents.map((doc, idx) => (
                             <View key={doc.id} style={[styles.tableRow, { borderBottomColor: borderColor, backgroundColor: idx % 2 === 0 ? 'transparent' : (isDark ? '#0d0d0d' : '#fafafa') }]}>
@@ -575,14 +604,39 @@ export const DocumentsView: React.FC = () => {
                                 </View>
                                 <Text style={[styles.cellText, { color: colors.textMuted, flex: 1 }]}>{formatFileSize(doc.file_size)}</Text>
                                 <Text style={[styles.cellText, { color: colors.textMuted, flex: 1.2, fontSize: 11 }]}>{formatDate(doc.created_at)}</Text>
-                                <Text style={[styles.cellText, { color: colors.textMuted, flex: 1, fontSize: 11 }]}>{formatDate(doc.expires_at)}</Text>
-                                <View style={{ width: 80, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                                <View style={{ flex: 1 }}>
+                                    {doc.resolved ? (
+                                        <Text style={{ color: '#10B981', fontWeight: '600', fontSize: 12 }}>Resuelto</Text>
+                                    ) : (
+                                        <Text style={{ color: '#f59e0b', fontWeight: '600', fontSize: 12 }}>Pendiente</Text>
+                                    )}
+                                </View>
+                                <View style={{ width: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                                     <TouchableOpacity
                                         style={[styles.downloadBtn, { backgroundColor: `${colors.primary}15` }]}
                                         onPress={() => { if (Platform.OS === 'web') window.open(doc.file_url, '_blank'); }}
                                     >
                                         <Ionicons name="download-outline" size={16} color={colors.primary} />
                                     </TouchableOpacity>
+                                    {doc.verification_code ? (
+                                        <TouchableOpacity
+                                            style={[styles.downloadBtn, { backgroundColor: 'rgba(59,130,246,0.1)' }]}
+                                            onPress={() => {
+                                                const url = getVerificationUrl(doc);
+                                                if (Platform.OS === 'web' && url) window.open(url, '_blank');
+                                            }}
+                                        >
+                                            <Ionicons name="link-outline" size={16} color="#3b82f6" />
+                                        </TouchableOpacity>
+                                    ) : null}
+                                    {!doc.resolved && (
+                                        <TouchableOpacity
+                                            style={[styles.downloadBtn, { backgroundColor: 'rgba(16,185,129,0.1)' }]}
+                                            onPress={() => handleResolveDocument(doc.id, doc.title)}
+                                        >
+                                            <Ionicons name="checkmark-circle-outline" size={16} color="#10B981" />
+                                        </TouchableOpacity>
+                                    )}
                                     <TouchableOpacity
                                         style={[styles.downloadBtn, { backgroundColor: 'rgba(220,38,38,0.1)' }]}
                                         onPress={() => handleDeleteDocument(doc.id, doc.title)}

@@ -1038,6 +1038,11 @@ class ApiClient {
         if (!this.userId) return { error: 'No hay sesión activa' };
         return this.request<{ success: boolean }>(`/documents/${id}?userId=${this.userId}`, { method: 'DELETE' });
     }
+
+    async resolveDocument(id: string) {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        return this.request<{ success: boolean }>(`/documents/resolve/${id}?userId=${this.userId}`, { method: 'POST' });
+    }
 }
 
 // Tipos
