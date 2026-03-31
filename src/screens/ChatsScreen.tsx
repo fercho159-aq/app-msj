@@ -924,6 +924,12 @@ export const ChatsScreen: React.FC<ChatsScreenProps> = ({ navigation }) => {
                                     </View>
                                 )}
                             </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.iconButton, { backgroundColor: colors.surface }]}
+                                onPress={() => navigation.navigate('CalculadoraFiscal')}
+                            >
+                                <Ionicons name="calculator-outline" size={22} color={colors.textPrimary} />
+                            </TouchableOpacity>
                             <TouchableOpacity style={[styles.iconButton, { backgroundColor: colors.surface }]} onPress={toggleSearch}>
                                 <Ionicons name="search" size={24} color={colors.textPrimary} />
                             </TouchableOpacity>

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eliminar Cuenta - Yaakob</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8f9fa; color: #1a1a1a; line-height: 1.6; }
+        .header { background: #000; padding: 24px 0; text-align: center; }
+        .header h1 { color: #fff; font-size: 24px; font-weight: 700; }
+        .container { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
+        h2 { font-size: 28px; font-weight: 700; margin-bottom: 16px; color: #000; }
+        h3 { font-size: 18px; font-weight: 600; margin: 24px 0 12px; color: #1a1a1a; }
+        p, li { font-size: 15px; color: #444; margin-bottom: 10px; }
+        ul { padding-left: 24px; margin-bottom: 16px; }
+        .card { background: #fff; border-radius: 12px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 10px; padding: 16px; margin: 20px 0; }
+        .warning p { color: #856404; margin: 0; font-size: 14px; }
+        .steps { counter-reset: step; list-style: none; padding-left: 0; }
+        .steps li { counter-increment: step; padding: 12px 0 12px 48px; position: relative; border-bottom: 1px solid #f0f0f0; }
+        .steps li:last-child { border-bottom: none; }
+        .steps li::before { content: counter(step); position: absolute; left: 0; top: 12px; width: 32px; height: 32px; background: #5C76B2; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+        .contact { background: #5C76B2; color: #fff; border-radius: 12px; padding: 24px; text-align: center; margin-top: 24px; }
+        .contact p { color: #fff; }
+        .contact a { color: #fff; font-weight: 600; }
+        .footer { text-align: center; padding: 32px 20px; color: #999; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Yaakob</h1>
+    </div>
+    <div class="container">
+        <div class="card">
+            <h2>Solicitud de Eliminacion de Cuenta</h2>
+            <p>En Yaakob respetamos tu derecho a controlar tus datos personales. Si deseas eliminar tu cuenta y todos los datos asociados, puedes hacerlo siguiendo los pasos que se indican a continuacion.</p>
+
+            <h3>Pasos para eliminar tu cuenta</h3>
+            <ol class="steps">
+                <li>Abre la aplicacion Yaakob en tu dispositivo</li>
+                <li>Ve a <strong>Ajustes</strong> desde la barra de navegacion inferior</li>
+                <li>Selecciona <strong>Privacidad</strong></li>
+                <li>Toca la opcion <strong>Eliminar mi cuenta</strong></li>
+                <li>Confirma la eliminacion cuando se te solicite</li>
+            </ol>
+
+            <div class="warning">
+                <p><strong>Importante:</strong> La eliminacion de la cuenta es permanente e irreversible. Todos tus datos seran eliminados y no podran recuperarse.</p>
+            </div>
+
+            <h3>Datos que se eliminaran</h3>
+            <ul>
+                <li>Informacion de perfil (nombre, foto de perfil, RFC)</li>
+                <li>Historial de mensajes y conversaciones</li>
+                <li>Archivos multimedia compartidos (fotos, documentos, audios)</li>
+                <li>Historial de llamadas</li>
+                <li>Configuraciones y preferencias de la cuenta</li>
+                <li>Token de notificaciones push</li>
+            </ul>
+
+            <h3>Plazo de eliminacion</h3>
+            <p>Tu cuenta y datos asociados seran eliminados en un plazo maximo de <strong>30 dias</strong> a partir de la confirmacion de la solicitud. Durante este periodo, tu cuenta sera desactivada inmediatamente.</p>
+
+            <h3>Solicitud por correo electronico</h3>
+            <p>Si no puedes acceder a la aplicacion, tambien puedes solicitar la eliminacion de tu cuenta enviando un correo electronico con el asunto "Eliminar cuenta" e incluyendo tu RFC registrado.</p>
+        </div>
+
+        <div class="contact">
+            <p>Contacto para solicitudes de eliminacion:</p>
+            <p><a href="mailto:soporte@mawsoluciones.com">soporte@mawsoluciones.com</a></p>
+        </div>
+    </div>
+    <div class="footer">
+        <p>&copy; 2026 Yaakob - MAW Soluciones. Todos los derechos reservados.</p>
+    </div>
+</body>
+</html>

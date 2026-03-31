@@ -17,6 +17,7 @@ import {
     TermsScreen,
 } from '../screens';
 import { BlockedUsersScreen } from '../screens/BlockedUsersScreen';
+import { CalculadoraFiscalScreen } from '../calculadora/CalculadoraFiscalScreen';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 import colors from '../theme/colors';
@@ -75,6 +76,13 @@ export const AppNavigator: React.FC = () => {
                             }}
                         />
                         <Stack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+                        <Stack.Screen
+                            name="CalculadoraFiscal"
+                            component={CalculadoraFiscalScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                            }}
+                        />
                     </>
                 ) : (
                     <Stack.Screen

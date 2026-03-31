@@ -44,6 +44,7 @@ export interface ChatListItemProps {
 export type RootStackParamList = {
     Login: undefined;
     Main: undefined;
+    CalculadoraFiscal: undefined;
     Chat: { chatId: string; userName: string; userAvatar: string; userRfc?: string | null; participantId?: string };
     UserProfile: { userId: string; userName: string; userAvatar: string; userRfc?: string | null; chatId: string; isGroup?: boolean; participants?: User[] };
     Profile: { userId: string };

@@ -4,6 +4,14 @@
     "framework": null,
     "rewrites": [
         {
+            "source": "/eliminar-cuenta.html",
+            "destination": "/eliminar-cuenta.html"
+        },
+        {
+            "source": "/politica-privacidad.html",
+            "destination": "/politica-privacidad.html"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
