@@ -27,6 +27,7 @@ import {
     deleteChecklistItem,
     getProjectsSummary,
     getConsultors,
+    createClient,
 } from '../../services/projectService';
 
 const router = Router();
@@ -77,6 +78,19 @@ router.get('/consultors', requireConsultor, async (req: Request, res: Response) 
 });
 
 // ==================== CLIENTS ====================
+
+// POST /api/projects/clients?userId=xxx
+router.post('/clients', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const { rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp } = req.body;
+        if (!rfc) return res.status(400).json({ error: 'RFC es requerido' });
+        const client = await createClient({ rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp });
+        res.status(201).json({ client });
+    } catch (error: any) {
+        console.error('Error al crear cliente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // GET /api/projects/clients?userId=xxx&page=1&limit=20&search=
 router.get('/clients', requireConsultor, async (req: Request, res: Response) => {

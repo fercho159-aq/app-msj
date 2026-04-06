@@ -74,6 +74,42 @@ export async function getClients(
     };
 }
 
+export async function createClient(data: {
+    rfc: string;
+    name?: string;
+    razon_social?: string;
+    phone?: string;
+    tipo_persona?: string;
+    regimen_fiscal?: string;
+    codigo_postal?: string;
+    estado?: string;
+    domicilio?: string;
+    curp?: string;
+}): Promise<ClientFiscalProfile> {
+    const result = await queryOne<ClientFiscalProfile>(`
+        INSERT INTO users (rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'usuario')
+        RETURNING id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
+            curp, regimen_fiscal, codigo_postal, estado, domicilio,
+            capital::text, efirma_expiry::text, csd_expiry::text,
+            created_at::text
+    `, [
+        data.rfc,
+        data.name || null,
+        data.razon_social || null,
+        data.phone || null,
+        data.tipo_persona || null,
+        data.regimen_fiscal || null,
+        data.codigo_postal || null,
+        data.estado || null,
+        data.domicilio || null,
+        data.curp || null,
+    ]);
+
+    if (!result) throw new Error('Error al crear cliente');
+    return result;
+}
+
 // ==================== CLIENT FISCAL PROFILE ====================
 
 export interface ClientFiscalProfile {
