@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
 
     // Template grid
     templateGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-    templateCard: { borderRadius: 14, borderWidth: 1, padding: 20, width: 320, minHeight: 200, justifyContent: 'space-between' },
+    templateCard: { borderRadius: 14, borderWidth: 1, padding: 20, minWidth: 260, maxWidth: 320, flex: 1, minHeight: 200, justifyContent: 'space-between' },
     templateIconBg: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     templateName: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
     templateDesc: { fontSize: 12, lineHeight: 17, marginBottom: 12 },

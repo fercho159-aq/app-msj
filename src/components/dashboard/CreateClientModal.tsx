@@ -380,7 +380,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     modal: {
-        width: 480,
+        width: '90%',
+        maxWidth: 480,
         maxHeight: '85%',
         borderRadius: 16,
         shadowColor: '#000',

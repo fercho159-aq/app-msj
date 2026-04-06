@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, ScrollView,
-    ActivityIndicator, StyleSheet, Platform, Alert,
+    ActivityIndicator, StyleSheet, Platform, Alert, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -32,6 +32,8 @@ export const PhaseDetailPanel: React.FC<PhaseDetailPanelProps> = ({
     phaseId, projectId, clientId, onClose, onPhaseUpdated,
 }) => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const [detail, setDetail] = useState<PhaseDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isChangingStatus, setIsChangingStatus] = useState(false);
@@ -134,7 +136,7 @@ export const PhaseDetailPanel: React.FC<PhaseDetailPanelProps> = ({
     const inputBorder = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
 
     return (
-        <View style={[styles.container, {
+        <View style={[styles.container, isMobile && styles.containerMobile, {
             backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
             borderLeftColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
         }]}>
@@ -450,6 +452,13 @@ const styles = StyleSheet.create({
     container: {
         width: 520,
         borderLeftWidth: 1,
+    },
+    containerMobile: {
+        width: '100%',
+        borderLeftWidth: 0,
+        borderTopWidth: 1,
+        borderRadius: 14,
+        overflow: 'hidden',
     },
     header: {
         flexDirection: 'row',

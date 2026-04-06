@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TextInput, FlatList, ActivityIndicator, StyleSheet,
-    TouchableOpacity, Alert, Platform,
+    TouchableOpacity, Alert, Platform, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -25,6 +25,8 @@ interface ClientListViewProps {
 
 export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }) => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const [clients, setClients] = useState<ClientRowType[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -139,7 +141,7 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
     return (
         <View style={styles.container}>
             {/* Search Bar + Buttons */}
-            <View style={styles.toolbarRow}>
+            <View style={[styles.toolbarRow, isMobile && styles.toolbarRowMobile]}>
                 <View style={[styles.searchBar, {
                     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
                     borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
@@ -224,16 +226,18 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                 </View>
             )}
 
-            {/* Header Row */}
-            <View style={[styles.headerRow, {
-                borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-            }]}>
-                <View style={{ width: 48 }} />
-                <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Cliente</Text>
-                <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Regimen</Text>
-                <Text style={[styles.headerCell, { color: colors.textMuted, width: 120, textAlign: 'right' }]}>Proyectos</Text>
-                <View style={{ width: 44 }} />
-            </View>
+            {/* Header Row - hidden on mobile */}
+            {!isMobile && (
+                <View style={[styles.headerRow, {
+                    borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                }]}>
+                    <View style={{ width: 48 }} />
+                    <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Cliente</Text>
+                    <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Regimen</Text>
+                    <Text style={[styles.headerCell, { color: colors.textMuted, width: 120, textAlign: 'right' }]}>Proyectos</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+            )}
 
             {/* List */}
             {isLoading ? (
@@ -316,6 +320,11 @@ const styles = StyleSheet.create({
         gap: 10,
         margin: 16,
         marginBottom: 0,
+    },
+    toolbarRowMobile: {
+        flexWrap: 'wrap',
+        gap: 8,
+        margin: 10,
     },
     createButton: {
         flexDirection: 'row',

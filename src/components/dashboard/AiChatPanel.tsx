@@ -322,7 +322,8 @@ const styles = StyleSheet.create({
         }),
     },
     panel: {
-        width: 400,
+        width: '90%',
+        maxWidth: 400,
         borderRadius: 16,
         borderWidth: 1,
         marginBottom: 12,

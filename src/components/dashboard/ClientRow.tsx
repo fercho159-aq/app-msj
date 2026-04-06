@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
@@ -15,6 +15,8 @@ interface ClientRowProps {
 
 export const ClientRow: React.FC<ClientRowProps> = ({ client, index, onPress, onDelete }) => {
     const { colors, isDark } = useTheme();
+    const { width: screenWidth } = useWindowDimensions();
+    const isMobile = screenWidth < 768;
     const efirmaSeverity = getDeadlineSeverity(client.efirma_expiry);
 
     return (
@@ -48,16 +50,18 @@ export const ClientRow: React.FC<ClientRowProps> = ({ client, index, onPress, on
                     <Text style={[styles.rfc, { color: colors.textMuted }]}>{client.rfc}</Text>
                 </View>
 
-                <View style={styles.meta}>
-                    {client.regimen_fiscal && (
-                        <Text style={[styles.regimen, { color: colors.textMuted }]} numberOfLines={1}>
-                            {client.regimen_fiscal.substring(0, 30)}
-                        </Text>
-                    )}
-                </View>
+                {!isMobile && (
+                    <View style={styles.meta}>
+                        {client.regimen_fiscal && (
+                            <Text style={[styles.regimen, { color: colors.textMuted }]} numberOfLines={1}>
+                                {client.regimen_fiscal.substring(0, 30)}
+                            </Text>
+                        )}
+                    </View>
+                )}
 
                 <View style={styles.badges}>
-                    {efirmaSeverity && (
+                    {!isMobile && efirmaSeverity && (
                         <View style={styles.efirmaBadge}>
                             <DeadlineTrafficLight severity={efirmaSeverity} size={8} />
                             <Text style={[styles.efirmaLabel, { color: colors.textMuted }]}>e.firma</Text>

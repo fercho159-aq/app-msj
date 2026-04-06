@@ -297,19 +297,20 @@ router.put('/:projectId/phases/:phaseId', requireConsultor, async (req: Request,
 
         // Log changes to bitacora
         const logs: string[] = [];
-        if (status && oldPhase && status !== oldPhase.status) {
-            logs.push(`Estado cambiado de "${oldPhase.status}" a "${status}"`);
+        const old = oldPhase?.phase;
+        if (status && old && status !== old.status) {
+            logs.push(`Estado cambiado de "${old.status}" a "${status}"`);
         }
-        if (executorId !== undefined && oldPhase && executorId !== oldPhase.executor_id) {
-            const oldName = oldPhase.executor_name || 'Sin asignar';
+        if (executorId !== undefined && old && executorId !== old.executor_id) {
+            const oldName = old.executor_name || 'Sin asignar';
             const newName = phase.executor_name || 'Sin asignar';
             logs.push(`Responsable cambiado de "${oldName}" a "${newName}"`);
         }
-        if (deadline !== undefined && oldPhase && deadline !== oldPhase.deadline) {
-            logs.push(`Fecha limite cambiada de "${oldPhase.deadline || 'Sin fecha'}" a "${deadline || 'Sin fecha'}"`);
+        if (deadline !== undefined && old && deadline !== old.deadline) {
+            logs.push(`Fecha limite cambiada de "${old.deadline || 'Sin fecha'}" a "${deadline || 'Sin fecha'}"`);
         }
-        if (name && oldPhase && name !== oldPhase.name) {
-            logs.push(`Nombre cambiado de "${oldPhase.name}" a "${name}"`);
+        if (name && old && name !== old.name) {
+            logs.push(`Nombre cambiado de "${old.name}" a "${name}"`);
         }
         for (const log of logs) {
             await logPhaseActivity(phaseId, userId, log);
