@@ -729,6 +729,25 @@ class ApiClient {
         );
     }
 
+    async createClient(data: {
+        rfc: string;
+        name?: string;
+        razon_social?: string;
+        phone?: string;
+        tipo_persona?: string;
+        regimen_fiscal?: string;
+        codigo_postal?: string;
+        estado?: string;
+        domicilio?: string;
+        curp?: string;
+    }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ client: import('../types').ClientFiscalProfile }>(
+            `/projects/clients?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
     async getProjectClients(page: number = 1, limit: number = 20, search?: string) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         const params = new URLSearchParams({

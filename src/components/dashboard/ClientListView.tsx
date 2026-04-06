@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 import { ClientRow } from './ClientRow';
+import { CreateClientModal } from './CreateClientModal';
 import type { ClientRow as ClientRowType } from '../../types';
 
 interface ClientListViewProps {
@@ -20,6 +21,7 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [showCreateModal, setShowCreateModal] = useState(false);
 
     const loadClients = useCallback(async (p: number, s: string) => {
         setIsLoading(true);
@@ -53,24 +55,33 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
 
     return (
         <View style={styles.container}>
-            {/* Search Bar */}
-            <View style={[styles.searchBar, {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
-                borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-            }]}>
-                <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-                <TextInput
-                    style={[styles.searchInput, { color: colors.textPrimary }]}
-                    placeholder="Buscar por RFC, nombre o razon social..."
-                    placeholderTextColor={colors.textMuted}
-                    value={search}
-                    onChangeText={setSearch}
-                />
-                {search.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearch('')}>
-                        <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                    </TouchableOpacity>
-                )}
+            {/* Search Bar + Create Button */}
+            <View style={styles.toolbarRow}>
+                <View style={[styles.searchBar, {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
+                    borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                }]}>
+                    <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                    <TextInput
+                        style={[styles.searchInput, { color: colors.textPrimary }]}
+                        placeholder="Buscar por RFC, nombre o razon social..."
+                        placeholderTextColor={colors.textMuted}
+                        value={search}
+                        onChangeText={setSearch}
+                    />
+                    {search.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearch('')}>
+                            <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <TouchableOpacity
+                    style={[styles.createButton, { backgroundColor: colors.primary }]}
+                    onPress={() => setShowCreateModal(true)}
+                >
+                    <Ionicons name="add" size={18} color="#fff" />
+                    <Text style={styles.createButtonText}>Nuevo Cliente</Text>
+                </TouchableOpacity>
             </View>
 
             {/* Header Row */}
@@ -136,6 +147,16 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                     </View>
                 </View>
             )}
+
+            <CreateClientModal
+                visible={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onCreated={() => {
+                    setShowCreateModal(false);
+                    setPage(1);
+                    loadClients(1, search);
+                }}
+            />
         </View>
     );
 };
@@ -144,11 +165,31 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    searchBar: {
+    toolbarRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         margin: 16,
+        marginBottom: 0,
+    },
+    createButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 10,
+    },
+    createButtonText: {
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    searchBar: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
         paddingHorizontal: 14,
         paddingVertical: 10,
         borderRadius: 12,

@@ -27,3 +27,5 @@ yarn-error.log*
 .idea/
 app-debug.apk
 *.apk
+.vercel
+.env*.local
