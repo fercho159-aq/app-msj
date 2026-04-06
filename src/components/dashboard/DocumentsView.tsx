@@ -349,7 +349,7 @@ export const DocumentsView: React.FC = () => {
         const autoPlaceholders = selectedTemplate.placeholders.filter(p => p.source === 'auto');
 
         return (
-            <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={styles.fill} contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}>
                 {/* Header */}
                 <View style={styles.headerRow}>
                     <TouchableOpacity onPress={() => setView('templates')} style={[styles.backBtn, { backgroundColor: inputBg }]}>
@@ -546,7 +546,7 @@ export const DocumentsView: React.FC = () => {
     // ==================== TEMPLATE EDITOR VIEW ====================
     if (view === 'create-template') {
         return (
-            <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={styles.fill} contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}>
                 <View style={styles.headerRow}>
                     <TouchableOpacity onPress={() => { setView('templates'); resetEditor(); }} style={[styles.backBtn, { backgroundColor: inputBg }]}>
                         <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
@@ -674,7 +674,7 @@ export const DocumentsView: React.FC = () => {
     // ==================== GENERATED DOCUMENTS VIEW ====================
     if (view === 'generated') {
         return (
-            <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent}>
+            <ScrollView style={styles.fill} contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}>
                 <View style={styles.headerRow}>
                     <TouchableOpacity onPress={() => setView('templates')} style={[styles.backBtn, { backgroundColor: inputBg }]}>
                         <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
@@ -760,16 +760,14 @@ export const DocumentsView: React.FC = () => {
 
     // ==================== TEMPLATES LIST VIEW (default) ====================
     return (
-        <ScrollView style={styles.fill} contentContainerStyle={styles.scrollContent}>
+        <ScrollView style={styles.fill} contentContainerStyle={[styles.scrollContent, isMobile && styles.scrollContentMobile]}>
             {/* Top bar */}
-            <View style={styles.headerRow}>
-                <View style={{ flex: 1 }}>
-                    <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>Plantillas de Documentos</Text>
-                    <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
-                        {templates.length} plantilla{templates.length !== 1 ? 's' : ''} disponible{templates.length !== 1 ? 's' : ''}
-                    </Text>
-                </View>
-                <View style={styles.actionRow}>
+            <View style={{ marginBottom: 24 }}>
+                <Text style={[styles.pageTitle, { color: colors.textPrimary }]}>Plantillas de Documentos</Text>
+                <Text style={[styles.pageSubtitle, { color: colors.textMuted }]}>
+                    {templates.length} plantilla{templates.length !== 1 ? 's' : ''} disponible{templates.length !== 1 ? 's' : ''}
+                </Text>
+                <View style={[styles.actionRow, { marginTop: 12 }]}>
                     <TouchableOpacity
                         style={[styles.outlineBtn, { borderColor }]}
                         onPress={() => setView('generated')}
@@ -847,7 +845,8 @@ export const DocumentsView: React.FC = () => {
 
 const styles = StyleSheet.create({
     fill: { flex: 1 },
-    scrollContent: { padding: 24 },
+    scrollContent: { padding: 16 },
+    scrollContentMobile: { paddingTop: 56 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
     loadingText: { fontSize: 13, fontWeight: '500' },
 
@@ -856,7 +855,7 @@ const styles = StyleSheet.create({
     pageTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
     pageSubtitle: { fontSize: 13, fontWeight: '500', marginTop: 2 },
 
-    actionRow: { flexDirection: 'row', gap: 8 },
+    actionRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
     primaryBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 },
     primaryBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
     secondaryBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, borderWidth: 1 },
@@ -870,7 +869,7 @@ const styles = StyleSheet.create({
 
     // Template grid
     templateGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-    templateCard: { borderRadius: 14, borderWidth: 1, padding: 20, minWidth: 260, maxWidth: 320, flex: 1, minHeight: 200, justifyContent: 'space-between' },
+    templateCard: { borderRadius: 14, borderWidth: 1, padding: 20, minWidth: 280, maxWidth: 400, flex: 1, minHeight: 200, justifyContent: 'space-between' },
     templateIconBg: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     templateName: { fontSize: 15, fontWeight: '700', marginBottom: 4 },
     templateDesc: { fontSize: 12, lineHeight: 17, marginBottom: 12 },
