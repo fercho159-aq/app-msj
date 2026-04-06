@@ -10,66 +10,79 @@ interface ClientRowProps {
     client: ClientRowType;
     index: number;
     onPress: (client: ClientRowType) => void;
+    onDelete?: (client: ClientRowType) => void;
 }
 
-export const ClientRow: React.FC<ClientRowProps> = ({ client, index, onPress }) => {
+export const ClientRow: React.FC<ClientRowProps> = ({ client, index, onPress, onDelete }) => {
     const { colors, isDark } = useTheme();
     const efirmaSeverity = getDeadlineSeverity(client.efirma_expiry);
 
     return (
-        <TouchableOpacity
-            style={[
-                styles.row,
-                {
-                    backgroundColor: index % 2 === 0
-                        ? (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)')
-                        : 'transparent',
-                    borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                },
-            ]}
-            onPress={() => onPress(client)}
-            activeOpacity={0.7}
-        >
-            <LinearGradient
-                colors={['#5C76B2', '#97B1DE']}
-                style={styles.avatar}
+        <View style={[
+            styles.row,
+            {
+                backgroundColor: index % 2 === 0
+                    ? (isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)')
+                    : 'transparent',
+                borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+            },
+        ]}>
+            <TouchableOpacity
+                style={styles.rowContent}
+                onPress={() => onPress(client)}
+                activeOpacity={0.7}
             >
-                <Text style={styles.avatarText}>
-                    {(client.name || client.rfc || '?').charAt(0).toUpperCase()}
-                </Text>
-            </LinearGradient>
-
-            <View style={styles.info}>
-                <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {client.name || client.razon_social || 'Sin nombre'}
-                </Text>
-                <Text style={[styles.rfc, { color: colors.textMuted }]}>{client.rfc}</Text>
-            </View>
-
-            <View style={styles.meta}>
-                {client.regimen_fiscal && (
-                    <Text style={[styles.regimen, { color: colors.textMuted }]} numberOfLines={1}>
-                        {client.regimen_fiscal.substring(0, 30)}
+                <LinearGradient
+                    colors={['#5C76B2', '#97B1DE']}
+                    style={styles.avatar}
+                >
+                    <Text style={styles.avatarText}>
+                        {(client.name || client.rfc || '?').charAt(0).toUpperCase()}
                     </Text>
-                )}
-            </View>
+                </LinearGradient>
 
-            <View style={styles.badges}>
-                {efirmaSeverity && (
-                    <View style={styles.efirmaBadge}>
-                        <DeadlineTrafficLight severity={efirmaSeverity} size={8} />
-                        <Text style={[styles.efirmaLabel, { color: colors.textMuted }]}>e.firma</Text>
-                    </View>
-                )}
-                <View style={[styles.projectCount, { backgroundColor: `${colors.primary}12` }]}>
-                    <Text style={[styles.projectCountText, { color: colors.primary }]}>
-                        {client.projects_count}
+                <View style={styles.info}>
+                    <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                        {client.name || client.razon_social || 'Sin nombre'}
                     </Text>
+                    <Text style={[styles.rfc, { color: colors.textMuted }]}>{client.rfc}</Text>
                 </View>
-            </View>
 
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-        </TouchableOpacity>
+                <View style={styles.meta}>
+                    {client.regimen_fiscal && (
+                        <Text style={[styles.regimen, { color: colors.textMuted }]} numberOfLines={1}>
+                            {client.regimen_fiscal.substring(0, 30)}
+                        </Text>
+                    )}
+                </View>
+
+                <View style={styles.badges}>
+                    {efirmaSeverity && (
+                        <View style={styles.efirmaBadge}>
+                            <DeadlineTrafficLight severity={efirmaSeverity} size={8} />
+                            <Text style={[styles.efirmaLabel, { color: colors.textMuted }]}>e.firma</Text>
+                        </View>
+                    )}
+                    <View style={[styles.projectCount, { backgroundColor: `${colors.primary}12` }]}>
+                        <Text style={[styles.projectCountText, { color: colors.primary }]}>
+                            {client.projects_count}
+                        </Text>
+                    </View>
+                </View>
+
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            {onDelete && (
+                <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => onDelete(client)}
+                    activeOpacity={0.7}
+                >
+                    <Ionicons name="trash-outline" size={16} color="#E54D4D" />
+                </TouchableOpacity>
+            )}
+        </View>
     );
 };
 
@@ -77,10 +90,21 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         alignItems: 'center',
+        borderBottomWidth: 1,
+    },
+    rowContent: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 16,
         gap: 12,
-        borderBottomWidth: 1,
+    },
+    deleteButton: {
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     avatar: {
         width: 36,

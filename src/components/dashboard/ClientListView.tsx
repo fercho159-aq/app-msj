@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TextInput, FlatList, ActivityIndicator, StyleSheet,
-    TouchableOpacity,
+    TouchableOpacity, Alert, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -9,6 +9,15 @@ import { api } from '../../api/client';
 import { ClientRow } from './ClientRow';
 import { CreateClientModal } from './CreateClientModal';
 import type { ClientRow as ClientRowType } from '../../types';
+
+interface DeletedClient {
+    id: string;
+    rfc: string;
+    name: string | null;
+    razon_social: string | null;
+    deleted_at: string;
+    days_remaining: number;
+}
 
 interface ClientListViewProps {
     onSelectClient: (client: ClientRowType) => void;
@@ -22,6 +31,9 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
     const [search, setSearch] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showTrash, setShowTrash] = useState(false);
+    const [deletedClients, setDeletedClients] = useState<DeletedClient[]>([]);
+    const [isLoadingTrash, setIsLoadingTrash] = useState(false);
 
     const loadClients = useCallback(async (p: number, s: string) => {
         setIsLoading(true);
@@ -38,6 +50,20 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
         }
     }, []);
 
+    const loadDeletedClients = useCallback(async () => {
+        setIsLoadingTrash(true);
+        try {
+            const result = await api.getDeletedClients();
+            if (result.data) {
+                setDeletedClients(result.data.clients);
+            }
+        } catch (error) {
+            console.error('Error loading deleted clients:', error);
+        } finally {
+            setIsLoadingTrash(false);
+        }
+    }, []);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setPage(1);
@@ -51,11 +77,68 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
         loadClients(newPage, search);
     };
 
+    const confirmDelete = (client: ClientRowType) => {
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(
+                `¿Eliminar a ${client.name || client.razon_social || client.rfc}?\n\nEl cliente se moverá a la papelera y se eliminará permanentemente después de 3 días.`
+            );
+            if (confirmed) handleDelete(client);
+        } else {
+            Alert.alert(
+                'Eliminar cliente',
+                `¿Eliminar a ${client.name || client.razon_social || client.rfc}?\n\nEl cliente se moverá a la papelera y se eliminará permanentemente después de 3 días.`,
+                [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Eliminar', style: 'destructive', onPress: () => handleDelete(client) },
+                ]
+            );
+        }
+    };
+
+    const handleDelete = async (client: ClientRowType) => {
+        const result = await api.deleteClient(client.id);
+        if (result.data?.success) {
+            loadClients(page, search);
+            if (showTrash) loadDeletedClients();
+        }
+    };
+
+    const confirmRestore = (client: DeletedClient) => {
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(
+                `¿Restaurar a ${client.name || client.razon_social || client.rfc}?`
+            );
+            if (confirmed) handleRestore(client.id);
+        } else {
+            Alert.alert(
+                'Restaurar cliente',
+                `¿Restaurar a ${client.name || client.razon_social || client.rfc}?`,
+                [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Restaurar', onPress: () => handleRestore(client.id) },
+                ]
+            );
+        }
+    };
+
+    const handleRestore = async (clientId: string) => {
+        const result = await api.restoreClient(clientId);
+        if (result.data?.success) {
+            loadDeletedClients();
+            loadClients(page, search);
+        }
+    };
+
+    const handleToggleTrash = () => {
+        if (!showTrash) loadDeletedClients();
+        setShowTrash(!showTrash);
+    };
+
     const totalPages = Math.ceil(total / 20);
 
     return (
         <View style={styles.container}>
-            {/* Search Bar + Create Button */}
+            {/* Search Bar + Buttons */}
             <View style={styles.toolbarRow}>
                 <View style={[styles.searchBar, {
                     backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)',
@@ -76,6 +159,15 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                     )}
                 </View>
                 <TouchableOpacity
+                    style={[styles.trashButton, {
+                        backgroundColor: showTrash ? '#E54D4D20' : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)'),
+                        borderColor: showTrash ? '#E54D4D40' : 'transparent',
+                    }]}
+                    onPress={handleToggleTrash}
+                >
+                    <Ionicons name="trash-outline" size={18} color={showTrash ? '#E54D4D' : colors.textMuted} />
+                </TouchableOpacity>
+                <TouchableOpacity
                     style={[styles.createButton, { backgroundColor: colors.primary }]}
                     onPress={() => setShowCreateModal(true)}
                 >
@@ -83,6 +175,54 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                     <Text style={styles.createButtonText}>Nuevo Cliente</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Trash Section */}
+            {showTrash && (
+                <View style={[styles.trashSection, {
+                    backgroundColor: isDark ? 'rgba(229,77,77,0.06)' : 'rgba(229,77,77,0.04)',
+                    borderColor: isDark ? 'rgba(229,77,77,0.15)' : 'rgba(229,77,77,0.1)',
+                }]}>
+                    <View style={styles.trashHeader}>
+                        <Ionicons name="trash" size={16} color="#E54D4D" />
+                        <Text style={[styles.trashTitle, { color: '#E54D4D' }]}>
+                            Papelera ({deletedClients.length})
+                        </Text>
+                        <Text style={[styles.trashSubtitle, { color: colors.textMuted }]}>
+                            Los clientes se eliminan permanentemente después de 3 días
+                        </Text>
+                    </View>
+                    {isLoadingTrash ? (
+                        <ActivityIndicator size="small" color="#E54D4D" style={{ padding: 12 }} />
+                    ) : deletedClients.length === 0 ? (
+                        <Text style={[styles.trashEmpty, { color: colors.textMuted }]}>Papelera vacía</Text>
+                    ) : (
+                        deletedClients.map(client => (
+                            <View key={client.id} style={[styles.trashRow, {
+                                borderTopColor: isDark ? 'rgba(229,77,77,0.1)' : 'rgba(229,77,77,0.08)',
+                            }]}>
+                                <View style={styles.trashRowInfo}>
+                                    <Text style={[styles.trashRowName, { color: colors.textPrimary }]}>
+                                        {client.name || client.razon_social || 'Sin nombre'}
+                                    </Text>
+                                    <Text style={[styles.trashRowRfc, { color: colors.textMuted }]}>
+                                        {client.rfc}
+                                    </Text>
+                                </View>
+                                <Text style={[styles.trashDays, { color: '#E54D4D' }]}>
+                                    {client.days_remaining > 0 ? `${client.days_remaining}d restantes` : 'Por eliminar'}
+                                </Text>
+                                <TouchableOpacity
+                                    style={styles.restoreButton}
+                                    onPress={() => confirmRestore(client)}
+                                >
+                                    <Ionicons name="arrow-undo-outline" size={16} color={colors.primary} />
+                                    <Text style={[styles.restoreText, { color: colors.primary }]}>Restaurar</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ))
+                    )}
+                </View>
+            )}
 
             {/* Header Row */}
             <View style={[styles.headerRow, {
@@ -92,7 +232,7 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                 <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Cliente</Text>
                 <Text style={[styles.headerCell, { color: colors.textMuted, flex: 1 }]}>Regimen</Text>
                 <Text style={[styles.headerCell, { color: colors.textMuted, width: 120, textAlign: 'right' }]}>Proyectos</Text>
-                <View style={{ width: 16 }} />
+                <View style={{ width: 44 }} />
             </View>
 
             {/* List */}
@@ -112,7 +252,12 @@ export const ClientListView: React.FC<ClientListViewProps> = ({ onSelectClient }
                     data={clients}
                     keyExtractor={item => item.id}
                     renderItem={({ item, index }) => (
-                        <ClientRow client={item} index={index} onPress={onSelectClient} />
+                        <ClientRow
+                            client={item}
+                            index={index}
+                            onPress={onSelectClient}
+                            onDelete={confirmDelete}
+                        />
                     )}
                     style={styles.list}
                 />
@@ -185,6 +330,11 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
     },
+    trashButton: {
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
     searchBar: {
         flex: 1,
         flexDirection: 'row',
@@ -256,6 +406,71 @@ const styles = StyleSheet.create({
         padding: 4,
     },
     pageText: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    // Trash section
+    trashSection: {
+        margin: 16,
+        marginBottom: 0,
+        borderRadius: 12,
+        borderWidth: 1,
+        overflow: 'hidden',
+    },
+    trashHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        padding: 12,
+    },
+    trashTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    trashSubtitle: {
+        fontSize: 11,
+        fontWeight: '500',
+        marginLeft: 'auto',
+    },
+    trashEmpty: {
+        fontSize: 12,
+        fontWeight: '500',
+        textAlign: 'center',
+        padding: 12,
+    },
+    trashRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        gap: 12,
+        borderTopWidth: 1,
+    },
+    trashRowInfo: {
+        flex: 1,
+    },
+    trashRowName: {
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    trashRowRfc: {
+        fontSize: 10,
+        fontWeight: '500',
+        marginTop: 1,
+    },
+    trashDays: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    restoreButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+    },
+    restoreText: {
         fontSize: 12,
         fontWeight: '600',
     },

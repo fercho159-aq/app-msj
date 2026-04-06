@@ -99,76 +99,106 @@ export const GestionView: React.FC = () => {
 
     const breadcrumbs = getBreadcrumbs();
 
-    return (
-        <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
-            {/* Header */}
-            <View style={[styles.header, isMobile && styles.headerMobile]}>
-                <View>
-                    <Text style={[styles.headerTitle, { color: colors.textPrimary }, isMobile && styles.headerTitleMobile]}>
-                        Gestion de Clientes
-                    </Text>
-                    {/* Breadcrumb */}
-                    <View style={styles.breadcrumb}>
-                        {breadcrumbs.map((item, index) => (
-                            <View key={item.level} style={styles.breadcrumbItem}>
-                                {index > 0 && (
-                                    <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={styles.breadcrumbSep} />
-                                )}
-                                <TouchableOpacity
-                                    onPress={() => handleBreadcrumbNav(item.level)}
-                                    disabled={index === breadcrumbs.length - 1}
-                                >
-                                    <Text style={[
-                                        styles.breadcrumbText,
-                                        {
-                                            color: index === breadcrumbs.length - 1
-                                                ? colors.textPrimary
-                                                : colors.primary,
-                                        },
-                                        index === breadcrumbs.length - 1 && styles.breadcrumbActive,
-                                    ]}>
-                                        {item.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </View>
+    const renderHeader = () => (
+        <View style={[styles.header, isMobile && styles.headerMobile]}>
+            <View>
+                <Text style={[styles.headerTitle, { color: colors.textPrimary }, isMobile && styles.headerTitleMobile]}>
+                    Gestion de Clientes
+                </Text>
+                <View style={styles.breadcrumb}>
+                    {breadcrumbs.map((item, index) => (
+                        <View key={item.level} style={styles.breadcrumbItem}>
+                            {index > 0 && (
+                                <Ionicons name="chevron-forward" size={12} color={colors.textMuted} style={styles.breadcrumbSep} />
+                            )}
+                            <TouchableOpacity
+                                onPress={() => handleBreadcrumbNav(item.level)}
+                                disabled={index === breadcrumbs.length - 1}
+                            >
+                                <Text style={[
+                                    styles.breadcrumbText,
+                                    {
+                                        color: index === breadcrumbs.length - 1
+                                            ? colors.textPrimary
+                                            : colors.primary,
+                                    },
+                                    index === breadcrumbs.length - 1 && styles.breadcrumbActive,
+                                ]}>
+                                    {item.label}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ))}
                 </View>
             </View>
+        </View>
+    );
+
+    const renderKpi = () => (
+        <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
+            <StatCard title="Clientes" value={summary?.totalClients || 0} icon="people" color="#5C76B2" accentGradient={['#5C76B2', '#97B1DE']} />
+            <StatCard title="Proyectos Activos" value={summary?.activeProjects || 0} icon="briefcase" color="#10B981" accentGradient={['#10B981', '#6EE7B7']} />
+            <StatCard title="Fases Vencidas" value={summary?.overduePhases || 0} icon="alert-circle" color="#EF4444" accentGradient={['#EF4444', '#FCA5A5']} />
+            <StatCard title="Completacion" value={`${summary?.completionRate || 0}%`} icon="checkmark-done" color="#F59E0B" accentGradient={['#F59E0B', '#FCD34D']} />
+        </View>
+    );
+
+    // Mobile: use ScrollView for client-detail and project-detail views
+    if (isMobile && level !== 'clients') {
+        return (
+            <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
+                {renderHeader()}
+                <ScrollView
+                    style={styles.scrollContainer}
+                    contentContainerStyle={[styles.scrollContent, { paddingHorizontal: 14, paddingBottom: 40 }]}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {level === 'client-detail' && selectedClient && (
+                        <>
+                            <ClientFiscalProfile clientId={selectedClient.id} disableScroll />
+                            <View style={{ marginTop: 14 }}>
+                                <ProjectListView
+                                    clientId={selectedClient.id}
+                                    onSelectProject={handleSelectProject}
+                                />
+                            </View>
+                        </>
+                    )}
+
+                    {level === 'project-detail' && selectedProject && selectedClient && (
+                        <>
+                            <PhaseBoard
+                                projectId={selectedProject.id}
+                                selectedPhaseId={selectedPhaseId}
+                                onSelectPhase={handleSelectPhase}
+                                onProjectLoaded={setProjectDetail}
+                            />
+                            {selectedPhaseId && (
+                                <View style={{ marginTop: 14 }}>
+                                    <PhaseDetailPanel
+                                        phaseId={selectedPhaseId}
+                                        projectId={selectedProject.id}
+                                        clientId={selectedClient.id}
+                                        onClose={() => setSelectedPhaseId(null)}
+                                        onPhaseUpdated={() => {
+                                            setSelectedProject({ ...selectedProject });
+                                        }}
+                                    />
+                                </View>
+                            )}
+                        </>
+                    )}
+                </ScrollView>
+            </View>
+        );
+    }
+
+    return (
+        <View style={[styles.container, { backgroundColor: isDark ? '#0a0a0a' : '#f0f2f5' }]}>
+            {renderHeader()}
 
             {/* KPI Cards */}
-            {level === 'clients' && (
-                <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
-                    <StatCard
-                        title="Clientes"
-                        value={summary?.totalClients || 0}
-                        icon="people"
-                        color="#5C76B2"
-                        accentGradient={['#5C76B2', '#97B1DE']}
-                    />
-                    <StatCard
-                        title="Proyectos Activos"
-                        value={summary?.activeProjects || 0}
-                        icon="briefcase"
-                        color="#10B981"
-                        accentGradient={['#10B981', '#6EE7B7']}
-                    />
-                    <StatCard
-                        title="Fases Vencidas"
-                        value={summary?.overduePhases || 0}
-                        icon="alert-circle"
-                        color="#EF4444"
-                        accentGradient={['#EF4444', '#FCA5A5']}
-                    />
-                    <StatCard
-                        title="Completacion"
-                        value={`${summary?.completionRate || 0}%`}
-                        icon="checkmark-done"
-                        color="#F59E0B"
-                        accentGradient={['#F59E0B', '#FCD34D']}
-                    />
-                </View>
-            )}
+            {level === 'clients' && renderKpi()}
 
             {/* Content */}
             <View style={[styles.content, isMobile && styles.contentMobile]}>
@@ -212,8 +242,6 @@ export const GestionView: React.FC = () => {
                                 clientId={selectedClient.id}
                                 onClose={() => setSelectedPhaseId(null)}
                                 onPhaseUpdated={() => {
-                                    // Force reload PhaseBoard by updating key
-                                    const prevId = selectedProject.id;
                                     setSelectedProject({ ...selectedProject });
                                 }}
                             />
@@ -228,6 +256,12 @@ export const GestionView: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    scrollContainer: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
     },
     header: {
         paddingHorizontal: 24,

@@ -166,6 +166,9 @@ export interface ClientFiscalProfile {
     capital: string | null;
     efirma_expiry: string | null;
     csd_expiry: string | null;
+    efirma_delivery_date: string | null;
+    efirma_link: string | null;
+    efirma_file_url: string | null;
     created_at: string;
 }
 

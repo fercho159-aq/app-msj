@@ -748,6 +748,29 @@ class ApiClient {
         );
     }
 
+    async deleteClient(clientId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean; message: string }>(
+            `/projects/clients/${clientId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
+    async restoreClient(clientId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean; message: string }>(
+            `/projects/clients/${clientId}/restore?userId=${this.userId}`,
+            { method: 'POST' }
+        );
+    }
+
+    async getDeletedClients() {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ clients: { id: string; rfc: string; name: string | null; razon_social: string | null; deleted_at: string; days_remaining: number }[] }>(
+            `/projects/clients-deleted?userId=${this.userId}`
+        );
+    }
+
     async getProjectClients(page: number = 1, limit: number = 20, search?: string) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         const params = new URLSearchParams({
@@ -768,7 +791,12 @@ class ApiClient {
         );
     }
 
-    async updateClientFiscalFields(clientId: string, data: { capital?: number; efirma_expiry?: string; csd_expiry?: string }) {
+    async updateClientFiscalFields(clientId: string, data: {
+        capital?: number; efirma_expiry?: string; csd_expiry?: string;
+        curp?: string; razon_social?: string; regimen_fiscal?: string;
+        codigo_postal?: string; estado?: string; domicilio?: string; phone?: string;
+        efirma_delivery_date?: string; efirma_link?: string; efirma_file_url?: string;
+    }) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         return this.request<{ profile: import('../types').ClientFiscalProfile }>(
             `/projects/clients/${clientId}/fiscal?userId=${this.userId}`,

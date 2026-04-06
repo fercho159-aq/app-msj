@@ -30,8 +30,8 @@ export async function getClients(
     const offset = (page - 1) * limit;
 
     const whereClause = search
-        ? `WHERE COALESCE(u.role, 'usuario') != 'consultor' AND (u.rfc ILIKE $1 OR u.name ILIKE $1 OR u.razon_social ILIKE $1)`
-        : `WHERE COALESCE(u.role, 'usuario') != 'consultor'`;
+        ? `WHERE COALESCE(u.role, 'usuario') != 'consultor' AND u.deleted_at IS NULL AND (u.rfc ILIKE $1 OR u.name ILIKE $1 OR u.razon_social ILIKE $1)`
+        : `WHERE COALESCE(u.role, 'usuario') != 'consultor' AND u.deleted_at IS NULL`;
     const searchPattern = `%${search}%`;
 
     const countResult = await queryOne<{ count: string }>(
@@ -92,6 +92,7 @@ export async function createClient(data: {
         RETURNING id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
             curp, regimen_fiscal, codigo_postal, estado, domicilio,
             capital::text, efirma_expiry::text, csd_expiry::text,
+            efirma_delivery_date::text, efirma_link, efirma_file_url,
             created_at::text
     `, [
         data.rfc,
@@ -108,6 +109,39 @@ export async function createClient(data: {
 
     if (!result) throw new Error('Error al crear cliente');
     return result;
+}
+
+export async function softDeleteClient(clientId: string): Promise<boolean> {
+    const result = await queryOne<{ id: string }>(
+        `UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
+        [clientId]
+    );
+    return !!result;
+}
+
+export async function restoreClient(clientId: string): Promise<boolean> {
+    const result = await queryOne<{ id: string }>(
+        `UPDATE users SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL RETURNING id`,
+        [clientId]
+    );
+    return !!result;
+}
+
+export async function getDeletedClients(): Promise<{ id: string; rfc: string; name: string | null; razon_social: string | null; deleted_at: string; days_remaining: number }[]> {
+    return query(`
+        SELECT id, rfc, name, razon_social, deleted_at::text,
+            GREATEST(0, 3 - EXTRACT(DAY FROM NOW() - deleted_at))::int as days_remaining
+        FROM users
+        WHERE deleted_at IS NOT NULL
+        ORDER BY deleted_at ASC
+    `);
+}
+
+export async function purgeDeletedClients(): Promise<number> {
+    const result = await query<{ id: string }>(
+        `DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL '3 days' RETURNING id`
+    );
+    return result.length;
 }
 
 // ==================== CLIENT FISCAL PROFILE ====================
@@ -128,6 +162,9 @@ export interface ClientFiscalProfile {
     capital: string | null;
     efirma_expiry: string | null;
     csd_expiry: string | null;
+    efirma_delivery_date: string | null;
+    efirma_link: string | null;
+    efirma_file_url: string | null;
     created_at: string;
 }
 
@@ -137,6 +174,7 @@ export async function getClientFiscalProfile(clientId: string): Promise<ClientFi
             id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
             curp, regimen_fiscal, codigo_postal, estado, domicilio,
             capital::text, efirma_expiry::text, csd_expiry::text,
+            efirma_delivery_date::text, efirma_link, efirma_file_url,
             created_at::text
         FROM users
         WHERE id = $1
@@ -145,7 +183,21 @@ export async function getClientFiscalProfile(clientId: string): Promise<ClientFi
 
 export async function updateClientFiscalFields(
     clientId: string,
-    data: { capital?: number; efirma_expiry?: string; csd_expiry?: string }
+    data: {
+        capital?: number;
+        efirma_expiry?: string;
+        csd_expiry?: string;
+        curp?: string;
+        razon_social?: string;
+        regimen_fiscal?: string;
+        codigo_postal?: string;
+        estado?: string;
+        domicilio?: string;
+        phone?: string;
+        efirma_delivery_date?: string;
+        efirma_link?: string;
+        efirma_file_url?: string;
+    }
 ): Promise<ClientFiscalProfile | null> {
     const sets: string[] = [];
     const params: any[] = [];
@@ -162,6 +214,46 @@ export async function updateClientFiscalFields(
     if (data.csd_expiry !== undefined) {
         sets.push(`csd_expiry = $${idx++}`);
         params.push(data.csd_expiry || null);
+    }
+    if (data.curp !== undefined) {
+        sets.push(`curp = $${idx++}`);
+        params.push(data.curp || null);
+    }
+    if (data.razon_social !== undefined) {
+        sets.push(`razon_social = $${idx++}`);
+        params.push(data.razon_social || null);
+    }
+    if (data.regimen_fiscal !== undefined) {
+        sets.push(`regimen_fiscal = $${idx++}`);
+        params.push(data.regimen_fiscal || null);
+    }
+    if (data.codigo_postal !== undefined) {
+        sets.push(`codigo_postal = $${idx++}`);
+        params.push(data.codigo_postal || null);
+    }
+    if (data.estado !== undefined) {
+        sets.push(`estado = $${idx++}`);
+        params.push(data.estado || null);
+    }
+    if (data.domicilio !== undefined) {
+        sets.push(`domicilio = $${idx++}`);
+        params.push(data.domicilio || null);
+    }
+    if (data.phone !== undefined) {
+        sets.push(`phone = $${idx++}`);
+        params.push(data.phone || null);
+    }
+    if (data.efirma_delivery_date !== undefined) {
+        sets.push(`efirma_delivery_date = $${idx++}`);
+        params.push(data.efirma_delivery_date || null);
+    }
+    if (data.efirma_link !== undefined) {
+        sets.push(`efirma_link = $${idx++}`);
+        params.push(data.efirma_link || null);
+    }
+    if (data.efirma_file_url !== undefined) {
+        sets.push(`efirma_file_url = $${idx++}`);
+        params.push(data.efirma_file_url || null);
     }
 
     if (sets.length === 0) return getClientFiscalProfile(clientId);
@@ -621,6 +713,16 @@ export interface PhaseObservation {
     content: string;
     created_at: string;
     updated_at: string;
+}
+
+// System user ID for auto-generated log entries
+const SYSTEM_AUTHOR_ID = '00000000-0000-0000-0000-000000000000';
+
+export async function logPhaseActivity(phaseId: string, authorId: string, message: string): Promise<void> {
+    await query(`
+        INSERT INTO phase_observations (phase_id, author_id, content)
+        VALUES ($1, $2, $3)
+    `, [phaseId, authorId, `[AUTO] ${message}`]);
 }
 
 export async function getPhaseObservations(phaseId: string): Promise<PhaseObservation[]> {

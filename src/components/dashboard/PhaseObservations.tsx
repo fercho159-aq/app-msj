@@ -90,68 +90,88 @@ export const PhaseObservations: React.FC<PhaseObservationsProps> = ({
             </View>
 
             {/* Observations list */}
-            {observations.map(obs => (
-                <View
-                    key={obs.id}
-                    style={[styles.obsCard, {
-                        borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-                    }]}
-                >
-                    <View style={styles.obsHeader}>
-                        <View style={styles.obsAuthor}>
-                            <Ionicons name="person-circle-outline" size={16} color={colors.textMuted} />
-                            <Text style={[styles.obsAuthorName, { color: colors.textSecondary }]}>
-                                {obs.author_name || 'Desconocido'}
-                            </Text>
-                        </View>
-                        <Text style={[styles.obsDate, { color: colors.textMuted }]}>
-                            {new Date(obs.created_at).toLocaleString('es-MX', {
-                                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-                            })}
-                        </Text>
-                    </View>
+            {observations.map(obs => {
+                const isAuto = obs.content.startsWith('[AUTO]');
+                const displayContent = isAuto ? obs.content.replace('[AUTO] ', '') : obs.content;
 
-                    {editingId === obs.id ? (
-                        <View style={styles.editRow}>
-                            <TextInput
-                                style={[styles.editInput, {
-                                    color: colors.textPrimary,
-                                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                                    borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                                }]}
-                                value={editContent}
-                                onChangeText={setEditContent}
-                                multiline
-                            />
-                            <View style={styles.editActions}>
-                                <TouchableOpacity onPress={() => setEditingId(null)}>
-                                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>Cancelar</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleUpdate(obs.id)}>
-                                    <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
-                                </TouchableOpacity>
+                return (
+                    <View
+                        key={obs.id}
+                        style={[styles.obsCard, {
+                            borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+                            ...(isAuto ? {
+                                backgroundColor: isDark ? 'rgba(92,118,178,0.06)' : 'rgba(92,118,178,0.04)',
+                                borderRadius: 8,
+                                paddingHorizontal: 10,
+                                marginBottom: 4,
+                            } : {}),
+                        }]}
+                    >
+                        <View style={styles.obsHeader}>
+                            <View style={styles.obsAuthor}>
+                                {isAuto ? (
+                                    <Ionicons name="git-commit-outline" size={14} color={colors.primary} />
+                                ) : (
+                                    <Ionicons name="person-circle-outline" size={16} color={colors.textMuted} />
+                                )}
+                                <Text style={[styles.obsAuthorName, { color: isAuto ? colors.primary : colors.textSecondary }]}>
+                                    {isAuto ? 'Sistema' : (obs.author_name || 'Desconocido')}
+                                </Text>
                             </View>
-                        </View>
-                    ) : (
-                        <>
-                            <Text style={[styles.obsContent, { color: colors.textPrimary }]}>
-                                {obs.content}
+                            <Text style={[styles.obsDate, { color: colors.textMuted }]}>
+                                {new Date(obs.created_at).toLocaleString('es-MX', {
+                                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+                                })}
                             </Text>
-                            <View style={styles.obsActions}>
-                                <TouchableOpacity
-                                    onPress={() => { setEditingId(obs.id); setEditContent(obs.content); }}
-                                    style={styles.actionBtn}
-                                >
-                                    <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => handleDelete(obs.id)} style={styles.actionBtn}>
-                                    <Ionicons name="trash-outline" size={13} color="#EF4444" />
-                                </TouchableOpacity>
+                        </View>
+
+                        {editingId === obs.id ? (
+                            <View style={styles.editRow}>
+                                <TextInput
+                                    style={[styles.editInput, {
+                                        color: colors.textPrimary,
+                                        backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+                                        borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                    }]}
+                                    value={editContent}
+                                    onChangeText={setEditContent}
+                                    multiline
+                                />
+                                <View style={styles.editActions}>
+                                    <TouchableOpacity onPress={() => setEditingId(null)}>
+                                        <Text style={[styles.cancelText, { color: colors.textMuted }]}>Cancelar</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => handleUpdate(obs.id)}>
+                                        <Text style={[styles.saveText, { color: colors.primary }]}>Guardar</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
-                        </>
-                    )}
-                </View>
-            ))}
+                        ) : (
+                            <>
+                                <Text style={[styles.obsContent, {
+                                    color: colors.textPrimary,
+                                    ...(isAuto ? { fontSize: 11, fontStyle: 'italic' } : {}),
+                                }]}>
+                                    {displayContent}
+                                </Text>
+                                {!isAuto && (
+                                    <View style={styles.obsActions}>
+                                        <TouchableOpacity
+                                            onPress={() => { setEditingId(obs.id); setEditContent(obs.content); }}
+                                            style={styles.actionBtn}
+                                        >
+                                            <Ionicons name="pencil-outline" size={13} color={colors.textMuted} />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => handleDelete(obs.id)} style={styles.actionBtn}>
+                                            <Ionicons name="trash-outline" size={13} color="#EF4444" />
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </>
+                        )}
+                    </View>
+                );
+            })}
         </View>
     );
 };

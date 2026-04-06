@@ -27,7 +27,12 @@ import {
     deleteChecklistItem,
     getProjectsSummary,
     getConsultors,
+    logPhaseActivity,
     createClient,
+    softDeleteClient,
+    restoreClient,
+    getDeletedClients,
+    purgeDeletedClients,
 } from '../../services/projectService';
 
 const router = Router();
@@ -122,9 +127,9 @@ router.get('/clients/:id', requireConsultor, async (req: Request, res: Response)
 // PUT /api/projects/clients/:id/fiscal?userId=xxx
 router.put('/clients/:id/fiscal', requireConsultor, async (req: Request, res: Response) => {
     try {
-        const { capital, efirma_expiry, csd_expiry } = req.body;
+        const { capital, efirma_expiry, csd_expiry, curp, razon_social, regimen_fiscal, codigo_postal, estado, domicilio, phone, efirma_delivery_date, efirma_link, efirma_file_url } = req.body;
         const profile = await updateClientFiscalFields(req.params.id as string, {
-            capital, efirma_expiry, csd_expiry,
+            capital, efirma_expiry, csd_expiry, curp, razon_social, regimen_fiscal, codigo_postal, estado, domicilio, phone, efirma_delivery_date, efirma_link, efirma_file_url,
         });
         if (!profile) return res.status(404).json({ error: 'Cliente no encontrado' });
         res.json({ profile });
@@ -141,6 +146,52 @@ router.get('/clients/:id/cloud-files', requireConsultor, async (req: Request, re
         res.json({ files });
     } catch (error: any) {
         console.error('Error al obtener archivos del cliente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/projects/clients/:id?userId=xxx (soft delete)
+router.delete('/clients/:id', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const deleted = await softDeleteClient(req.params.id as string);
+        if (!deleted) return res.status(404).json({ error: 'Cliente no encontrado' });
+        res.json({ success: true, message: 'Cliente marcado para eliminación. Se eliminará permanentemente en 3 días.' });
+    } catch (error: any) {
+        console.error('Error al eliminar cliente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/projects/clients/:id/restore?userId=xxx
+router.post('/clients/:id/restore', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const restored = await restoreClient(req.params.id as string);
+        if (!restored) return res.status(404).json({ error: 'Cliente no encontrado en papelera' });
+        res.json({ success: true, message: 'Cliente restaurado exitosamente.' });
+    } catch (error: any) {
+        console.error('Error al restaurar cliente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/projects/clients-deleted?userId=xxx
+router.get('/clients-deleted', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const clients = await getDeletedClients();
+        res.json({ clients });
+    } catch (error: any) {
+        console.error('Error al obtener clientes eliminados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/projects/clients-purge?userId=xxx (purge clients deleted > 3 days ago)
+router.post('/clients-purge', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const count = await purgeDeletedClients();
+        res.json({ success: true, purged: count });
+    } catch (error: any) {
+        console.error('Error al purgar clientes:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -231,12 +282,39 @@ router.post('/:projectId/phases', requireConsultor, async (req: Request, res: Re
 // PUT /api/projects/:projectId/phases/:phaseId?userId=xxx
 router.put('/:projectId/phases/:phaseId', requireConsultor, async (req: Request, res: Response) => {
     try {
+        const userId = req.query.userId as string;
+        const phaseId = req.params.phaseId as string;
         const { name, description, status, executorId, deadline, dependsOnPhaseId } = req.body;
-        const phase = await updatePhase(req.params.phaseId as string, {
+
+        // Get current phase for comparison
+        const oldPhase = await getPhaseDetail(phaseId);
+
+        const phase = await updatePhase(phaseId, {
             name, description, status, executorId, deadline,
             dependsOnPhaseId: dependsOnPhaseId !== undefined ? dependsOnPhaseId : undefined,
         });
         if (!phase) return res.status(404).json({ error: 'Fase no encontrada' });
+
+        // Log changes to bitacora
+        const logs: string[] = [];
+        if (status && oldPhase && status !== oldPhase.status) {
+            logs.push(`Estado cambiado de "${oldPhase.status}" a "${status}"`);
+        }
+        if (executorId !== undefined && oldPhase && executorId !== oldPhase.executor_id) {
+            const oldName = oldPhase.executor_name || 'Sin asignar';
+            const newName = phase.executor_name || 'Sin asignar';
+            logs.push(`Responsable cambiado de "${oldName}" a "${newName}"`);
+        }
+        if (deadline !== undefined && oldPhase && deadline !== oldPhase.deadline) {
+            logs.push(`Fecha limite cambiada de "${oldPhase.deadline || 'Sin fecha'}" a "${deadline || 'Sin fecha'}"`);
+        }
+        if (name && oldPhase && name !== oldPhase.name) {
+            logs.push(`Nombre cambiado de "${oldPhase.name}" a "${name}"`);
+        }
+        for (const log of logs) {
+            await logPhaseActivity(phaseId, userId, log);
+        }
+
         res.json({ phase });
     } catch (error: any) {
         if (error.message?.includes('No se puede avanzar')) {
@@ -309,12 +387,14 @@ router.post('/phases/:phaseId/documents', requireConsultor, async (req: Request,
             return res.status(400).json({ error: 'fileUrl y fileName son requeridos' });
         }
 
+        const phaseId = req.params.phaseId as string;
         const document = await addPhaseDocument({
-            phaseId: req.params.phaseId as string,
+            phaseId,
             fileUrl, fileName, fileType, fileSize,
             source: 'upload',
             uploadedBy: userId,
         });
+        await logPhaseActivity(phaseId, userId, `Documento subido: "${fileName}"`);
         res.status(201).json({ document });
     } catch (error: any) {
         console.error('Error al agregar documento:', error);
@@ -331,13 +411,15 @@ router.post('/phases/:phaseId/documents/link', requireConsultor, async (req: Req
             return res.status(400).json({ error: 'fileUrl y fileName son requeridos' });
         }
 
+        const phaseId = req.params.phaseId as string;
         const document = await addPhaseDocument({
-            phaseId: req.params.phaseId as string,
+            phaseId,
             fileUrl, fileName, fileType,
             source: 'message',
             messageId,
             uploadedBy: userId,
         });
+        await logPhaseActivity(phaseId, userId, `Documento vinculado: "${fileName}"`);
         res.status(201).json({ document });
     } catch (error: any) {
         console.error('Error al vincular documento:', error);
@@ -348,7 +430,10 @@ router.post('/phases/:phaseId/documents/link', requireConsultor, async (req: Req
 // DELETE /api/projects/phases/:phaseId/documents/:docId?userId=xxx
 router.delete('/phases/:phaseId/documents/:docId', requireConsultor, async (req: Request, res: Response) => {
     try {
+        const userId = req.query.userId as string;
+        const phaseId = req.params.phaseId as string;
         await removePhaseDocument(req.params.docId as string);
+        await logPhaseActivity(phaseId, userId, 'Documento eliminado');
         res.json({ success: true });
     } catch (error: any) {
         console.error('Error al eliminar documento:', error);
@@ -430,10 +515,13 @@ router.get('/phases/:phaseId/checklist', requireConsultor, async (req: Request, 
 // POST /api/projects/phases/:phaseId/checklist?userId=xxx
 router.post('/phases/:phaseId/checklist', requireConsultor, async (req: Request, res: Response) => {
     try {
+        const userId = req.query.userId as string;
+        const phaseId = req.params.phaseId as string;
         const { label } = req.body;
         if (!label) return res.status(400).json({ error: 'label es requerido' });
 
-        const item = await addChecklistItem({ phaseId: req.params.phaseId as string, label });
+        const item = await addChecklistItem({ phaseId, label });
+        await logPhaseActivity(phaseId, userId, `Checklist: item agregado "${label}"`);
         res.status(201).json({ item });
     } catch (error: any) {
         console.error('Error al agregar item de checklist:', error);
@@ -445,8 +533,10 @@ router.post('/phases/:phaseId/checklist', requireConsultor, async (req: Request,
 router.put('/phases/:phaseId/checklist/:id', requireConsultor, async (req: Request, res: Response) => {
     try {
         const userId = req.query.userId as string;
+        const phaseId = req.params.phaseId as string;
         const item = await toggleChecklistItem(req.params.id as string, userId);
         if (!item) return res.status(404).json({ error: 'Item no encontrado' });
+        await logPhaseActivity(phaseId, userId, `Checklist: "${item.label}" ${item.is_completed ? 'completado' : 'desmarcado'}`);
         res.json({ item });
     } catch (error: any) {
         console.error('Error al toggle checklist item:', error);
@@ -457,7 +547,10 @@ router.put('/phases/:phaseId/checklist/:id', requireConsultor, async (req: Reque
 // DELETE /api/projects/phases/:phaseId/checklist/:id?userId=xxx
 router.delete('/phases/:phaseId/checklist/:id', requireConsultor, async (req: Request, res: Response) => {
     try {
+        const userId = req.query.userId as string;
+        const phaseId = req.params.phaseId as string;
         await deleteChecklistItem(req.params.id as string);
+        await logPhaseActivity(phaseId, userId, 'Checklist: item eliminado');
         res.json({ success: true });
     } catch (error: any) {
         console.error('Error al eliminar item de checklist:', error);

@@ -10,7 +10,9 @@
     "server": "npx ts-node --project tsconfig.server.json src/server/index.ts",
     "db:migrate": "npx ts-node --project tsconfig.server.json src/database/migrate.ts",
     "db:migrate:notifications": "npx ts-node --project tsconfig.server.json src/database/migrate-notifications.ts",
-    "db:migrate:projects": "npx ts-node --project tsconfig.server.json src/database/migrate-projects.ts"
+    "db:migrate:projects": "npx ts-node --project tsconfig.server.json src/database/migrate-projects.ts",
+    "db:migrate:client-soft-delete": "npx ts-node --project tsconfig.server.json src/database/migrate-client-soft-delete.ts",
+    "db:migrate:efirma-fields": "npx ts-node --project tsconfig.server.json src/database/migrate-efirma-fields.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
