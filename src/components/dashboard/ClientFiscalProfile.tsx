@@ -34,6 +34,7 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
     const [editEfirmaDelivery, setEditEfirmaDelivery] = useState('');
     const [editEfirmaLink, setEditEfirmaLink] = useState('');
     const [editEfirmaFileUrl, setEditEfirmaFileUrl] = useState('');
+    const [activeTab, setActiveTab] = useState<'fiscal' | 'personal'>('fiscal');
     const [isEditingEfirma, setIsEditingEfirma] = useState(false);
     const [isSavingEfirma, setIsSavingEfirma] = useState(false);
     const [isUploadingEfirma, setIsUploadingEfirma] = useState(false);
@@ -236,12 +237,27 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                 </View>
             </View>
 
-            {/* Fiscal Data */}
+            {/* Fiscal / Personal Data - Tabbed */}
             <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-                <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: colors.textPrimary, marginBottom: 0 }]}>
-                        Datos Fiscales
-                    </Text>
+                {/* Tab Bar */}
+                <View style={styles.tabBar}>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'fiscal' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                        onPress={() => setActiveTab('fiscal')}
+                    >
+                        <Text style={[styles.tabText, { color: activeTab === 'fiscal' ? colors.primary : colors.textMuted }]}>
+                            Datos Fiscales
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, activeTab === 'personal' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+                        onPress={() => setActiveTab('personal')}
+                    >
+                        <Text style={[styles.tabText, { color: activeTab === 'personal' ? colors.primary : colors.textMuted }]}>
+                            Personales
+                        </Text>
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }} />
                     {!isEditingFiscal ? (
                         <TouchableOpacity onPress={() => setIsEditingFiscal(true)} style={styles.editBtn}>
                             <Ionicons name="pencil-outline" size={14} color={colors.primary} />
@@ -262,28 +278,43 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                         </View>
                     )}
                 </View>
+
+                {/* Tab Content */}
                 <View style={{ marginTop: 14 }}>
-                    <InfoRow label="RFC" value={profile.rfc} icon="document-text-outline" />
-                    {isEditingFiscal ? (
-                        <>
-                            <EditableInfoRow label="CURP" value={editCurp} onChange={setEditCurp} icon="card-outline" colors={colors} isDark={isDark} />
-                            <EditableInfoRow label="Razon Social" value={editRazonSocial} onChange={setEditRazonSocial} icon="business-outline" colors={colors} isDark={isDark} />
-                            <EditableInfoRow label="Regimen Fiscal" value={editRegimen} onChange={setEditRegimen} icon="receipt-outline" colors={colors} isDark={isDark} />
-                            <EditableInfoRow label="Codigo Postal" value={editCp} onChange={setEditCp} icon="location-outline" colors={colors} isDark={isDark} />
-                            <EditableInfoRow label="Estado" value={editEstado} onChange={setEditEstado} icon="map-outline" colors={colors} isDark={isDark} />
-                            <EditableInfoRow label="Domicilio" value={editDomicilio} onChange={setEditDomicilio} icon="home-outline" colors={colors} isDark={isDark} multiline />
-                            <EditableInfoRow label="Telefono" value={editPhone} onChange={setEditPhone} icon="call-outline" colors={colors} isDark={isDark} />
-                        </>
+                    {activeTab === 'fiscal' ? (
+                        isEditingFiscal ? (
+                            <>
+                                <InfoRow label="RFC" value={profile.rfc} icon="document-text-outline" />
+                                <EditableInfoRow label="Razon Social" value={editRazonSocial} onChange={setEditRazonSocial} icon="business-outline" colors={colors} isDark={isDark} />
+                                <EditableInfoRow label="Regimen Fiscal" value={editRegimen} onChange={setEditRegimen} icon="receipt-outline" colors={colors} isDark={isDark} />
+                                <EditableInfoRow label="CURP" value={editCurp} onChange={setEditCurp} icon="card-outline" colors={colors} isDark={isDark} />
+                                <EditableInfoRow label="Codigo Postal" value={editCp} onChange={setEditCp} icon="location-outline" colors={colors} isDark={isDark} />
+                                <EditableInfoRow label="Estado" value={editEstado} onChange={setEditEstado} icon="map-outline" colors={colors} isDark={isDark} />
+                                <EditableInfoRow label="Domicilio" value={editDomicilio} onChange={setEditDomicilio} icon="home-outline" colors={colors} isDark={isDark} multiline />
+                            </>
+                        ) : (
+                            <>
+                                <InfoRow label="RFC" value={profile.rfc} icon="document-text-outline" />
+                                <InfoRow label="Razon Social" value={profile.razon_social} icon="business-outline" />
+                                <InfoRow label="Regimen Fiscal" value={profile.regimen_fiscal} icon="receipt-outline" />
+                                <InfoRow label="CURP" value={profile.curp} icon="card-outline" />
+                                <InfoRow label="Codigo Postal" value={profile.codigo_postal} icon="location-outline" />
+                                <InfoRow label="Estado" value={profile.estado} icon="map-outline" />
+                                <InfoRow label="Domicilio" value={profile.domicilio} icon="home-outline" />
+                            </>
+                        )
                     ) : (
-                        <>
-                            <InfoRow label="CURP" value={profile.curp} icon="card-outline" />
-                            <InfoRow label="Razon Social" value={profile.razon_social} icon="business-outline" />
-                            <InfoRow label="Regimen Fiscal" value={profile.regimen_fiscal} icon="receipt-outline" />
-                            <InfoRow label="Codigo Postal" value={profile.codigo_postal} icon="location-outline" />
-                            <InfoRow label="Estado" value={profile.estado} icon="map-outline" />
-                            <InfoRow label="Domicilio" value={profile.domicilio} icon="home-outline" />
-                            <InfoRow label="Telefono" value={profile.phone} icon="call-outline" />
-                        </>
+                        isEditingFiscal ? (
+                            <>
+                                <InfoRow label="Nombre" value={profile.name} icon="person-outline" />
+                                <EditableInfoRow label="Telefono" value={editPhone} onChange={setEditPhone} icon="call-outline" colors={colors} isDark={isDark} />
+                            </>
+                        ) : (
+                            <>
+                                <InfoRow label="Nombre" value={profile.name} icon="person-outline" />
+                                <InfoRow label="Telefono" value={profile.phone} icon="call-outline" />
+                            </>
+                        )
                     )}
                 </View>
             </View>
@@ -662,6 +693,24 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 14,
+    },
+    tabBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.06)',
+        paddingBottom: 0,
+    },
+    tab: {
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        marginRight: 4,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
+    },
+    tabText: {
+        fontSize: 13,
+        fontWeight: '700',
     },
     infoRow: {
         flexDirection: 'row',

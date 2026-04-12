@@ -169,16 +169,44 @@ export interface ClientFiscalProfile {
 }
 
 export async function getClientFiscalProfile(clientId: string): Promise<ClientFiscalProfile | null> {
-    return queryOne<ClientFiscalProfile>(`
+    const row = await queryOne<ClientFiscalProfile & { checkid_data?: any; checkid_estado?: string | null }>(`
         SELECT
-            id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
-            curp, regimen_fiscal, codigo_postal, estado, domicilio,
-            capital::text, efirma_expiry::text, csd_expiry::text,
-            efirma_delivery_date::text, efirma_link, efirma_file_url,
-            created_at::text
-        FROM users
-        WHERE id = $1
+            u.id, u.rfc, u.name, u.avatar_url, u.phone,
+            COALESCE(u.razon_social, c.razon_social) as razon_social,
+            COALESCE(u.tipo_persona, c.tipo_persona) as tipo_persona,
+            u.curp, u.regimen_fiscal, u.codigo_postal,
+            COALESCE(u.estado, c.entidad_federativa) as estado,
+            u.domicilio,
+            u.capital::text, u.efirma_expiry::text, u.csd_expiry::text,
+            u.efirma_delivery_date::text, u.efirma_link, u.efirma_file_url,
+            u.created_at::text,
+            c.response_data as checkid_data
+        FROM users u
+        LEFT JOIN checkid_cache c ON c.rfc = u.rfc
+        WHERE u.id = $1
     `, [clientId]);
+
+    if (!row) return null;
+
+    // Enrich missing fields from CheckID cache response_data
+    const cd = row.checkid_data;
+    if (cd && cd.resultado) {
+        const r = cd.resultado;
+        if (!row.curp && r.curp?.curp) row.curp = r.curp.curp;
+        if (!row.regimen_fiscal && r.regimenFiscal) {
+            const reg = Array.isArray(r.regimenFiscal) ? r.regimenFiscal[0] : r.regimenFiscal;
+            if (reg?.descripcion) row.regimen_fiscal = `${reg.clave || ''} - ${reg.descripcion}`.replace(/^\s*-\s*/, '');
+        }
+        if (!row.codigo_postal && r.cp?.codigoPostal) row.codigo_postal = r.cp.codigoPostal;
+        if (!row.domicilio && r.cp) {
+            const cp = r.cp;
+            const parts = [cp.tipoVialidad, cp.nombreVialidad, cp.numeroExterior, cp.colonia, cp.municipio].filter(Boolean);
+            if (parts.length > 0) row.domicilio = parts.join(', ');
+        }
+    }
+
+    delete (row as any).checkid_data;
+    return row;
 }
 
 export async function updateClientFiscalFields(
