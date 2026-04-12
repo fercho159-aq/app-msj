@@ -37,7 +37,9 @@ interface ResultData {
     primerApellido: string | null;
     segundoApellido: string | null;
     sexo: string | null;
+    nacionalidad: string | null;
     entidadNacimiento: string | null;
+    municipioRegistro: string | null;
     fechaNacimiento: string | null;
     codigoPostal: string | null;
     regimenFiscal: string | null;
@@ -159,7 +161,9 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                 primerApellido: r.curp?.primerApellido || null,
                 segundoApellido: r.curp?.segundoApellido || null,
                 sexo: r.curp?.sexo || null,
+                nacionalidad: r.curp?.nacionalidad || null,
                 entidadNacimiento: r.curp?.entidad || null,
+                municipioRegistro: r.curp?.municipioRegistro || null,
                 fechaNacimiento: r.curp?.fechaNacimientoText || null,
                 codigoPostal: r.codigoPostal?.codigoPostal || null,
                 regimenFiscal: r.regimenFiscal?.regimenesFiscales || null,
@@ -193,24 +197,39 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ');
 
         let msg = '*DATOS FISCALES*\n';
-        if (nombre) msg += `*Nombre:* ${nombre}\n`;
+        if (result.tipoPersona === 'moral') {
+            msg += `*Razon Social:* ${result.razonSocial}\n`;
+        } else if (nombre) {
+            msg += `*Nombre:* ${nombre}\n`;
+        }
         if (result.rfc) msg += `*RFC:* ${result.rfc}\n`;
+        msg += `*Tipo de Persona:* Persona ${result.tipoPersona === 'moral' ? 'Moral' : 'Fisica'}\n`;
+        msg += `*Estado RFC:* ${result.valido ? 'Valido' : 'No valido'}\n`;
         if (result.regimenFiscal) msg += `*Regimen Fiscal:* ${result.regimenFiscal}\n`;
         if (result.validoHasta) msg += `*FIEL valida hasta:* ${result.validoHasta}\n`;
         if (result.codigoPostal) msg += `*Codigo Postal:* ${result.codigoPostal}\n`;
         if (result.entidadFederativa) msg += `*Entidad:* ${result.entidadFederativa}\n`;
 
-        msg += '\n*REPRESENTANTE LEGAL*\n';
+        if (result.tipoPersona === 'moral') {
+            msg += '\n*REPRESENTANTE LEGAL*\n';
+        } else {
+            msg += '\n*DATOS PERSONALES*\n';
+        }
         if (nombre) msg += `*Nombre completo:* ${nombre}\n`;
-        if (result.rfcRepresentante || result.rfc) msg += `*RFC:* ${result.rfcRepresentante || result.rfc}\n`;
+        if (result.rfcRepresentante && result.rfcRepresentante !== result.rfc) msg += `*RFC:* ${result.rfcRepresentante}\n`;
         if (result.curpRepresentante || result.curp) msg += `*CURP:* ${result.curpRepresentante || result.curp}\n`;
         if (result.nss) msg += `*NSS:* ${result.nss}\n`;
         if (result.fechaNacimiento) msg += `*Fecha de nacimiento:* ${result.fechaNacimiento}\n`;
+        if (result.sexo) msg += `*Sexo:* ${result.sexo}\n`;
+        if (result.nacionalidad) msg += `*Nacionalidad:* ${result.nacionalidad}\n`;
+        if (result.entidadNacimiento) msg += `*Entidad de nacimiento:* ${result.entidadNacimiento}\n`;
+        if (result.municipioRegistro) msg += `*Municipio de registro:* ${result.municipioRegistro}\n`;
         if (result.emailContacto) msg += `*Email de contacto:* ${result.emailContacto}\n`;
 
         if (result.estado69) {
             const e = result.estado69;
             msg += '\n*SITUACION FISCAL*\n';
+            if (e.situacion) msg += `*Situacion:* ${e.situacion}\n`;
             if (e.problemas.length > 0) {
                 e.problemas.forEach((p) => {
                     msg += `*Art. 69 - ${p.descripcion}:* Publicado: ${p.fechaPublicacion?.split('T')[0] || 'N/A'}\n`;
@@ -493,6 +512,9 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                         <Text style={[styles.sectionTitle, { color: colors.textMuted, marginTop: 0, marginBottom: 0 }]}>DATOS FISCALES</Text>
                                     </View>
                                     <View style={styles.fieldsGrid}>
+                                        {result.tipoPersona === 'moral'
+                                            ? renderField('Razon Social', result.razonSocial, 'business-outline')
+                                            : renderField('Nombre', [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ') || result.razonSocial, 'person-outline')}
                                         {renderField('Regimen Fiscal', result.regimenFiscal, 'briefcase-outline')}
                                         {renderField('FIEL valida hasta', result.validoHasta, 'calendar-outline')}
                                         {renderField('Codigo Postal', result.codigoPostal, 'location-outline')}
