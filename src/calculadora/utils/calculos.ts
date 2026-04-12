@@ -53,7 +53,7 @@ export function calcularFactorActualizacion(
     return {
         inpcReciente,
         inpcAntiguo,
-        factor: parseFloat(factor.toFixed(6)),
+        factor: parseFloat(factor.toFixed(4)),
     };
 }
 

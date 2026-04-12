@@ -193,6 +193,8 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         const nombre = [result.nombres, result.primerApellido, result.segundoApellido].filter(Boolean).join(' ');
 
         let msg = '*DATOS FISCALES*\n';
+        if (nombre) msg += `*Nombre:* ${nombre}\n`;
+        if (result.rfc) msg += `*RFC:* ${result.rfc}\n`;
         if (result.regimenFiscal) msg += `*Regimen Fiscal:* ${result.regimenFiscal}\n`;
         if (result.validoHasta) msg += `*FIEL valida hasta:* ${result.validoHasta}\n`;
         if (result.codigoPostal) msg += `*Codigo Postal:* ${result.codigoPostal}\n`;

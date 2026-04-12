@@ -18,90 +18,25 @@ import { periodoLegible } from './utils/fechas';
 import { ResultadoCalculo } from './types';
 import { INPC_DATA, INPC_ULTIMO_PERIODO } from './data/inpc';
 
-const MESES = [
-    { label: 'Enero', value: 0 },
-    { label: 'Febrero', value: 1 },
-    { label: 'Marzo', value: 2 },
-    { label: 'Abril', value: 3 },
-    { label: 'Mayo', value: 4 },
-    { label: 'Junio', value: 5 },
-    { label: 'Julio', value: 6 },
-    { label: 'Agosto', value: 7 },
-    { label: 'Septiembre', value: 8 },
-    { label: 'Octubre', value: 9 },
-    { label: 'Noviembre', value: 10 },
-    { label: 'Diciembre', value: 11 },
-];
-
-const currentYear = new Date().getFullYear();
-const ANIOS = Array.from({ length: 30 }, (_, i) => currentYear - i);
-
-interface DatePickerInlineProps {
-    label: string;
-    month: number;
-    year: number;
-    onChangeMonth: (m: number) => void;
-    onChangeYear: (y: number) => void;
-    colors: any;
+/** Aplica mascara DD/MM/YYYY mientras el usuario escribe */
+function applyDateMask(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
-function DatePickerInline({ label, month, year, onChangeMonth, onChangeYear, colors }: DatePickerInlineProps) {
-    const [showMonths, setShowMonths] = useState(false);
-    const [showYears, setShowYears] = useState(false);
-
-    return (
-        <View style={styles.datePickerContainer}>
-            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>{label}</Text>
-            <View style={styles.dateRow}>
-                <TouchableOpacity
-                    style={[styles.dateBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                    onPress={() => { setShowMonths(!showMonths); setShowYears(false); }}
-                >
-                    <Text style={[styles.dateBtnText, { color: colors.textPrimary }]}>
-                        {MESES[month].label}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.dateBtn, { backgroundColor: colors.surface, borderColor: colors.border, minWidth: 90 }]}
-                    onPress={() => { setShowYears(!showYears); setShowMonths(false); }}
-                >
-                    <Text style={[styles.dateBtnText, { color: colors.textPrimary }]}>{year}</Text>
-                    <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-            </View>
-            {showMonths && (
-                <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                        {MESES.map((m) => (
-                            <TouchableOpacity
-                                key={m.value}
-                                style={[styles.dropdownItem, month === m.value && { backgroundColor: colors.primaryLight + '30' }]}
-                                onPress={() => { onChangeMonth(m.value); setShowMonths(false); }}
-                            >
-                                <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>{m.label}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-            {showYears && (
-                <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                    <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                        {ANIOS.map((y) => (
-                            <TouchableOpacity
-                                key={y}
-                                style={[styles.dropdownItem, year === y && { backgroundColor: colors.primaryLight + '30' }]}
-                                onPress={() => { onChangeYear(y); setShowYears(false); }}
-                            >
-                                <Text style={[styles.dropdownText, { color: colors.textPrimary }]}>{y}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-        </View>
-    );
+/** Parsea DD/MM/YYYY a Date. Retorna null si es invalido. */
+function parseDate(text: string): Date | null {
+    const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const year = parseInt(match[3], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31 || year < 2000) return null;
+    const d = new Date(year, month - 1, day);
+    if (d.getDate() !== day || d.getMonth() !== month - 1 || d.getFullYear() !== year) return null;
+    return d;
 }
 
 interface Props {
@@ -109,54 +44,39 @@ interface Props {
 }
 
 export function CalculadoraFiscalScreen({ navigation }: Props) {
-    const { colors } = useTheme();
+    const { colors, isDark } = useTheme();
 
-    // Form state - Contribucion
     const [montoStr, setMontoStr] = useState('');
-    const [pagoMonth, setPagoMonth] = useState(new Date().getMonth());
-    const [pagoYear, setPagoYear] = useState(new Date().getFullYear() - 1);
-    const [actMonth, setActMonth] = useState(new Date().getMonth());
-    const [actYear, setActYear] = useState(new Date().getFullYear());
+    const [fechaDebioStr, setFechaDebioStr] = useState('');
+    const [fechaPagoStr, setFechaPagoStr] = useState('');
 
-    // Form state - Multa (opcional)
-    const [incluirMulta, setIncluirMulta] = useState(false);
-    const [multaStr, setMultaStr] = useState('');
-    const [notifMonth, setNotifMonth] = useState(new Date().getMonth());
-    const [notifYear, setNotifYear] = useState(new Date().getFullYear() - 1);
-
-    // Resultado
     const [resultado, setResultado] = useState<ResultadoCalculo | null>(null);
     const [calcError, setCalcError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ monto?: boolean; fechaDebio?: boolean; fechaPago?: boolean }>({});
 
     const handleCalcular = () => {
         setCalcError(null);
         setResultado(null);
+        const errors: typeof fieldErrors = {};
 
         const monto = parseFloat(montoStr.replace(/,/g, ''));
-        if (isNaN(monto) || monto <= 0) {
-            setCalcError('Ingresa un monto valido');
-            return;
+        if (isNaN(monto) || monto <= 0) errors.monto = true;
+
+        const fechaDebio = parseDate(fechaDebioStr);
+        if (!fechaDebio) errors.fechaDebio = true;
+
+        const fechaPago = parseDate(fechaPagoStr);
+        if (!fechaPago) errors.fechaPago = true;
+
+        if (fechaDebio && fechaPago && fechaPago <= fechaDebio) {
+            errors.fechaPago = true;
+            setCalcError('La fecha de pago debe ser posterior a la fecha en que debio pagarse');
         }
 
-        const fechaPago = new Date(pagoYear, pagoMonth, 1);
-        const fechaAct = new Date(actYear, actMonth, 1);
-
-        if (fechaAct <= fechaPago) {
-            setCalcError('La fecha de actualizacion debe ser posterior a la fecha de pago');
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            if (!calcError) setCalcError('Completa correctamente los campos marcados');
             return;
-        }
-
-        let multaInput;
-        if (incluirMulta) {
-            const multaMonto = parseFloat(multaStr.replace(/,/g, ''));
-            if (isNaN(multaMonto) || multaMonto <= 0) {
-                setCalcError('Ingresa un monto de multa valido');
-                return;
-            }
-            multaInput = {
-                montoHistorico: multaMonto,
-                fechaNotificacion: new Date(notifYear, notifMonth, 1),
-            };
         }
 
         try {
@@ -164,10 +84,9 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
                 INPC_DATA,
                 {
                     montoHistorico: monto,
-                    fechaPago,
-                    fechaActualizacion: fechaAct,
+                    fechaPago: fechaDebio!,
+                    fechaActualizacion: fechaPago!,
                 },
-                multaInput,
             );
             setResultado(res);
         } catch (err: any) {
@@ -177,14 +96,25 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
 
     const handleLimpiar = () => {
         setMontoStr('');
-        setMultaStr('');
+        setFechaDebioStr('');
+        setFechaPagoStr('');
         setResultado(null);
         setCalcError(null);
+        setFieldErrors({});
     };
+
+    const inputStyle = (hasError?: boolean) => [
+        styles.input,
+        {
+            backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+            color: colors.textPrimary,
+            borderColor: hasError ? '#dc2626' : colors.border,
+        },
+    ];
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
-            <StatusBar barStyle={colors.textPrimary === '#ffffff' ? 'light-content' : 'dark-content'} />
+            <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
             {/* Header */}
             <View style={styles.header}>
@@ -234,80 +164,48 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
                         </Text>
                     </View>
 
-                    {/* Seccion Contribucion */}
+                    {/* Formulario */}
                     <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
                         <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                            <Ionicons name="calculator" size={18} color={colors.primary} /> Contribucion
+                            <Ionicons name="calculator" size={18} color={colors.primary} /> Datos del Adeudo
                         </Text>
 
-                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Monto historico ($)</Text>
+                        {/* Importe */}
+                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Importe a pagar ($) *</Text>
                         <TextInput
-                            style={[styles.input, { backgroundColor: colors.backgroundSecondary, color: colors.textPrimary, borderColor: colors.border }]}
+                            style={inputStyle(fieldErrors.monto)}
                             value={montoStr}
                             onChangeText={setMontoStr}
-                            placeholder="0.00"
+                            placeholder="10,000.00"
                             placeholderTextColor={colors.textMuted}
                             keyboardType="decimal-pad"
                         />
 
-                        <DatePickerInline
-                            label="Fecha en que debio pagarse"
-                            month={pagoMonth}
-                            year={pagoYear}
-                            onChangeMonth={setPagoMonth}
-                            onChangeYear={setPagoYear}
-                            colors={colors}
+                        {/* Fecha debio pagar */}
+                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Fecha en que debio pagarse *</Text>
+                        <TextInput
+                            style={inputStyle(fieldErrors.fechaDebio)}
+                            value={fechaDebioStr}
+                            onChangeText={(t) => setFechaDebioStr(applyDateMask(t))}
+                            placeholder="DD/MM/AAAA"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="number-pad"
+                            maxLength={10}
                         />
 
-                        <DatePickerInline
-                            label="Fecha de actualizacion"
-                            month={actMonth}
-                            year={actYear}
-                            onChangeMonth={setActMonth}
-                            onChangeYear={setActYear}
-                            colors={colors}
+                        {/* Fecha se pago */}
+                        <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Fecha en que se pago *</Text>
+                        <TextInput
+                            style={inputStyle(fieldErrors.fechaPago)}
+                            value={fechaPagoStr}
+                            onChangeText={(t) => setFechaPagoStr(applyDateMask(t))}
+                            placeholder="DD/MM/AAAA"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="number-pad"
+                            maxLength={10}
                         />
+
                     </View>
-
-                    {/* Seccion Multa */}
-                    <TouchableOpacity
-                        style={[styles.toggleMulta, { backgroundColor: colors.surface, borderColor: colors.border }]}
-                        onPress={() => setIncluirMulta(!incluirMulta)}
-                    >
-                        <Ionicons
-                            name={incluirMulta ? 'checkbox' : 'square-outline'}
-                            size={22}
-                            color={incluirMulta ? colors.primary : colors.textMuted}
-                        />
-                        <Text style={[styles.toggleMultaText, { color: colors.textPrimary }]}>Incluir multa</Text>
-                    </TouchableOpacity>
-
-                    {incluirMulta && (
-                        <View style={[styles.section, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
-                                <Ionicons name="document-text" size={18} color={colors.primary} /> Multa
-                            </Text>
-
-                            <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Monto historico de multa ($)</Text>
-                            <TextInput
-                                style={[styles.input, { backgroundColor: colors.backgroundSecondary, color: colors.textPrimary, borderColor: colors.border }]}
-                                value={multaStr}
-                                onChangeText={setMultaStr}
-                                placeholder="0.00"
-                                placeholderTextColor={colors.textMuted}
-                                keyboardType="decimal-pad"
-                            />
-
-                            <DatePickerInline
-                                label="Fecha de notificacion"
-                                month={notifMonth}
-                                year={notifYear}
-                                onChangeMonth={setNotifMonth}
-                                onChangeYear={setNotifYear}
-                                colors={colors}
-                            />
-                        </View>
-                    )}
 
                     {/* Error */}
                     {calcError && (
@@ -324,7 +222,7 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
                             onPress={handleCalcular}
                         >
                             <Ionicons name="calculator" size={20} color="#fff" />
-                            <Text style={styles.calcBtnText}>Calcular</Text>
+                            <Text style={styles.calcBtnText}>CALCULAR</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[styles.clearBtn, { borderColor: colors.border }]}
@@ -350,67 +248,46 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
 /** Panel de resultados */
 function ResultadoPanel({ resultado, colors }: { resultado: ResultadoCalculo; colors: any }) {
     const c = resultado.contribucion;
-    const m = resultado.multa;
+    if (!c) return null;
+
+    const inpcPago = c.factorActualizacion.inpcReciente;
+    const inpcDebio = c.factorActualizacion.inpcAntiguo;
+    const labelPago = periodoLegible(inpcPago.fecha).split(' ')[0]; // solo nombre del mes
+    const labelDebio = periodoLegible(inpcDebio.fecha).split(' ')[0];
 
     return (
         <View style={[styles.resultPanel, { backgroundColor: colors.surface, borderColor: colors.primary + '40' }]}>
             <Text style={[styles.resultTitle, { color: colors.primary }]}>Resultado del Calculo</Text>
 
-            {c && (
-                <>
-                    <Text style={[styles.resultSubtitle, { color: colors.textPrimary }]}>Contribucion</Text>
+            {/* Seccion Actualizacion */}
+            <Text style={[styles.resultSubtitle, { color: colors.textPrimary }]}>
+                <Ionicons name="trending-up" size={15} color={colors.primary} /> Calculo de Actualizacion
+            </Text>
 
-                    <ResultRow label="Contribucion Historica" value={formatMXN(c.montoHistorico)} colors={colors} />
-                    <ResultRow
-                        label={`INPC reciente (${periodoLegible(c.factorActualizacion.inpcReciente.fecha)})`}
-                        value={c.factorActualizacion.inpcReciente.valor.toFixed(3)}
-                        colors={colors}
-                    />
-                    <ResultRow
-                        label={`INPC antiguo (${periodoLegible(c.factorActualizacion.inpcAntiguo.fecha)})`}
-                        value={c.factorActualizacion.inpcAntiguo.valor.toFixed(3)}
-                        colors={colors}
-                    />
-                    <ResultRow label="Factor de Actualizacion" value={c.factorActualizacion.factor.toFixed(6)} colors={colors} bold />
-                    <ResultRow label="Monto de Actualizacion" value={formatMXN(c.montoActualizacion)} colors={colors} />
-                    <ResultRow label="Contribucion Actualizada" value={formatMXN(c.contribucionActualizada)} colors={colors} bold />
+            <ResultRow label={`INPC ${labelPago}:`} value={inpcPago.valor.toFixed(3)} colors={colors} />
+            <ResultRow label={`INPC ${labelDebio}:`} value={inpcDebio.valor.toFixed(3)} colors={colors} />
+            <ResultRow label="Factor Actualizacion:" value={c.factorActualizacion.factor.toFixed(4)} colors={colors} />
+            <ResultRow label="= Impuesto Actualizado:" value={formatMXN(c.contribucionActualizada)} colors={colors} bold />
 
-                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+            <View style={[styles.divider, { backgroundColor: colors.divider }]} />
 
-                    <ResultRow label="Meses de recargo" value={String(c.mesesRecargo)} colors={colors} />
-                    <ResultRow label="Tasa mensual de recargos" value={`${(c.tasaRecargos * 100).toFixed(2)}%`} colors={colors} />
-                    <ResultRow label="Total de Recargos" value={formatMXN(c.totalRecargos)} colors={colors} bold />
+            {/* Seccion Recargos */}
+            <Text style={[styles.resultSubtitle, { color: colors.textPrimary }]}>
+                <Ionicons name="time" size={15} color={colors.primary} /> Calculo de Recargo
+            </Text>
 
-                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                    <ResultRow label="Subtotal Contribucion" value={formatMXN(c.totalPagar)} colors={colors} bold />
-                </>
-            )}
+            <ResultRow
+                label="Meses Transcurridos:"
+                value={`${c.mesesRecargo} a ${(c.tasaRecargos * 100).toFixed(2)}%`}
+                colors={colors}
+            />
+            <ResultRow label="Recargos en Meses:" value={formatMXN(c.totalRecargos)} colors={colors} />
+            <ResultRow label="= Importe Recargo:" value={formatMXN(c.totalRecargos)} colors={colors} bold />
 
-            {m && (
-                <>
-                    <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-                    <Text style={[styles.resultSubtitle, { color: colors.textPrimary }]}>Multa</Text>
-
-                    <ResultRow label="Multa Historica" value={formatMXN(m.montoHistorico)} colors={colors} />
-                    <ResultRow
-                        label={`INPC reciente (${periodoLegible(m.factorActualizacion.inpcReciente.fecha)})`}
-                        value={m.factorActualizacion.inpcReciente.valor.toFixed(3)}
-                        colors={colors}
-                    />
-                    <ResultRow
-                        label={`INPC antiguo (${periodoLegible(m.factorActualizacion.inpcAntiguo.fecha)})`}
-                        value={m.factorActualizacion.inpcAntiguo.valor.toFixed(3)}
-                        colors={colors}
-                    />
-                    <ResultRow label="Factor de Actualizacion" value={m.factorActualizacion.factor.toFixed(6)} colors={colors} />
-                    <ResultRow label="Multa Actualizada" value={formatMXN(m.multaActualizada)} colors={colors} bold />
-                </>
-            )}
-
-            {/* GRAN TOTAL */}
+            {/* Total */}
             <View style={[styles.totalBox, { backgroundColor: colors.primary }]}>
-                <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
-                <Text style={styles.totalValue}>{formatMXN(resultado.granTotal)}</Text>
+                <Text style={styles.totalLabel}>= IMPUESTO A PAGAR</Text>
+                <Text style={styles.totalValue}>{formatMXN(c.totalPagar)}</Text>
             </View>
         </View>
     );
@@ -514,61 +391,14 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '500',
         marginBottom: 6,
-        marginTop: 4,
+        marginTop: 8,
     },
     input: {
         borderWidth: 1,
         borderRadius: 10,
         padding: 12,
         fontSize: 16,
-        marginBottom: 8,
-    },
-    datePickerContainer: {
         marginBottom: 4,
-        zIndex: 1,
-    },
-    dateRow: {
-        flexDirection: 'row',
-        gap: 8,
-    },
-    dateBtn: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 12,
-    },
-    dateBtnText: {
-        fontSize: 14,
-        fontWeight: '500',
-    },
-    dropdown: {
-        borderWidth: 1,
-        borderRadius: 10,
-        marginTop: 4,
-        marginBottom: 4,
-        overflow: 'hidden',
-    },
-    dropdownItem: {
-        padding: 12,
-    },
-    dropdownText: {
-        fontSize: 14,
-    },
-    toggleMulta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        marginBottom: 12,
-        gap: 10,
-    },
-    toggleMultaText: {
-        fontSize: 15,
-        fontWeight: '500',
     },
     errorBox: {
         flexDirection: 'row',
@@ -618,7 +448,6 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    // Results
     resultPanel: {
         borderRadius: 12,
         borderWidth: 1.5,
@@ -655,7 +484,7 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        marginVertical: 8,
+        marginVertical: 10,
     },
     totalBox: {
         marginTop: 12,

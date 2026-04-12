@@ -178,6 +178,11 @@ async function fetchCheckIdData(rfcNorm: string) {
                 signal: controller.signal,
             });
             clearTimeout(timeoutId);
+            const contentType = resp.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                const text = await resp.text();
+                throw new Error(`CheckID devolvió respuesta no-JSON (${resp.status}): ${text.slice(0, 100)}`);
+            }
             return resp.json();
         })(),
         consultarDatosFiscales(rfcNorm).catch(() => null),
