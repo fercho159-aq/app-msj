@@ -150,6 +150,27 @@ export interface ClientsResult {
     limit: number;
 }
 
+export interface CheckIdInfo {
+    // RFC data
+    fiel_valida_hasta: string | null;
+    rfc_representante: string | null;
+    curp_representante: string | null;
+    email_contacto: string | null;
+    estado_rfc: string | null;       // "RFC válido, y susceptible de recibir facturas"
+    situacion: string | null;        // "Cumplido" / "Definitivo" etc
+    // CURP data
+    nombres: string | null;
+    primer_apellido: string | null;
+    segundo_apellido: string | null;
+    fecha_nacimiento: string | null;
+    sexo: string | null;
+    nacionalidad: string | null;
+    entidad_nacimiento: string | null;
+    municipio_registro: string | null;
+    // NSS
+    nss: string | null;
+}
+
 export interface ClientFiscalProfile {
     id: string;
     rfc: string;
@@ -170,6 +191,7 @@ export interface ClientFiscalProfile {
     efirma_link: string | null;
     efirma_file_url: string | null;
     created_at: string;
+    checkid_info?: CheckIdInfo;
 }
 
 export interface ProjectRow {

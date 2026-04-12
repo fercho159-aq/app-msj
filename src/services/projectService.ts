@@ -166,6 +166,23 @@ export interface ClientFiscalProfile {
     efirma_link: string | null;
     efirma_file_url: string | null;
     created_at: string;
+    checkid_info?: {
+        fiel_valida_hasta: string | null;
+        rfc_representante: string | null;
+        curp_representante: string | null;
+        email_contacto: string | null;
+        estado_rfc: string | null;
+        situacion: string | null;
+        nombres: string | null;
+        primer_apellido: string | null;
+        segundo_apellido: string | null;
+        fecha_nacimiento: string | null;
+        sexo: string | null;
+        nacionalidad: string | null;
+        entidad_nacimiento: string | null;
+        municipio_registro: string | null;
+        nss: string | null;
+    };
 }
 
 export async function getClientFiscalProfile(clientId: string): Promise<ClientFiscalProfile | null> {
@@ -192,17 +209,47 @@ export async function getClientFiscalProfile(clientId: string): Promise<ClientFi
     const cd = row.checkid_data;
     if (cd && cd.resultado) {
         const r = cd.resultado;
-        if (!row.curp && r.curp?.curp) row.curp = r.curp.curp;
-        if (!row.regimen_fiscal && r.regimenFiscal) {
-            const reg = Array.isArray(r.regimenFiscal) ? r.regimenFiscal[0] : r.regimenFiscal;
-            if (reg?.descripcion) row.regimen_fiscal = `${reg.clave || ''} - ${reg.descripcion}`.replace(/^\s*-\s*/, '');
+        const rfcData = r.rfc;
+        const curpData = r.curp;
+        const cpData = r.codigoPostal;
+        const regimenData = r.regimenFiscal;
+        const nssData = r.nss;
+        const estado69 = r.estado69o69B;
+
+        // Fill missing profile fields
+        if (!row.curp && curpData?.curp) row.curp = curpData.curp;
+        if (!row.regimen_fiscal && regimenData?.regimenesFiscales) {
+            row.regimen_fiscal = regimenData.regimenesFiscales;
         }
-        if (!row.codigo_postal && r.cp?.codigoPostal) row.codigo_postal = r.cp.codigoPostal;
-        if (!row.domicilio && r.cp) {
-            const cp = r.cp;
-            const parts = [cp.tipoVialidad, cp.nombreVialidad, cp.numeroExterior, cp.colonia, cp.municipio].filter(Boolean);
-            if (parts.length > 0) row.domicilio = parts.join(', ');
-        }
+        if (!row.codigo_postal && cpData?.codigoPostal) row.codigo_postal = cpData.codigoPostal;
+        if (!row.razon_social && rfcData?.razonSocial) row.razon_social = rfcData.razonSocial;
+
+        // Build checkid_info with all available data
+        row.checkid_info = {
+            // RFC data
+            fiel_valida_hasta: rfcData?.validoHastaText || null,
+            rfc_representante: rfcData?.rfcRepresentante || null,
+            curp_representante: rfcData?.curpRepresentante || null,
+            email_contacto: rfcData?.emailContacto || null,
+            estado_rfc: rfcData?.exitoso
+                ? (rfcData.valido ? 'RFC válido, y susceptible de recibir facturas' : 'RFC no válido')
+                : null,
+            situacion: estado69?.detalles?.situacionContribuyente || (estado69?.conProblema === false ? 'Cumplido' : null),
+            // CURP data
+            nombres: curpData?.nombres || null,
+            primer_apellido: curpData?.primerApellido || null,
+            segundo_apellido: curpData?.segundoApellido || null,
+            fecha_nacimiento: curpData?.fechaNacimientoText || null,
+            sexo: curpData?.sexo || null,
+            nacionalidad: curpData?.nacionalidad || null,
+            entidad_nacimiento: curpData?.entidad || null,
+            municipio_registro: curpData?.municipioRegistro || null,
+            // NSS
+            nss: nssData?.nss || null,
+        };
+
+        // Fill estado from CURP entidad if missing
+        if (!row.estado && curpData?.entidad) row.estado = curpData.entidad;
     }
 
     delete (row as any).checkid_data;

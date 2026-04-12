@@ -167,6 +167,7 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
 
     if (!profile) return null;
 
+    const ci = profile.checkid_info;
     const cardBg = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.95)';
     const cardBorder = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
     const efirmaSev = getDeadlineSeverity(profile.efirma_expiry);
@@ -301,18 +302,30 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                                 <InfoRow label="Codigo Postal" value={profile.codigo_postal} icon="location-outline" />
                                 <InfoRow label="Estado" value={profile.estado} icon="map-outline" />
                                 <InfoRow label="Domicilio" value={profile.domicilio} icon="home-outline" />
+                                {ci?.fiel_valida_hasta && <InfoRow label="FIEL Valida Hasta" value={ci.fiel_valida_hasta} icon="shield-checkmark-outline" />}
+                                {ci?.rfc_representante && <InfoRow label="RFC Representante Legal" value={ci.rfc_representante} icon="person-circle-outline" />}
+                                {ci?.curp_representante && <InfoRow label="CURP Representante Legal" value={ci.curp_representante} icon="person-circle-outline" />}
+                                {ci?.email_contacto && <InfoRow label="Email de Contacto" value={ci.email_contacto} icon="mail-outline" />}
+                                {ci?.estado_rfc && <InfoRow label="Estado RFC" value={ci.estado_rfc} icon="checkmark-circle-outline" />}
+                                {ci?.situacion && <InfoRow label="Situacion" value={ci.situacion} icon="flag-outline" />}
                             </>
                         )
                     ) : (
                         isEditingFiscal ? (
                             <>
-                                <InfoRow label="Nombre" value={profile.name} icon="person-outline" />
+                                <InfoRow label="Nombre" value={ci ? [ci.nombres, ci.primer_apellido, ci.segundo_apellido].filter(Boolean).join(' ') || profile.name : profile.name} icon="person-outline" />
                                 <EditableInfoRow label="Telefono" value={editPhone} onChange={setEditPhone} icon="call-outline" colors={colors} isDark={isDark} />
                             </>
                         ) : (
                             <>
-                                <InfoRow label="Nombre" value={profile.name} icon="person-outline" />
+                                <InfoRow label="Nombre" value={ci ? [ci.nombres, ci.primer_apellido, ci.segundo_apellido].filter(Boolean).join(' ') || profile.name : profile.name} icon="person-outline" />
                                 <InfoRow label="Telefono" value={profile.phone} icon="call-outline" />
+                                {ci?.fecha_nacimiento && <InfoRow label="Fecha de Nacimiento" value={ci.fecha_nacimiento} icon="calendar-outline" />}
+                                {ci?.sexo && <InfoRow label="Sexo" value={ci.sexo} icon="male-female-outline" />}
+                                {ci?.nacionalidad && <InfoRow label="Nacionalidad" value={ci.nacionalidad} icon="globe-outline" />}
+                                {ci?.entidad_nacimiento && <InfoRow label="Entidad" value={ci.entidad_nacimiento} icon="navigate-outline" />}
+                                {ci?.municipio_registro && <InfoRow label="Municipio de Registro" value={ci.municipio_registro} icon="pin-outline" />}
+                                {ci?.nss && <InfoRow label="NSS" value={ci.nss} icon="id-card-outline" />}
                             </>
                         )
                     )}
