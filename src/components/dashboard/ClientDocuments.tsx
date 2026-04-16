@@ -189,6 +189,16 @@ export const ClientDocuments: React.FC<ClientDocumentsProps> = ({ clientId }) =>
                             style={styles.downloadBtn}
                             onPress={() => {
                                 if (Platform.OS === 'web') {
+                                    window.open(doc.file_url, '_blank', 'noopener,noreferrer');
+                                }
+                            }}
+                        >
+                            <Ionicons name="eye-outline" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.downloadBtn}
+                            onPress={() => {
+                                if (Platform.OS === 'web') {
                                     const a = document.createElement('a');
                                     a.href = doc.file_url;
                                     a.download = doc.file_name;
