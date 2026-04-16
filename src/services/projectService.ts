@@ -752,6 +752,68 @@ export async function removePhaseDocument(docId: string): Promise<void> {
     await query('DELETE FROM phase_documents WHERE id = $1', [docId]);
 }
 
+// ==================== CLIENT DOCUMENTS ====================
+
+export interface ClientDocument {
+    id: string;
+    client_id: string;
+    file_url: string;
+    file_name: string;
+    file_type: string | null;
+    file_size: number | null;
+    source: string;
+    message_id: string | null;
+    uploaded_by: string;
+    uploader_name: string | null;
+    created_at: string;
+}
+
+export async function getClientDocuments(clientId: string): Promise<ClientDocument[]> {
+    return query<ClientDocument>(`
+        SELECT cd.id, cd.client_id, cd.file_url, cd.file_name, cd.file_type,
+               cd.file_size::int, cd.source, cd.message_id,
+               cd.uploaded_by, u.name as uploader_name,
+               cd.created_at::text
+        FROM client_documents cd
+        LEFT JOIN users u ON u.id = cd.uploaded_by
+        WHERE cd.client_id = $1
+        ORDER BY cd.created_at DESC
+    `, [clientId]);
+}
+
+export async function addClientDocument(data: {
+    clientId: string;
+    fileUrl: string;
+    fileName: string;
+    fileType?: string;
+    fileSize?: number;
+    source?: string;
+    messageId?: string;
+    uploadedBy: string;
+}): Promise<ClientDocument> {
+    const result = await queryOne<{ id: string }>(`
+        INSERT INTO client_documents (client_id, file_url, file_name, file_type, file_size, source, message_id, uploaded_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id
+    `, [data.clientId, data.fileUrl, data.fileName, data.fileType || null, data.fileSize || null, data.source || 'upload', data.messageId || null, data.uploadedBy]);
+
+    const docs = await query<ClientDocument>(`
+        SELECT cd.id, cd.client_id, cd.file_url, cd.file_name, cd.file_type,
+               cd.file_size::int, cd.source, cd.message_id,
+               cd.uploaded_by, u.name as uploader_name,
+               cd.created_at::text
+        FROM client_documents cd
+        LEFT JOIN users u ON u.id = cd.uploaded_by
+        WHERE cd.id = $1
+    `, [result!.id]);
+
+    return docs[0];
+}
+
+export async function removeClientDocument(docId: string): Promise<void> {
+    await query('DELETE FROM client_documents WHERE id = $1', [docId]);
+}
+
 // ==================== CLOUD FILES (from messages) ====================
 
 export interface CloudFile {

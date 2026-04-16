@@ -57,7 +57,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
     const [result, setResult] = useState<ResultData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [celular, setCelular] = useState('');
-    const [comentarios, setComentarios] = useState('Proceso de revision profunda');
+    const [comentarios, setComentarios] = useState('Proceso de vigilancia profunda');
 
     const slideAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -188,7 +188,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
         setResult(null);
         setError(null);
         setCelular('');
-        setComentarios('Proceso de revision profunda');
+        setComentarios('Proceso de vigilancia profunda');
         onClose();
     };
 
@@ -643,7 +643,7 @@ export const RfcSearchModal: React.FC<RfcSearchModalProps> = ({ visible, onClose
                                                 style={[styles.formFieldInput, { color: colors.textPrimary, minHeight: 60, textAlignVertical: 'top' }]}
                                                 value={comentarios}
                                                 onChangeText={setComentarios}
-                                                placeholder="Proceso de revision profunda"
+                                                placeholder="Proceso de vigilancia profunda"
                                                 placeholderTextColor={colors.textMuted}
                                                 multiline
                                                 onFocus={() => { focusedField.current = 'comentarios'; }}

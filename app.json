@@ -2,7 +2,7 @@
   "expo": {
     "name": "Yaakob",
     "slug": "consultora",
-    "version": "1.0.7",
+    "version": "1.0.9",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -29,7 +29,7 @@
           "remote-notification"
         ]
       },
-      "buildNumber": "15"
+      "buildNumber": "20"
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.fernandotrejo.consultora",
-      "versionCode": 17,
+      "versionCode": 23,
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [

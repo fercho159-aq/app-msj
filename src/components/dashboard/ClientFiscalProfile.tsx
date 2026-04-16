@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 import { DeadlineTrafficLight, getDeadlineSeverity } from './DeadlineTrafficLight';
+import { ClientDocuments } from './ClientDocuments';
 import type { ClientFiscalProfile as ClientFiscalProfileType } from '../../types';
 
 interface ClientFiscalProfileProps {
@@ -21,7 +22,6 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
     const [isEditingFiscal, setIsEditingFiscal] = useState(false);
-    const [editCapital, setEditCapital] = useState('');
     const [editEfirma, setEditEfirma] = useState('');
     const [editCsd, setEditCsd] = useState('');
     const [editCurp, setEditCurp] = useState('');
@@ -48,7 +48,6 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
             const result = await api.getClientFiscalProfile(clientId);
             if (result.data) {
                 setProfile(result.data.profile);
-                setEditCapital(result.data.profile.capital || '');
                 setEditEfirma(result.data.profile.efirma_expiry || '');
                 setEditCsd(result.data.profile.csd_expiry || '');
                 setEditCurp(result.data.profile.curp || '');
@@ -142,7 +141,6 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
         setIsSaving(true);
         try {
             const result = await api.updateClientFiscalFields(clientId, {
-                capital: editCapital ? parseFloat(editCapital) : undefined,
                 efirma_expiry: editEfirma || undefined,
                 csd_expiry: editCsd || undefined,
             });
@@ -332,6 +330,9 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                 </View>
             </View>
 
+            {/* Documentos del cliente */}
+            <ClientDocuments clientId={clientId} />
+
             {/* Editable Fiscal Fields */}
             <View style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}>
                 <View style={styles.sectionHeader}>
@@ -356,29 +357,6 @@ export const ClientFiscalProfile: React.FC<ClientFiscalProfileProps> = ({ client
                                 )}
                             </TouchableOpacity>
                         </View>
-                    )}
-                </View>
-
-                {/* Capital */}
-                <View style={styles.fieldRow}>
-                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Capital Social</Text>
-                    {isEditing ? (
-                        <TextInput
-                            style={[styles.fieldInput, {
-                                color: colors.textPrimary,
-                                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                                borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                            }]}
-                            value={editCapital}
-                            onChangeText={setEditCapital}
-                            keyboardType="numeric"
-                            placeholder="0.00"
-                            placeholderTextColor={colors.textMuted}
-                        />
-                    ) : (
-                        <Text style={[styles.fieldValue, { color: colors.textPrimary }]}>
-                            {profile.capital ? `$${parseFloat(profile.capital).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '-'}
-                        </Text>
                     )}
                 </View>
 

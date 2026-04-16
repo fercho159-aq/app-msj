@@ -258,6 +258,20 @@ export interface PhaseDocument {
     created_at: string;
 }
 
+export interface ClientDocument {
+    id: string;
+    client_id: string;
+    file_url: string;
+    file_name: string;
+    file_type: string | null;
+    file_size: number | null;
+    source: string;
+    message_id: string | null;
+    uploaded_by: string;
+    uploader_name: string | null;
+    created_at: string;
+}
+
 export interface PhaseObservation {
     id: string;
     phase_id: string;

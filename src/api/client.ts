@@ -909,6 +909,37 @@ class ApiClient {
         );
     }
 
+    async getClientDocuments(clientId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ documents: import('../types').ClientDocument[] }>(
+            `/projects/clients/${clientId}/documents?userId=${this.userId}`
+        );
+    }
+
+    async addClientDocument(clientId: string, data: { fileUrl: string; fileName: string; fileType?: string; fileSize?: number }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ document: import('../types').ClientDocument }>(
+            `/projects/clients/${clientId}/documents?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async linkClientDocument(clientId: string, data: { messageId?: string; fileUrl: string; fileName: string; fileType?: string }) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ document: import('../types').ClientDocument }>(
+            `/projects/clients/${clientId}/documents/link?userId=${this.userId}`,
+            { method: 'POST', body: JSON.stringify(data) }
+        );
+    }
+
+    async removeClientDocument(clientId: string, docId: string) {
+        if (!this.userId) return { error: 'No hay sesion activa' };
+        return this.request<{ success: boolean }>(
+            `/projects/clients/${clientId}/documents/${docId}?userId=${this.userId}`,
+            { method: 'DELETE' }
+        );
+    }
+
     async addPhaseObservation(phaseId: string, content: string) {
         if (!this.userId) return { error: 'No hay sesion activa' };
         return this.request<{ observation: import('../types').PhaseObservation }>(

@@ -16,6 +16,9 @@ import {
     getPhaseDocuments,
     addPhaseDocument,
     removePhaseDocument,
+    getClientDocuments,
+    addClientDocument,
+    removeClientDocument,
     getClientCloudFiles,
     getPhaseObservations,
     addPhaseObservation,
@@ -135,6 +138,73 @@ router.put('/clients/:id/fiscal', requireConsultor, async (req: Request, res: Re
         res.json({ profile });
     } catch (error: any) {
         console.error('Error al actualizar campos fiscales:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ==================== CLIENT DOCUMENTS ====================
+
+// GET /api/projects/clients/:id/documents?userId=xxx
+router.get('/clients/:id/documents', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const documents = await getClientDocuments(req.params.id as string);
+        res.json({ documents });
+    } catch (error: any) {
+        console.error('Error al obtener documentos del cliente:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/projects/clients/:id/documents?userId=xxx
+router.post('/clients/:id/documents', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const userId = req.query.userId as string;
+        const { fileUrl, fileName, fileType, fileSize } = req.body;
+        if (!fileUrl || !fileName) {
+            return res.status(400).json({ error: 'fileUrl y fileName son requeridos' });
+        }
+        const document = await addClientDocument({
+            clientId: req.params.id as string,
+            fileUrl, fileName, fileType, fileSize,
+            source: 'upload',
+            uploadedBy: userId,
+        });
+        res.status(201).json({ document });
+    } catch (error: any) {
+        console.error('Error al agregar documento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/projects/clients/:id/documents/link?userId=xxx
+router.post('/clients/:id/documents/link', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        const userId = req.query.userId as string;
+        const { messageId, fileUrl, fileName, fileType } = req.body;
+        if (!fileUrl || !fileName) {
+            return res.status(400).json({ error: 'fileUrl y fileName son requeridos' });
+        }
+        const document = await addClientDocument({
+            clientId: req.params.id as string,
+            fileUrl, fileName, fileType,
+            source: 'message',
+            messageId,
+            uploadedBy: userId,
+        });
+        res.status(201).json({ document });
+    } catch (error: any) {
+        console.error('Error al vincular documento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// DELETE /api/projects/clients/:id/documents/:docId?userId=xxx
+router.delete('/clients/:id/documents/:docId', requireConsultor, async (req: Request, res: Response) => {
+    try {
+        await removeClientDocument(req.params.docId as string);
+        res.json({ success: true });
+    } catch (error: any) {
+        console.error('Error al eliminar documento:', error);
         res.status(500).json({ error: error.message });
     }
 });

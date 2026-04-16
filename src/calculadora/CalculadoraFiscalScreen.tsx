@@ -127,12 +127,15 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
 
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
+                    showsVerticalScrollIndicator={false}
                 >
                     {/* Logos */}
                     <View style={styles.logosContainer}>
@@ -238,7 +241,7 @@ export function CalculadoraFiscalScreen({ navigation }: Props) {
                         <ResultadoPanel resultado={resultado} colors={colors} />
                     )}
 
-                    <View style={{ height: 40 }} />
+                    <View style={{ height: 320 }} />
                 </ScrollView>
             </KeyboardAvoidingView>
         </View>
