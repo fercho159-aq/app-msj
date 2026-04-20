@@ -44,9 +44,8 @@ export const CreateGroupScreen: React.FC<CreateGroupScreenProps> = ({ navigation
             api.setUserRole('consultor');
             const result = await api.getUsers();
             if (result.data?.users) {
-                // Filtrar solo usuarios y asesores (excluir consultores)
                 const filteredUsers = result.data.users.filter(
-                    u => u.id !== user?.id && u.role !== 'consultor'
+                    u => u.id !== user?.id
                 );
                 setAllUsers(filteredUsers);
             }
@@ -108,7 +107,7 @@ export const CreateGroupScreen: React.FC<CreateGroupScreenProps> = ({ navigation
     const renderUserItem = ({ item }: { item: User }) => {
         const isSelected = selectedUsers.has(item.id);
         const displayName = item.name || 'Usuario';
-        const roleLabel = item.role === 'asesor' ? 'Asesor' : 'Usuario';
+        const roleLabel = item.role === 'asesor' ? 'Asesor' : item.role === 'consultor' ? 'Consultor' : 'Usuario';
 
         return (
             <TouchableOpacity
