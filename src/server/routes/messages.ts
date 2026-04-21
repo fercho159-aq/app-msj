@@ -63,10 +63,17 @@ router.post('/', async (req: Request, res: Response) => {
             media_url: mediaUrl,
         });
 
+        const senderRows = await query<{ id: string; rfc: string; name: string | null; avatar_url: string | null }>(
+            `SELECT id, rfc, name, avatar_url FROM users WHERE id = $1`,
+            [senderId]
+        );
+        const senderData = senderRows[0] || null;
+
         const sentMessage = {
             id: message.id,
             chatId: message.chat_id,
             senderId: message.sender_id,
+            sender: senderData,
             text: message.text,
             type: message.message_type,
             mediaUrl: message.media_url,
