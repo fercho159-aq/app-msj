@@ -75,6 +75,7 @@ interface MessageBubbleProps {
     isOwn: boolean;
     showTail: boolean;
     showSenderName: boolean;
+    senderDisplayName?: string | null;
     onMediaPress?: (url: string, type: string, fileName?: string) => void;
     colors: any;
 }
@@ -90,7 +91,7 @@ const getSenderColor = (senderId: string): string => {
     return SENDER_NAME_COLORS[Math.abs(hash) % SENDER_NAME_COLORS.length];
 };
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail, showSenderName, onMediaPress, colors }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail, showSenderName, senderDisplayName, onMediaPress, colors }) => {
     const getStatusIcon = (): { icon: string; color: string } => {
         switch (message.status) {
             case 'sent': return { icon: '✓', color: 'rgba(255,255,255,0.5)' };
@@ -235,9 +236,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isOwn, showTail,
                     : [styles.otherBubble, { backgroundColor: colors.messageReceived }]
             ]}>
 
-                {showSenderName && !isOwn && message.sender?.name && (
+                {showSenderName && !isOwn && (senderDisplayName || message.sender?.name) && (
                     <Text style={[styles.senderName, { color: getSenderColor(message.senderId) }]}>
-                        {message.sender.name}
+                        {senderDisplayName || message.sender?.name}
                     </Text>
                 )}
 
@@ -1110,6 +1111,8 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                             const previousMessage = messages[index - 1];
                             const showTail = !previousMessage || previousMessage.senderId !== item.senderId;
                             const showSenderName = !!chatInfo?.isGroup && showTail;
+                            const participant = chatInfo?.participants?.find(p => p.id === item.senderId);
+                            const senderDisplayName = item.sender?.name || participant?.name || participant?.rfc || null;
                             const canAct = isConsultor || isOwn;
                             return (
                                 <TouchableOpacity
@@ -1117,7 +1120,7 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({ route, navigation }) => 
                                     onLongPress={() => canAct && handleMessageLongPress(item)}
                                     delayLongPress={400}
                                 >
-                                    <MessageBubble message={item} isOwn={isOwn} showTail={showTail} showSenderName={showSenderName} onMediaPress={handleMediaPreview} colors={colors} />
+                                    <MessageBubble message={item} isOwn={isOwn} showTail={showTail} showSenderName={showSenderName} senderDisplayName={senderDisplayName} onMediaPress={handleMediaPreview} colors={colors} />
                                 </TouchableOpacity>
                             );
                         }}

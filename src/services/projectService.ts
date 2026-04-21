@@ -74,6 +74,13 @@ export async function getClients(
     };
 }
 
+export class DuplicateRfcError extends Error {
+    constructor(public rfc: string) {
+        super(`El RFC ${rfc} ya está registrado`);
+        this.name = 'DuplicateRfcError';
+    }
+}
+
 export async function createClient(data: {
     rfc: string;
     name?: string;
@@ -86,16 +93,16 @@ export async function createClient(data: {
     domicilio?: string;
     curp?: string;
 }): Promise<ClientFiscalProfile> {
-    const result = await queryOne<ClientFiscalProfile>(`
-        INSERT INTO users (rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp, role)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'usuario')
-        RETURNING id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
-            curp, regimen_fiscal, codigo_postal, estado, domicilio,
-            capital::text, efirma_expiry::text, csd_expiry::text,
-            efirma_delivery_date::text, efirma_link, efirma_file_url,
-            created_at::text
-    `, [
-        data.rfc,
+    const existing = await queryOne<{ id: string; deleted_at: string | null; role: string | null }>(
+        `SELECT id, deleted_at::text, role FROM users WHERE rfc = $1`,
+        [data.rfc]
+    );
+
+    if (existing && !existing.deleted_at) {
+        throw new DuplicateRfcError(data.rfc);
+    }
+
+    const params = [
         data.name || null,
         data.razon_social || null,
         data.phone || null,
@@ -105,7 +112,42 @@ export async function createClient(data: {
         data.estado || null,
         data.domicilio || null,
         data.curp || null,
-    ]);
+    ];
+
+    if (existing && existing.deleted_at) {
+        const restored = await queryOne<ClientFiscalProfile>(`
+            UPDATE users SET
+                deleted_at = NULL,
+                name = COALESCE($2, name),
+                razon_social = COALESCE($3, razon_social),
+                phone = COALESCE($4, phone),
+                tipo_persona = COALESCE($5, tipo_persona),
+                regimen_fiscal = COALESCE($6, regimen_fiscal),
+                codigo_postal = COALESCE($7, codigo_postal),
+                estado = COALESCE($8, estado),
+                domicilio = COALESCE($9, domicilio),
+                curp = COALESCE($10, curp),
+                role = COALESCE(role, 'usuario')
+            WHERE rfc = $1
+            RETURNING id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
+                curp, regimen_fiscal, codigo_postal, estado, domicilio,
+                capital::text, efirma_expiry::text, csd_expiry::text,
+                efirma_delivery_date::text, efirma_link, efirma_file_url,
+                created_at::text
+        `, [data.rfc, ...params]);
+        if (!restored) throw new Error('Error al restaurar cliente');
+        return restored;
+    }
+
+    const result = await queryOne<ClientFiscalProfile>(`
+        INSERT INTO users (rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp, role)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'usuario')
+        RETURNING id, rfc, name, avatar_url, phone, razon_social, tipo_persona,
+            curp, regimen_fiscal, codigo_postal, estado, domicilio,
+            capital::text, efirma_expiry::text, csd_expiry::text,
+            efirma_delivery_date::text, efirma_link, efirma_file_url,
+            created_at::text
+    `, [data.rfc, ...params]);
 
     if (!result) throw new Error('Error al crear cliente');
     return result;

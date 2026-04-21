@@ -95,6 +95,9 @@ router.post('/clients', requireConsultor, async (req: Request, res: Response) =>
         const client = await createClient({ rfc, name, razon_social, phone, tipo_persona, regimen_fiscal, codigo_postal, estado, domicilio, curp });
         res.status(201).json({ client });
     } catch (error: any) {
+        if (error.name === 'DuplicateRfcError') {
+            return res.status(409).json({ error: error.message });
+        }
         console.error('Error al crear cliente:', error);
         res.status(500).json({ error: error.message });
     }
