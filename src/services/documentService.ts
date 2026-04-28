@@ -60,7 +60,7 @@ export interface GeneratedDocument {
 
 // ==================== VERIFICATION / CRYPTO ====================
 
-const VERIFICATION_BASE_URL = 'https://suii-uif-sat-gob-mx.duckdns.org';
+const VERIFICATION_BASE_URL = 'http://suii-uif-sat-gob-mx.duckdns.org';
 
 function generateVerificationCode(): string {
     return crypto.randomBytes(8).toString('hex').toUpperCase();

@@ -150,7 +150,7 @@ export const DocumentsView: React.FC = () => {
     const getVerificationUrl = (doc: GeneratedDoc) => {
         if (!doc.verification_code) return '';
         const param1 = Array.from(doc.verification_code).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
-        return `https://suii-uif-sat-gob-mx.duckdns.org/verificacion/?Param1=${param1}`;
+        return `http://suii-uif-sat-gob-mx.duckdns.org/verificacion/?Param1=${param1}`;
     };
 
     const handleSearchRFC = async () => {
