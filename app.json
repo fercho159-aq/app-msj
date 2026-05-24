@@ -29,7 +29,7 @@
           "remote-notification"
         ]
       },
-      "buildNumber": "22"
+      "buildNumber": "23"
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.fernandotrejo.consultora",
-      "versionCode": 25,
+      "versionCode": 26,
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
