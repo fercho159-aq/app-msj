@@ -8,6 +8,7 @@ import {
     StatusBar,
     Image,
     Alert,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -72,6 +73,13 @@ export const SettingsScreen: React.FC = () => {
     const navigation = useNavigation<SettingsNavigationProp>();
 
     const handleLogout = () => {
+        // Alert.alert con botones no dispara onPress en react-native-web.
+        if (Platform.OS === 'web') {
+            if (window.confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                logout();
+            }
+            return;
+        }
         Alert.alert(
             'Cerrar sesión',
             '¿Estás seguro de que deseas cerrar sesión?',
@@ -89,6 +97,16 @@ export const SettingsScreen: React.FC = () => {
     };
 
     const handleDeleteAccount = () => {
+        if (Platform.OS === 'web') {
+            if (!window.confirm('¿Estás seguro de que deseas eliminar tu cuenta? Esta acción es permanente y se borrarán todos tus datos.')) return;
+            if (!window.confirm('Esta acción no se puede deshacer. ¿Deseas continuar?')) return;
+            deleteAccount().then((result) => {
+                if (!result.success) {
+                    window.alert(result.error || 'No se pudo eliminar la cuenta. Intenta de nuevo.');
+                }
+            });
+            return;
+        }
         Alert.alert(
             'Eliminar cuenta',
             '¿Estás seguro de que deseas eliminar tu cuenta? Esta acción es permanente y se borrarán todos tus datos.',

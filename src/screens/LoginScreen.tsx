@@ -1727,7 +1727,7 @@ Para cualquier duda o aclaración, puede contactarnos a través de los canales o
             <View style={styles.content}>
                 <View style={styles.logoContainer}>
                     <Image
-                        source={require('../../assets/logo.png')}
+                        source={require('../../assets/logo-bienvenido.png')}
                         style={styles.logo}
                         resizeMode="contain"
                     />
