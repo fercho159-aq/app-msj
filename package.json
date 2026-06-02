@@ -12,7 +12,8 @@
     "db:migrate:notifications": "npx ts-node --project tsconfig.server.json src/database/migrate-notifications.ts",
     "db:migrate:projects": "npx ts-node --project tsconfig.server.json src/database/migrate-projects.ts",
     "db:migrate:client-soft-delete": "npx ts-node --project tsconfig.server.json src/database/migrate-client-soft-delete.ts",
-    "db:migrate:efirma-fields": "npx ts-node --project tsconfig.server.json src/database/migrate-efirma-fields.ts"
+    "db:migrate:efirma-fields": "npx ts-node --project tsconfig.server.json src/database/migrate-efirma-fields.ts",
+    "db:seed:uif": "npx ts-node --project tsconfig.server.json src/database/seed-uif-template.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
