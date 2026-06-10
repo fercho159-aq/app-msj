@@ -154,7 +154,7 @@ router.post('/ai-chat', async (req: Request, res: Response) => {
 
 // Funcion auxiliar para llamar a CheckID API
 async function fetchCheckIdData(rfcNorm: string) {
-    const CHECKID_API_KEY = 'htQ6wNqfy33zIcYfVin6DXT54b0lg2ITR+lk5F3oGcU=';
+    const CHECKID_API_KEY = 'B3IJ0f7b8djlrXO13VUfL+WJkg3LufoPgBMW92f/6Lc=';
     const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
 
     const controller = new AbortController();
