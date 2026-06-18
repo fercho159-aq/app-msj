@@ -2,7 +2,7 @@
  * INPC General Mensual - Base segunda quincena julio 2018 = 100
  * Serie 628194 INEGI
  * Fuente: INEGI / DOF
- * Ultima actualizacion: Febrero 2026
+ * Ultima actualizacion: Mayo 2026
  */
 import { InpcEntry } from '../types';
 
@@ -218,6 +218,9 @@ export const INPC_DATA: InpcEntry[] = [
     // 2026
     { fecha: "2026/01", valor: 143.588 },
     { fecha: "2026/02", valor: 144.307 },
+    { fecha: "2026/03", valor: 145.544 },
+    { fecha: "2026/04", valor: 145.831 },
+    { fecha: "2026/05", valor: 145.527 },
 ];
 
 /** Ultimo periodo disponible */
