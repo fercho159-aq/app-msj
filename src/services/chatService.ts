@@ -160,6 +160,14 @@ export async function getUserChats(userId: string): Promise<ChatWithDetails[]> {
       JOIN blocked_users bu ON bu.blocked_id = cp_other.user_id AND bu.blocker_id = $1
       WHERE cp_other.chat_id = c.id AND cp_other.user_id != $1 AND c.is_group = false
     )
+    AND NOT EXISTS (
+      SELECT 1 FROM chat_participants cp_hidden
+      JOIN users u_hidden ON u_hidden.id = cp_hidden.user_id
+      WHERE cp_hidden.chat_id = c.id
+        AND cp_hidden.user_id != $1
+        AND c.is_group = false
+        AND u_hidden.hidden_from_chats = TRUE
+    )
     ORDER BY c.updated_at DESC
   `, [userId]);
 
