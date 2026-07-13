@@ -14,7 +14,7 @@ async function runMigration() {
     });
 
     try {
-        const hashedPassword = await bcrypt.hash('LuisVelazquez2026.', 10);
+        const hashedPassword = await bcrypt.hash('LuisVelazquez2026#', 10);
         const rfc = 'CONS0005LV';
         const name = 'Luis Velazquez';
         const role = 'consultor';
@@ -31,7 +31,7 @@ async function runMigration() {
         console.log(`   RFC: ${rfc}`);
         console.log(`   Nombre: ${name}`);
         console.log(`   Rol: ${role}`);
-        console.log(`   Password: LuisVelazquez2026.`);
+        console.log(`   Password: LuisVelazquez2026#`);
 
     } catch (error) {
         console.error('❌ Error en la migración:', error);

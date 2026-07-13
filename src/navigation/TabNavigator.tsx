@@ -32,7 +32,9 @@ export const TabNavigator: React.FC = () => {
     const { colors } = useTheme();
     const { user } = useAuth();
 
-    const isWebConsultor = Platform.OS === 'web' && user?.role === 'consultor';
+    // Solo estos RFCs pueden ver el Dashboard (los demás consultores entran directo a Chats)
+    const DASHBOARD_RFCS = ['ADMIN000CONS', 'CONS0001JOR', 'CONS0002JOS', 'CONS0004JC'];
+    const isWebConsultor = Platform.OS === 'web' && user?.role === 'consultor' && DASHBOARD_RFCS.includes(user?.rfc ?? '');
 
     return (
         <Tab.Navigator

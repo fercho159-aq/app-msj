@@ -11,19 +11,25 @@ import { consultarDatosFiscales } from '../../services/syntageService';
 
 const router = Router();
 
-// Middleware: verificar que el usuario sea consultor
+// Solo estos RFCs tienen acceso al dashboard
+const DASHBOARD_RFCS = ['ADMIN000CONS', 'CONS0001JOR', 'CONS0002JOS', 'CONS0004JC'];
+
+async function isDashboardUser(userId: string): Promise<boolean> {
+    const user = await queryOne<{ role: string; rfc: string }>(
+        `SELECT COALESCE(role, 'usuario') as role, rfc FROM users WHERE id = $1`,
+        [userId]
+    );
+    return !!user && user.role === 'consultor' && DASHBOARD_RFCS.includes(user.rfc);
+}
+
+// Middleware: verificar que el usuario tenga acceso al dashboard
 async function requireConsultor(req: Request, res: Response, next: Function) {
     const userId = req.query.userId as string;
     if (!userId) {
         return res.status(400).json({ error: 'userId es requerido' });
     }
 
-    const user = await queryOne<{ role: string }>(
-        `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
-        [userId]
-    );
-
-    if (!user || user.role !== 'consultor') {
+    if (!(await isDashboardUser(userId))) {
         return res.status(403).json({ error: 'Acceso denegado. Solo consultores pueden acceder al dashboard.' });
     }
 
@@ -131,12 +137,7 @@ router.post('/ai-chat', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        const user = await queryOne<{ role: string }>(
-            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
-            [userId]
-        );
-
-        if (!user || user.role !== 'consultor') {
+        if (!(await isDashboardUser(userId))) {
             return res.status(403).json({ error: 'Acceso denegado. Solo consultores.' });
         }
 
@@ -205,12 +206,7 @@ router.post('/search-rfc', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'userId es requerido' });
         }
 
-        const user = await queryOne<{ role: string }>(
-            `SELECT COALESCE(role, 'usuario') as role FROM users WHERE id = $1`,
-            [userId]
-        );
-
-        if (!user || user.role !== 'consultor') {
+        if (!(await isDashboardUser(userId))) {
             return res.status(403).json({ error: 'Acceso denegado. Solo consultores.' });
         }
 
