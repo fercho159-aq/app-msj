@@ -118,6 +118,7 @@ router.get('/unclaimed-users', requireConsultor, async (req: Request, res: Respo
             WHERE u.role = 'usuario'
               AND u.claimed_by IS NULL
               AND u.id != $1
+              AND u.hidden_from_chats = FALSE
             ORDER BY u.created_at DESC
         `, [adminUser.id]);
 

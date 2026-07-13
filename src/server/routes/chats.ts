@@ -112,6 +112,7 @@ router.get('/unclaimed', async (req: Request, res: Response) => {
             WHERE u.role = 'usuario'
               AND u.claimed_by IS NULL
               AND u.id != $1
+              AND u.hidden_from_chats = FALSE
             ORDER BY u.created_at DESC
         `, [adminUser.id]);
 

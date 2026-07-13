@@ -211,6 +211,7 @@ export async function searchUsers(
     let sql = `
     SELECT * FROM users
     WHERE (name ILIKE $1 OR rfc ILIKE $1)
+    AND hidden_from_chats = FALSE
   `;
     const params: any[] = [`%${searchTerm}%`];
     let paramIndex = 2;
@@ -240,10 +241,13 @@ export async function getAllUsers(requesterRole?: UserRole): Promise<User[]> {
     // Usuarios y asesores solo ven consultores
     // Consultores ven a todos
     if (role === 'usuario' || role === 'asesor') {
-        return query<User>('SELECT * FROM users WHERE role = $1 ORDER BY name', ['consultor']);
+        return query<User>(
+            'SELECT * FROM users WHERE role = $1 AND hidden_from_chats = FALSE ORDER BY name',
+            ['consultor']
+        );
     }
 
-    return query<User>('SELECT * FROM users ORDER BY name');
+    return query<User>('SELECT * FROM users WHERE hidden_from_chats = FALSE ORDER BY name');
 }
 
 // Actualizar estado del usuario
