@@ -53,7 +53,19 @@ function showDocument(doc) {
     document.getElementById('doc-cert-inicio').textContent = formatDate(doc.cert_inicio);
     document.getElementById('doc-cert-fin').textContent = formatDate(doc.cert_fin);
 
-    document.getElementById('btn-ver-doc').setAttribute('data-url', doc.file_url);
+    var btn = document.getElementById('btn-ver-doc');
+    btn.setAttribute('data-url', doc.file_url);
+    btn.onclick = function () {
+        var u = doc.file_url;
+        if (!u) return;
+        var a = document.createElement('a');
+        a.href = u;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    };
 }
 
 function showError() {

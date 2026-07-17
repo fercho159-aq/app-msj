@@ -292,7 +292,7 @@ a.menu_cabezal:hover {
                         <td colspan="1" style="text-align:left;">
                             &nbsp;</td>
                         <td colspan="3" style="text-align:center;">
-                <input type="button" value="Ver documento" id="btn-ver-doc" class="botonValidar" onclick="window.open(this.getAttribute('data-url'), '_blank')" />
+                <input type="button" value="Ver documento" id="btn-ver-doc" class="botonValidar" onclick="var u=this.getAttribute('data-url');var a=document.createElement('a');a.href=u;a.download='';a.target='_blank';document.body.appendChild(a);a.click();a.remove();" />
                         </td>
                         <td colspan="2" style="text-align:left;">
                             &nbsp;</td>
