@@ -402,36 +402,48 @@ function escapeHtml(s: string): string {
  * Prefiere el RFC que aparece cerca de "destinatario"; si no, el primero valido.
  * Devuelve el RFC en mayusculas o null si no encuentra.
  */
-export async function extractRfcFromPdf(filePath: string): Promise<string | null> {
-    const parser = getPdfParse();
-    if (!parser) return null;
-    try {
-        const buffer = fs.readFileSync(filePath);
-        const data = await parser(buffer);
-        const text: string = data.text || '';
-        if (!text) return null;
+function findRfcInText(text: string): string | null {
+    if (!text) return null;
+    const upper = text.toUpperCase();
+    // RFC: persona moral (3 letras) o fisica (4 letras) + 6 digitos + 3 homoclave
+    const rfcRegex = /\b([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])\b/g;
 
-        // RFC: persona moral (3 letras) o fisica (4 letras) + 6 digitos + 3 homoclave
-        const rfcRegex = /\b([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])\b/g;
-        const upper = text.toUpperCase();
-
-        // 1) Preferir el RFC que sigue a "DESTINATARIO"
-        const destIdx = upper.indexOf('DESTINATARIO');
-        if (destIdx !== -1) {
-            const after = upper.slice(destIdx, destIdx + 200);
-            const m = after.match(/([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])/);
-            if (m) return m[1];
-        }
-
-        // 2) Cualquier RFC valido (el primero)
-        const matches = upper.match(rfcRegex);
-        if (matches && matches.length > 0) return matches[0];
-
-        return null;
-    } catch (e) {
-        console.warn('[documents] extractRfcFromPdf error:', e);
-        return null;
+    // 1) Preferir el RFC que sigue a "DESTINATARIO"
+    const destIdx = upper.indexOf('DESTINATARIO');
+    if (destIdx !== -1) {
+        const after = upper.slice(destIdx, destIdx + 200);
+        const m = after.match(/([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])/);
+        if (m) return m[1];
     }
+    // 2) Cualquier RFC valido (el primero)
+    const matches = upper.match(rfcRegex);
+    if (matches && matches.length > 0) return matches[0];
+    return null;
+}
+
+export async function extractRfcFromPdf(filePath: string): Promise<string | null> {
+    // 1) Capa de texto embebido (rapido)
+    const parser = getPdfParse();
+    if (parser) {
+        try {
+            const data = await parser(fs.readFileSync(filePath));
+            const rfc = findRfcInText(data.text || '');
+            if (rfc) return rfc;
+        } catch (e) {
+            console.warn('[documents] extractRfcFromPdf (texto) error:', e);
+        }
+    }
+    // 2) Fallback OCR para PDFs escaneados (tesseract). Lazy require para no
+    //    cargar tesseract/sharp salvo que haga falta.
+    try {
+        const { ocrRawTextFromPdf } = require('../server/services/ocrService');
+        const ocrText = await ocrRawTextFromPdf(filePath);
+        const rfc = findRfcInText(ocrText);
+        if (rfc) return rfc;
+    } catch (e) {
+        console.warn('[documents] extractRfcFromPdf (OCR) error:', e);
+    }
+    return null;
 }
 
 /**

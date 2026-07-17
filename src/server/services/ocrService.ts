@@ -463,6 +463,33 @@ async function convertPDFToImage(pdfPath: string): Promise<string | null> {
 }
 
 /**
+ * Devuelve el texto crudo de un PDF: primero capa de texto embebido;
+ * si no hay, convierte la pagina 1 a imagen y ejecuta OCR (tesseract).
+ * Uso: extraer RFC de PDFs escaneados.
+ */
+export async function ocrRawTextFromPdf(filePath: string): Promise<string> {
+    try {
+        const pdfResult = await processPDF(filePath);
+        if (pdfResult && pdfResult.text && pdfResult.text.trim().length > 50) {
+            return pdfResult.text;
+        }
+        const img = await convertPDFToImage(filePath);
+        if (!img) return '';
+        try {
+            const processed = await preprocessImage(img);
+            const ocrWorker = await getWorker();
+            const result = await ocrWorker.recognize(processed);
+            return result.data.text || '';
+        } finally {
+            try { if (fs.existsSync(img)) fs.unlinkSync(img); } catch (e) { /* noop */ }
+        }
+    } catch (e) {
+        console.warn('[OCR] ocrRawTextFromPdf error:', e);
+        return '';
+    }
+}
+
+/**
  * Procesa un documento fiscal (imagen o PDF) y extrae los datos via OCR
  */
 export async function processFiscalDocument(filePath: string): Promise<OCRResult> {
