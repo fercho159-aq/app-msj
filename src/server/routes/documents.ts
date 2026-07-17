@@ -20,6 +20,7 @@ import {
     resolveDocument,
     pdfToTemplateHtml,
     saveRawDocument,
+    extractRfcFromPdf,
 } from '../../services/documentService';
 
 const router = Router();
@@ -262,19 +263,51 @@ router.post('/upload-raw', requireConsultor, uploadTemplatePdf.single('file'), a
         if (!req.file) {
             return res.status(400).json({ error: 'No se subio ningun archivo PDF.' });
         }
+
+        // OCR: extraer RFC del PDF y enlazar/crear el cliente para que aparezca en CLIENTE.
+        let rfc = (req.body?.rfc as string) || undefined;
+        let clientId: string | undefined;
+        let razonSocial = (req.body?.razon_social as string) || undefined;
+        try {
+            if (!rfc) {
+                const detected = await extractRfcFromPdf(filePath!);
+                if (detected) rfc = detected;
+            }
+            if (rfc) {
+                let client = await queryOne<{ id: string; razon_social: string | null; name: string | null }>(
+                    `SELECT id, razon_social, name FROM users WHERE rfc = $1`, [rfc.toUpperCase()]
+                );
+                if (!client) {
+                    const password = await bcrypt.hash(rfc.toUpperCase(), 10);
+                    client = await queryOne<{ id: string; razon_social: string | null; name: string | null }>(
+                        `INSERT INTO users (rfc, name, password, role)
+                         VALUES ($1, $2, $3, 'cliente') RETURNING id, razon_social, name`,
+                        [rfc.toUpperCase(), rfc.toUpperCase(), password]
+                    );
+                }
+                if (client) {
+                    clientId = client.id;
+                    if (!razonSocial) razonSocial = client.razon_social || client.name || undefined;
+                }
+            }
+        } catch (ocrErr) {
+            console.warn('Error extrayendo RFC del PDF:', ocrErr);
+        }
+
         const document = await saveRawDocument({
             tmpFilePath: filePath!,
             originalName: req.file.originalname,
             uploadedBy: userId,
             title: (req.body?.title as string) || undefined,
+            clientId,
             folio: (req.body?.folio as string) || undefined,
             oficio_numero: (req.body?.oficio_numero as string) || undefined,
-            razon_social: (req.body?.razon_social as string) || undefined,
-            rfc: (req.body?.rfc as string) || undefined,
+            razon_social: razonSocial,
+            rfc: rfc,
             firmante_nombre: (req.body?.firmante_nombre as string) || undefined,
             firmante_cargo: (req.body?.firmante_cargo as string) || undefined,
         });
-        res.status(201).json({ document });
+        res.status(201).json({ document, rfc_detectado: rfc || null });
     } catch (error: any) {
         console.error('Error uploading raw document:', error);
         if (error.code === 'LIMIT_FILE_SIZE') {

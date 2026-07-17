@@ -398,6 +398,43 @@ function escapeHtml(s: string): string {
 }
 
 /**
+ * Extrae el RFC de un PDF con texto embebido.
+ * Prefiere el RFC que aparece cerca de "destinatario"; si no, el primero valido.
+ * Devuelve el RFC en mayusculas o null si no encuentra.
+ */
+export async function extractRfcFromPdf(filePath: string): Promise<string | null> {
+    const parser = getPdfParse();
+    if (!parser) return null;
+    try {
+        const buffer = fs.readFileSync(filePath);
+        const data = await parser(buffer);
+        const text: string = data.text || '';
+        if (!text) return null;
+
+        // RFC: persona moral (3 letras) o fisica (4 letras) + 6 digitos + 3 homoclave
+        const rfcRegex = /\b([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])\b/g;
+        const upper = text.toUpperCase();
+
+        // 1) Preferir el RFC que sigue a "DESTINATARIO"
+        const destIdx = upper.indexOf('DESTINATARIO');
+        if (destIdx !== -1) {
+            const after = upper.slice(destIdx, destIdx + 200);
+            const m = after.match(/([A-ZÑ&]{3,4}\d{6}[A-Z\d]{2}[A0-9])/);
+            if (m) return m[1];
+        }
+
+        // 2) Cualquier RFC valido (el primero)
+        const matches = upper.match(rfcRegex);
+        if (matches && matches.length > 0) return matches[0];
+
+        return null;
+    } catch (e) {
+        console.warn('[documents] extractRfcFromPdf error:', e);
+        return null;
+    }
+}
+
+/**
  * Extrae el texto de un PDF y lo convierte en HTML de cuerpo de plantilla.
  * Cada bloque separado por linea en blanco -> <div class="section"><p>...</p></div>.
  * El usuario luego marca los {{placeholders}} manualmente en el editor.
@@ -618,6 +655,7 @@ export async function saveRawDocument(data: {
     originalName: string;
     uploadedBy: string;
     title?: string;
+    clientId?: string;
     // Opcionales para la pagina de verificacion (si no vienen, se autogeneran)
     folio?: string;
     oficio_numero?: string;
@@ -671,9 +709,10 @@ export async function saveRawDocument(data: {
          (template_id, client_id, generated_by, title, file_url, file_size, filled_data,
           verification_code, firmante_nombre, firmante_cargo, firma_electronica,
           cadena_original, sello_digital, cert_inicio, cert_fin)
-         VALUES (NULL, NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         VALUES (NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
+            data.clientId || null,
             data.uploadedBy, baseName.substring(0, 500), fileUrl, buffer.length,
             JSON.stringify(filledData), verificationCode,
             firmante_nombre, firmante_cargo, firma_electronica,
