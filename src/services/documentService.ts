@@ -378,6 +378,56 @@ ${htmlBody}
     }
 }
 
+// ==================== PDF IMPORT ====================
+
+let pdfParseLib: any = null;
+function getPdfParse() {
+    if (!pdfParseLib) {
+        try {
+            pdfParseLib = require('pdf-parse');
+        } catch (e) {
+            console.warn('[documents] pdf-parse no disponible:', e);
+            pdfParseLib = null;
+        }
+    }
+    return pdfParseLib;
+}
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Extrae el texto de un PDF y lo convierte en HTML de cuerpo de plantilla.
+ * Cada bloque separado por linea en blanco -> <div class="section"><p>...</p></div>.
+ * El usuario luego marca los {{placeholders}} manualmente en el editor.
+ */
+export async function pdfToTemplateHtml(filePath: string): Promise<{ html: string; chars: number }> {
+    const parser = getPdfParse();
+    if (!parser) throw new Error('Extraccion de PDF no disponible en el servidor');
+
+    const buffer = fs.readFileSync(filePath);
+    const data = await parser(buffer);
+    const text = (data.text || '').trim();
+    if (!text) {
+        throw new Error('No se pudo extraer texto del PDF. Puede ser un PDF escaneado (solo imagen).');
+    }
+
+    const blocks = text.split(/\n\s*\n/).map((b: string) => b.trim()).filter(Boolean);
+    const html = blocks
+        .map((block: string) => {
+            const inner = block
+                .split(/\n/)
+                .map((l: string) => escapeHtml(l.trim()))
+                .filter(Boolean)
+                .join('<br/>');
+            return `<div class="section"><p>${inner}</p></div>`;
+        })
+        .join('\n');
+
+    return { html, chars: text.length };
+}
+
 // ==================== TEMPLATE CRUD ====================
 
 export async function getTemplates(category?: string): Promise<DocumentTemplate[]> {
@@ -552,6 +602,46 @@ export async function generateDocument(data: {
             firmante_nombre, firmante_cargo, firma_electronica,
             cadena_original, sello_digital, cert_inicio, cert_fin,
         ]
+    );
+
+    return doc!;
+}
+
+// ==================== RAW UPLOAD (sin plantilla) ====================
+
+/**
+ * Guarda un PDF subido tal cual como documento generado, sin plantilla ni cliente.
+ * Mueve el archivo temporal a uploads/documents y crea el registro.
+ */
+export async function saveRawDocument(data: {
+    tmpFilePath: string;
+    originalName: string;
+    uploadedBy: string;
+    title?: string;
+}): Promise<GeneratedDocument> {
+    const uploadsDir = path.join(__dirname, '../../uploads/documents');
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const timestamp = Date.now();
+    const baseName = (data.title || data.originalName || 'documento').replace(/\.pdf$/i, '');
+    const safeTitle = baseName.replace(/[^a-zA-Z0-9-_]/g, '_').substring(0, 50) || 'documento';
+    const filename = `${timestamp}-${safeTitle}.pdf`;
+    const destPath = path.join(uploadsDir, filename);
+
+    const buffer = fs.readFileSync(data.tmpFilePath);
+    fs.writeFileSync(destPath, buffer);
+
+    const baseUrl = process.env.BASE_URL || 'https://appsoluciones.duckdns.org';
+    const fileUrl = `${baseUrl}/uploads/documents/${filename}`;
+
+    const doc = await queryOne<GeneratedDocument>(
+        `INSERT INTO generated_documents
+         (template_id, client_id, generated_by, title, file_url, file_size, filled_data)
+         VALUES (NULL, NULL, $1, $2, $3, $4, '{}')
+         RETURNING *`,
+        [data.uploadedBy, baseName.substring(0, 500), fileUrl, buffer.length]
     );
 
     return doc!;

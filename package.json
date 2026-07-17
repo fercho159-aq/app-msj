@@ -13,6 +13,7 @@
     "db:migrate:projects": "npx ts-node --project tsconfig.server.json src/database/migrate-projects.ts",
     "db:migrate:client-soft-delete": "npx ts-node --project tsconfig.server.json src/database/migrate-client-soft-delete.ts",
     "db:migrate:efirma-fields": "npx ts-node --project tsconfig.server.json src/database/migrate-efirma-fields.ts",
+    "db:migrate:documents-raw": "npx ts-node --project tsconfig.server.json src/database/migrate-documents-raw.ts",
     "db:seed:uif": "npx ts-node --project tsconfig.server.json src/database/seed-uif-template.ts"
   },
   "dependencies": {

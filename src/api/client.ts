@@ -1011,7 +1011,7 @@ class ApiClient {
     // ==================== CHECKID API (direct - mobile only) ====================
 
     async consultarRFC(terminoBusqueda: string): Promise<ApiResponse<CheckIdResponse>> {
-        const CHECKID_API_KEY = 'B3IJ0f7b8djlrXO13VUfL+WJkg3LufoPgBMW92f/6Lc=';
+        const CHECKID_API_KEY = 'V46KqUpgxzKG6MlgqO1s/BkWr+94CW+yw7e1uZxzVO0=';
         const CHECKID_URL = 'https://www.checkid.mx/api/Busqueda';
 
         try {
@@ -1093,6 +1093,51 @@ class ApiClient {
     async seedDocumentTemplates() {
         if (!this.userId) return { error: 'No hay sesión activa' };
         return this.request<{ success: boolean }>(`/documents/templates/seed?userId=${this.userId}`, { method: 'POST' });
+    }
+
+    async importTemplatePdf(file: any): Promise<ApiResponse<{ html_content: string; name: string; chars: number }>> {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const url = `${this.baseUrl}/documents/templates/import-pdf?userId=${this.userId}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+            const response = await fetch(url, { method: 'POST', body: formData, signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            if (!response.ok) return { error: data.error || 'Error al importar PDF' };
+            return { data };
+        } catch (error: any) {
+            if (error.name === 'AbortError') return { error: 'El procesamiento del PDF tardó demasiado.' };
+            return { error: 'Error de conexión al importar PDF', isNetworkError: true };
+        }
+    }
+
+    async uploadRawDocument(file: any, title?: string): Promise<ApiResponse<{ document: any }>> {
+        if (!this.userId) return { error: 'No hay sesión activa' };
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            if (title) formData.append('title', title);
+
+            const url = `${this.baseUrl}/documents/upload-raw?userId=${this.userId}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+            const response = await fetch(url, { method: 'POST', body: formData, signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            const data = await response.json();
+            if (!response.ok) return { error: data.error || 'Error al subir documento' };
+            return { data };
+        } catch (error: any) {
+            if (error.name === 'AbortError') return { error: 'La subida tardó demasiado.' };
+            return { error: 'Error de conexión al subir documento', isNetworkError: true };
+        }
     }
 
     async generateDocument(data: { template_id: string; client_id: string; extra_data?: Record<string, string>; title?: string }) {

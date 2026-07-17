@@ -5,6 +5,7 @@ import {
     Modal, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { useTheme } from '../../context/ThemeContext';
 import { api } from '../../api/client';
 
@@ -88,6 +89,8 @@ export const DocumentsView: React.FC = () => {
     const [editPlaceholders, setEditPlaceholders] = useState<PlaceholderDef[]>([]);
     const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+    const [isUploadingRaw, setIsUploadingRaw] = useState(false);
 
     const cardBg = isDark ? '#141414' : '#ffffff';
     const borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
@@ -230,6 +233,73 @@ export const DocumentsView: React.FC = () => {
         await api.seedDocumentTemplates();
         await loadTemplates();
     };
+
+    const handleImportedPdf = async (file: any) => {
+        setIsImporting(true);
+        try {
+            const result = await api.importTemplatePdf(file);
+            if (result.data) {
+                // Prellena el editor con el texto extraido; el usuario marca los {{variables}} y guarda.
+                resetEditor();
+                setEditName(result.data.name || '');
+                setEditCategory('general');
+                setEditHtml(result.data.html_content || '');
+                setView('create-template');
+            } else if (result.error) {
+                alert(result.error);
+            }
+        } catch (e: any) {
+            alert(e.message || 'Error al importar PDF');
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    // Selector de PDF multiplataforma; entrega el archivo al callback.
+    const pickPdf = async (onFile: (file: any) => void) => {
+        if (Platform.OS === 'web') {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/pdf,.pdf';
+            input.onchange = () => {
+                const file = input.files?.[0];
+                if (file) onFile(file);
+            };
+            input.click();
+        } else {
+            try {
+                const res = await DocumentPicker.getDocumentAsync({
+                    type: 'application/pdf',
+                    copyToCacheDirectory: true,
+                });
+                if (res.canceled) return;
+                const asset = res.assets?.[0];
+                if (!asset) return;
+                onFile({ uri: asset.uri, name: asset.name || 'documento.pdf', type: 'application/pdf' });
+            } catch (e: any) {
+                alert('No se pudo abrir el selector de archivos');
+            }
+        }
+    };
+
+    const handleUploadPdf = () => pickPdf(handleImportedPdf);
+
+    const handleUploadRawDoc = () => pickPdf(async (file: any) => {
+        setIsUploadingRaw(true);
+        try {
+            const result = await api.uploadRawDocument(file);
+            if (result.data) {
+                await loadDocuments();
+                setView('generated');
+            } else if (result.error) {
+                alert(result.error);
+            }
+        } catch (e: any) {
+            alert(e.message || 'Error al subir documento');
+        } finally {
+            setIsUploadingRaw(false);
+        }
+    });
 
     const handleGenerate = async () => {
         if (!selectedTemplate || !selectedClient) return;
@@ -774,6 +844,34 @@ export const DocumentsView: React.FC = () => {
                     >
                         <Ionicons name="documents-outline" size={16} color={colors.textSecondary} />
                         <Text style={[styles.outlineBtnText, { color: colors.textSecondary }]}>Generados ({documents.length})</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.outlineBtn, { borderColor }]}
+                        onPress={handleUploadRawDoc}
+                        disabled={isUploadingRaw}
+                    >
+                        {isUploadingRaw ? (
+                            <ActivityIndicator size="small" color={colors.textSecondary} />
+                        ) : (
+                            <Ionicons name="cloud-upload-outline" size={16} color={colors.textSecondary} />
+                        )}
+                        <Text style={[styles.outlineBtnText, { color: colors.textSecondary }]}>
+                            {isUploadingRaw ? 'Subiendo...' : 'Subir documento'}
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.outlineBtn, { borderColor: colors.primary }]}
+                        onPress={handleUploadPdf}
+                        disabled={isImporting}
+                    >
+                        {isImporting ? (
+                            <ActivityIndicator size="small" color={colors.primary} />
+                        ) : (
+                            <Ionicons name="document-attach-outline" size={16} color={colors.primary} />
+                        )}
+                        <Text style={[styles.outlineBtnText, { color: colors.primary }]}>
+                            {isImporting ? 'Procesando...' : 'PDF → Plantilla'}
+                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.primaryBtn, { backgroundColor: colors.primary }]}

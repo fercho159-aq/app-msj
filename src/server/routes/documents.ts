@@ -1,5 +1,8 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 import { query, queryOne } from '../../database/config';
 import {
     getTemplates,
@@ -15,9 +18,29 @@ import {
     seedDefaultTemplate,
     getDocumentByVerificationCode,
     resolveDocument,
+    pdfToTemplateHtml,
+    saveRawDocument,
 } from '../../services/documentService';
 
 const router = Router();
+
+// Almacenamiento temporal para PDFs de plantillas
+const TEMPLATE_TMP_DIR = path.join(__dirname, '../../../uploads/tmp');
+if (!fs.existsSync(TEMPLATE_TMP_DIR)) {
+    fs.mkdirSync(TEMPLATE_TMP_DIR, { recursive: true });
+}
+
+const uploadTemplatePdf = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, TEMPLATE_TMP_DIR),
+        filename: (req, file, cb) => cb(null, `tpl-${Date.now()}-${Math.round(Math.random() * 1e9)}.pdf`),
+    }),
+    limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') cb(null, true);
+        else cb(new Error('Solo se permiten archivos PDF.'));
+    },
+});
 
 // Middleware: verificar que el usuario sea consultor
 async function requireConsultor(req: Request, res: Response, next: Function) {
@@ -201,6 +224,63 @@ router.post('/templates/seed', requireConsultor, async (req: Request, res: Respo
     } catch (error: any) {
         console.error('Error seeding templates:', error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/documents/templates/import-pdf?userId=xxx — sube un PDF y devuelve HTML editable
+router.post('/templates/import-pdf', requireConsultor, uploadTemplatePdf.single('file'), async (req: Request, res: Response) => {
+    const filePath = req.file?.path;
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun archivo PDF.' });
+        }
+        const result = await pdfToTemplateHtml(filePath!);
+        const suggestedName = (req.file.originalname || 'Plantilla')
+            .replace(/\.pdf$/i, '')
+            .substring(0, 100);
+        res.json({ html_content: result.html, name: suggestedName, chars: result.chars });
+    } catch (error: any) {
+        console.error('Error importing template PDF:', error);
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'El archivo es demasiado grande. Maximo 15MB.' });
+        }
+        res.status(500).json({ error: error.message || 'Error al procesar el PDF' });
+    } finally {
+        try {
+            if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } catch (e) {
+            console.error('Error deleting temp PDF:', e);
+        }
+    }
+});
+
+// POST /api/documents/upload-raw?userId=xxx — sube un PDF tal cual (sin plantilla)
+router.post('/upload-raw', requireConsultor, uploadTemplatePdf.single('file'), async (req: Request, res: Response) => {
+    const filePath = req.file?.path;
+    try {
+        const userId = req.query.userId as string;
+        if (!req.file) {
+            return res.status(400).json({ error: 'No se subio ningun archivo PDF.' });
+        }
+        const document = await saveRawDocument({
+            tmpFilePath: filePath!,
+            originalName: req.file.originalname,
+            uploadedBy: userId,
+            title: (req.body?.title as string) || undefined,
+        });
+        res.status(201).json({ document });
+    } catch (error: any) {
+        console.error('Error uploading raw document:', error);
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'El archivo es demasiado grande. Maximo 15MB.' });
+        }
+        res.status(500).json({ error: error.message || 'Error al subir el documento' });
+    } finally {
+        try {
+            if (filePath && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        } catch (e) {
+            console.error('Error deleting temp PDF:', e);
+        }
     }
 });
 
