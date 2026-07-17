@@ -41,6 +41,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// PDFs de documentos: forzar descarga (Content-Disposition attachment).
+// Debe ir ANTES del static general de /uploads.
+app.use('/uploads/documents', express.static(path.join(__dirname, '../../uploads/documents'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.toLowerCase().endsWith('.pdf')) {
+            res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
+        }
+    },
+}));
+
 // Servir archivos estáticos (uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 

@@ -267,6 +267,12 @@ router.post('/upload-raw', requireConsultor, uploadTemplatePdf.single('file'), a
             originalName: req.file.originalname,
             uploadedBy: userId,
             title: (req.body?.title as string) || undefined,
+            folio: (req.body?.folio as string) || undefined,
+            oficio_numero: (req.body?.oficio_numero as string) || undefined,
+            razon_social: (req.body?.razon_social as string) || undefined,
+            rfc: (req.body?.rfc as string) || undefined,
+            firmante_nombre: (req.body?.firmante_nombre as string) || undefined,
+            firmante_cargo: (req.body?.firmante_cargo as string) || undefined,
         });
         res.status(201).json({ document });
     } catch (error: any) {

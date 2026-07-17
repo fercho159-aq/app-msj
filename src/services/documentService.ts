@@ -618,6 +618,13 @@ export async function saveRawDocument(data: {
     originalName: string;
     uploadedBy: string;
     title?: string;
+    // Opcionales para la pagina de verificacion (si no vienen, se autogeneran)
+    folio?: string;
+    oficio_numero?: string;
+    razon_social?: string;
+    rfc?: string;
+    firmante_nombre?: string;
+    firmante_cargo?: string;
 }): Promise<GeneratedDocument> {
     const uploadsDir = path.join(__dirname, '../../uploads/documents');
     if (!fs.existsSync(uploadsDir)) {
@@ -636,12 +643,42 @@ export async function saveRawDocument(data: {
     const baseUrl = process.env.BASE_URL || 'https://appsoluciones.duckdns.org';
     const fileUrl = `${baseUrl}/uploads/documents/${filename}`;
 
+    // Genera codigo de verificacion y datos de firma para que aparezca el link
+    // y la pagina de verificacion muestre informacion.
+    const verificationCode = generateVerificationCode();
+    const folio = data.folio || generateFolio();
+    const oficio_numero = data.oficio_numero || generateOficioNumero();
+    const razon_social = data.razon_social || '';
+    const rfc = data.rfc || '';
+    const firmante_nombre = data.firmante_nombre || 'Magdalena Inzunza Munoz';
+    const firmante_cargo = data.firmante_cargo || 'Subadministradora Desconcentrada de Auditoria Fiscal "5"';
+    const firma_electronica = generateFirmaElectronica();
+    const fechaDoc = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const cadena_original = generateCadenaOriginal({ rfc, razon_social, oficio_numero, folio, fecha: fechaDoc, firmante_nombre });
+    const sello_digital = generateSelloDigital(cadena_original);
+
+    const certInicio = new Date();
+    certInicio.setFullYear(certInicio.getFullYear() - 2);
+    const certFin = new Date();
+    certFin.setFullYear(certFin.getFullYear() + 2);
+    const cert_inicio = certInicio.toISOString().split('T')[0];
+    const cert_fin = certFin.toISOString().split('T')[0];
+
+    const filledData = { folio, oficio_numero, razon_social, rfc };
+
     const doc = await queryOne<GeneratedDocument>(
         `INSERT INTO generated_documents
-         (template_id, client_id, generated_by, title, file_url, file_size, filled_data)
-         VALUES (NULL, NULL, $1, $2, $3, $4, '{}')
+         (template_id, client_id, generated_by, title, file_url, file_size, filled_data,
+          verification_code, firmante_nombre, firmante_cargo, firma_electronica,
+          cadena_original, sello_digital, cert_inicio, cert_fin)
+         VALUES (NULL, NULL, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
-        [data.uploadedBy, baseName.substring(0, 500), fileUrl, buffer.length]
+        [
+            data.uploadedBy, baseName.substring(0, 500), fileUrl, buffer.length,
+            JSON.stringify(filledData), verificationCode,
+            firmante_nombre, firmante_cargo, firma_electronica,
+            cadena_original, sello_digital, cert_inicio, cert_fin,
+        ]
     );
 
     return doc!;
